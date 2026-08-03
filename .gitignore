@@ -1,0 +1,65 @@
+# --- Flutter / Dart -------------------------------------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.dart_tool
+doc/api/
+
+# --- Editors and IDEs -----------------------------------------------------
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# --- Android --------------------------------------------------------------
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+**/*.keystore
+**/*.jks
+*.apk
+*.aab
+
+# --- iOS ------------------------------------------------------------------
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+**/*.mode1v3
+**/*.mode2v3
+**/*.moved-aside
+**/*.pbxuser
+**/*.perspectivev3
+**/xcuserdata/
+
+# --- Platforms this game does not ship on ---------------------------------
+# Android and iOS only. The desktop and web scaffolding that `flutter create`
+# generates is not part of the product: the arena is a fixed portrait board
+# sized for a phone, the controls are touch drags, and none of that has an
+# answer on a desktop window.
+linux/
+macos/
+windows/
+web/
+
+# --- Local working files, not part of the product -------------------------
+*.log
+.env
+.env.*
