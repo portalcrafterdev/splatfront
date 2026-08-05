@@ -1,0 +1,57 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app.dart';
+import 'core/audio.dart';
+import 'core/game_data.dart';
+import 'core/save/hive_boxes.dart';
+import 'core/save/player_profile.dart';
+import 'meta/profile_controller.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Portrait only, on both phones and tablets.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  // Edge to edge, NOT full screen. `Flame.device.fullScreen()` puts the app
+  // in immersive mode, which hides the status bar outright — no clock, no
+  // battery, no signal, for as long as the game is open. That is a fair
+  // trade for a game you look into for hours; it is a bad one for a phone
+  // game played in ninety-second matches, and it is the kind of thing a
+  // player notices and cannot fix.
+  //
+  // Edge to edge keeps the bars visible and lets the app draw behind them,
+  // so nothing shrinks; SafeArea is what keeps content out from under them.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  await HiveBoxes.init();
+  final data = await GameData.load();
+  final saved = HiveBoxes.read();
+  final profile = saved == null
+      ? const PlayerProfile()
+      : PlayerProfile.fromJson(saved);
+
+  // Awaited so the first card played is not the one that stutters while its
+  // clip decodes. It cannot throw: a device with no audio just stays silent.
+  await Audio.init();
+  Audio.setVolumes(
+    music: profile.settings.musicVolume,
+    sfx: profile.settings.sfxVolume,
+  );
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        gameDataProvider.overrideWithValue(data),
+        profileProvider.overrideWith(
+          (ref) => ProfileController(data: data, initial: profile),
+        ),
+      ],
+      child: const SplatfrontApp(),
+    ),
+  );
+}
