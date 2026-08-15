@@ -1,0 +1,42 @@
+{
+  "_comment": "Starter decks. Six distinct cards each, per the reference-game analysis in CLAUDE.md section 17: six is the better mobile format, and it forces every deck to answer air rather than carrying a spare body. Every card named here must have a component behind it. Deck building by the player arrives in Phase 7.",
+  "_airComment": "Every deck must contain at least one card whose targets include air, or a single flyer wins the match unopposed. Enforced by cards_test.dart.",
+  "decks": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "cards": [
+        "roller",
+        "brusher",
+        "pin",
+        "sprayer",
+        "turret",
+        "paint_bomb"
+      ]
+    },
+    {
+      "id": "air_pressure",
+      "name": "Air Pressure",
+      "cards": [
+        "kite",
+        "roller",
+        "nozzle",
+        "pin",
+        "sprinkler",
+        "freeze"
+      ]
+    },
+    {
+      "id": "ground_control",
+      "name": "Ground Control",
+      "cards": [
+        "swarmlets",
+        "roller",
+        "warden",
+        "sprayer",
+        "barricade",
+        "solvent"
+      ]
+    }
+  ]
+}
