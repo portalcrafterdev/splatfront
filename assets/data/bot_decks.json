@@ -1,0 +1,81 @@
+{
+  "_comment": "Bot tuning and one deck per trophy arena. Every card named here must have a component behind it.",
+  "_difficultyComment": "lanePrecision and cardPrecision are how often the bot plays into the third of the arena it is losing, and plays the best card in hand, rather than picking at random. They are what separates the tiers: with every tier at 1.0, twenty ninety-second bot-versus-bot duels put Easy at 11/20 against Hard in one seating and 9/20 in the other, no gradient at all. Reaction delay and waste rate change how BUSY a side looks, which is what a player actually feels. Measured over six ninety-second matches at these numbers the bot plays 7.7 cards and spends 25.8 elixir on Easy, 9.7 and 35.3 on Normal, 14.7 and 51.8 on Hard, against a human ceiling of eighteen plays. Easy at half of Hard output is deliberate: the bot never misses a turn window and a person does.",
+  "difficulties": {
+    "easy": {
+      "reactionDelay": 4.0,
+      "elixirWasteRate": 0.85,
+      "countersThreats": false,
+      "playsSpells": false,
+      "lanePrecision": 0,
+      "cardPrecision": 0
+    },
+    "normal": {
+      "reactionDelay": 2.0,
+      "elixirWasteRate": 0.45,
+      "countersThreats": true,
+      "playsSpells": true,
+      "lanePrecision": 0.5,
+      "cardPrecision": 0.5
+    },
+    "hard": {
+      "reactionDelay": 0.9,
+      "elixirWasteRate": 0.15,
+      "countersThreats": true,
+      "playsSpells": true,
+      "lanePrecision": 0.9,
+      "cardPrecision": 0.9
+    }
+  },
+  "decks": [
+    {
+      "arena": "arena_1",
+      "name": "First Coat",
+      "cards": [
+        "roller",
+        "brusher",
+        "pin",
+        "sprayer",
+        "turret",
+        "freeze"
+      ]
+    },
+    {
+      "arena": "arena_2",
+      "name": "Drip Feed",
+      "cards": [
+        "dab",
+        "roller",
+        "brusher",
+        "kite",
+        "pin",
+        "bucket_bot"
+      ]
+    },
+    {
+      "arena": "arena_3",
+      "name": "Long Reach",
+      "cards": [
+        "roller",
+        "nozzle",
+        "kite",
+        "pin",
+        "sprinkler",
+        "bucket_bot"
+      ]
+    },
+    {
+      "arena": "arena_4",
+      "name": "Overspray",
+      "cards": [
+        "dab",
+        "roller",
+        "warden",
+        "kite",
+        "sniper_nib",
+        "surge"
+      ]
+    }
+  ],
+  "_deckComment": "Six cards each, per CLAUDE.md section 17. Every deck must be able to answer air and must stay inside the live-building cap. Arena 1 is deliberately the same SHAPE as the player starter deck — same body count, same total cost, one building and one spell each — because it is the first deck anybody meets. It used to run Dab where the player runs Paint Bomb, which is three extra bodies for one less elixir, and with the same brain on both sides that deck alone took the match 17 times in 20 at Hard."
+}
