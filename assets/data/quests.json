@@ -1,0 +1,13 @@
+{
+  "_comment": "Daily quests. Three are drawn from this pool each day, seeded by the date so everyone on a device gets a stable set.",
+  "dailyCount": 3,
+  "pool": [
+    { "id": "win_two",        "type": "winMatches",  "target": 2,  "coins": 100, "text": "Win 2 matches" },
+    { "id": "win_one",        "type": "winMatches",  "target": 1,  "coins": 50,  "text": "Win a match" },
+    { "id": "paint_forty",    "type": "paintShare",  "target": 40, "coins": 80,  "text": "Paint 40% in a match" },
+    { "id": "paint_sixty",    "type": "paintShare",  "target": 60, "coins": 140, "text": "Paint 60% in a match" },
+    { "id": "spells_fifteen", "type": "playSpells",  "target": 15, "coins": 90,  "text": "Play 15 spell cards" },
+    { "id": "cards_forty",    "type": "playCards",   "target": 40, "coins": 70,  "text": "Play 40 cards" },
+    { "id": "play_three",     "type": "playMatches", "target": 3,  "coins": 60,  "text": "Play 3 matches" }
+  ]
+}

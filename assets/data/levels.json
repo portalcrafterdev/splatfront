@@ -1,0 +1,32 @@
+{
+  "arenas": [
+    {
+      "id": "arena_1",
+      "name": "Primer Yard",
+      "trophies": 0,
+      "floor": "#F6F1E7",
+      "blockers": []
+    },
+    {
+      "id": "arena_2",
+      "name": "Drip Works",
+      "trophies": 400,
+      "floor": "#F3EDE0",
+      "blockers": []
+    },
+    {
+      "id": "arena_3",
+      "name": "Solvent Flats",
+      "trophies": 900,
+      "floor": "#F7F0E2",
+      "blockers": []
+    },
+    {
+      "id": "arena_4",
+      "name": "Overspray Dome",
+      "trophies": 1500,
+      "floor": "#F1EADB",
+      "blockers": []
+    }
+  ]
+}

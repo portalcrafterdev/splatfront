@@ -1,0 +1,13 @@
+{
+  "_comment": "Card levels 1 to 9. Each entry is the cost to reach that level from the one below: duplicate cards plus coins. Levels add +8% HP and damage each (levelScaling in cards.json); cost never changes.",
+  "levels": [
+    { "level": 2, "copies": 2,   "coins": 5 },
+    { "level": 3, "copies": 4,   "coins": 20 },
+    { "level": 4, "copies": 10,  "coins": 50 },
+    { "level": 5, "copies": 20,  "coins": 150 },
+    { "level": 6, "copies": 50,  "coins": 400 },
+    { "level": 7, "copies": 100, "coins": 1000 },
+    { "level": 8, "copies": 200, "coins": 2000 },
+    { "level": 9, "copies": 400, "coins": 5000 }
+  ]
+}

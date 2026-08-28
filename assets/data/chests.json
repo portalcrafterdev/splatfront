@@ -1,0 +1,41 @@
+{
+  "_comment": "Chest types and the reward bands they roll. Durations are in seconds. Two slots to start, four from Arena 2.",
+
+  "slots": { "initial": 2, "unlocked": 4, "unlockAtTrophies": 400 },
+
+  "_dropComment": "Relative weights for which chest a win awards.",
+  "types": [
+    {
+      "id": "wood",
+      "name": "Wood",
+      "seconds": 180,
+      "dropWeight": 50,
+      "coins": { "min": 20, "max": 40 },
+      "cards": { "min": 3, "max": 5 }
+    },
+    {
+      "id": "silver",
+      "name": "Silver",
+      "seconds": 480,
+      "dropWeight": 30,
+      "coins": { "min": 60, "max": 100 },
+      "cards": { "min": 8, "max": 14 }
+    },
+    {
+      "id": "gold",
+      "name": "Gold",
+      "seconds": 10800,
+      "dropWeight": 15,
+      "coins": { "min": 200, "max": 350 },
+      "cards": { "min": 25, "max": 40 }
+    },
+    {
+      "id": "magic",
+      "name": "Magic",
+      "seconds": 28800,
+      "dropWeight": 5,
+      "coins": { "min": 500, "max": 800 },
+      "cards": { "min": 60, "max": 90 }
+    }
+  ]
+}

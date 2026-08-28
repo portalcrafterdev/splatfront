@@ -1,0 +1,6 @@
+{
+  "_comment": "Coins only. No paid currency, no ads, no IAP in v1. The shop sells card copies at a flat rate per rarity-free card, refreshed daily.",
+  "dailyOfferCount": 4,
+  "copiesPerOffer": { "min": 4, "max": 12 },
+  "coinsPerCopy": 12
+}
