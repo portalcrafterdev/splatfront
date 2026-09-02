@@ -1,0 +1,33 @@
+{
+  "_comment": "How a match pays out, and the economy while it runs. Arena unlock thresholds live in levels.json.",
+  "elixir": {
+    "_comment": "Elixir regenerates faster the more of the arena you hold, which is what makes paint your economy and not just your score. The multiplier is 1.0 at an even 50/50 split and moves by this much at the extremes: 0.25 means holding everything regenerates at 1.25x and holding nothing at 0.75x. Raise it to make coverage matter more, but be careful — this is a positive feedback loop, and at 0.45 a side that got ahead early earned about 44% more than the side behind, which snowballed a close match into an unwinnable one.",
+    "territorySpread": 0.25
+  },
+  "hand": {
+    "_comment": "Playing any card locks the WHOLE hand for this many seconds, not just the slot it came from. A turn is one card, so which card you spend matters more than how many you can afford. Tune it carefully: measured over a minute of play, 10s left both sides sitting on full elixir they could not spend and only about 10 bodies reached the field, while 4s put out 18 and 0s put out 19 — past about 5s the lockout, not elixir, becomes the real constraint and the board empties out. Set to 0 to remove it entirely.",
+    "refillSeconds": 5
+  },
+  "deploy": {
+    "_comment": "anywhere=false is the shipped rule: a body may only be dropped on a cell that is currently your own colour, so painting forward is what extends your reach and losing ground pushes your drop line back. Spells ignore it and may target anywhere. This is CLAUDE.md section 17 rule 5 and section 3. It was briefly overridden to anywhere=true on the owner call and then reversed again: dropping onto enemy paint made the deploy line meaningless, since any card could be placed anywhere regardless of who held the ground. claimRadius only applies when anywhere is true, and is kept so flipping this one value restores that behaviour whole; the code and deploy_test.dart still support both.",
+    "anywhere": false,
+    "claimRadius": 1.6
+  },
+  "trophies": {
+    "win": 30,
+    "loss": -25,
+    "_gapComment": "The base is adjusted by how far apart the two sides are. One point of adjustment per this many trophies of gap, capped either way.",
+    "trophiesPerAdjustment": 25,
+    "maxAdjustment": 10,
+    "_botComment": "The bot is treated as this far above or below the player, by difficulty, so beating Hard is worth more than beating Easy.",
+    "botTrophyOffset": {
+      "easy": -150,
+      "normal": 0,
+      "hard": 150
+    }
+  },
+  "buildings": {
+    "_comment": "Live buildings allowed on the board per side. The reference game in CLAUDE.md section 17 had no cap and its reviews are dominated by turret spam: the AI stacked guns at the back of the map with almost no counterplay. The lifetime timer on each building is the other half of the answer, not a substitute — a timer limits how long one stands, a cap limits how many. A deploy over the cap is rejected before it costs elixir.",
+    "maxLive": 3
+  }
+}
