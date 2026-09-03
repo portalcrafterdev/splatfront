@@ -1,60 +1,183 @@
 {
   "levelCount": 1000,
-
   "stars": {
-    "twoStarCoverage": 0.60,
+    "twoStarCoverage": 0.6,
     "threeStarCoverage": 0.75
   },
-
   "_tierComment": "Which levels wear which opponent name. These are level numbers, not shares of the difficulty curve, so the three names split the campaign into three equal blocks of about 300. rampLevels below is deliberately set to the FIRST Veteran level, so the brain reaches full strength exactly as that block opens: the brain has to still be improving for as long as the names say it is, or a 'Novice Bot' at level 280 would already be playing at full strength and the name would be a lie.",
   "tiers": {
     "rivalFrom": 301,
     "veteranFrom": 601
   },
-
   "brain": {
     "rampLevels": 601,
     "exponent": 1.4,
-    "reactionDelay": [5.0, 0.7],
-    "elixirWasteRate": [0.9, 0.1],
-    "lanePrecision": [0.0, 1.0],
-    "cardPrecision": [0.0, 1.0],
+    "reactionDelay": [
+      5,
+      0.7
+    ],
+    "elixirWasteRate": [
+      0.9,
+      0.1
+    ],
+    "lanePrecision": [
+      0,
+      1
+    ],
+    "cardPrecision": [
+      0,
+      1
+    ],
     "countersThreatsFrom": 15,
     "playsSpellsFrom": 30
   },
-
   "_botCardComment": "The bot's cards start levelling where Rival begins, so the whole Novice block is a fight against level 1 cards and stays a place to learn. From 301 the opponent's stats climb as well as its brain, and past 600 — where the brain is maxed — this is the only thing still rising.",
   "botCardLevel": {
     "from": 301,
     "to": 1000,
     "maxLevel": 9
   },
-
   "arenaEveryLevels": 25,
-
   "_unlockComment": "Which campaign level hands over which card. The six in the starter deck are free from the start and are deliberately absent here. Everything else arrives on a curve that front-loads variety (a building, a swarm and a spell inside the first ten levels) and holds the expensive, swingy cards back. The last one lands at 110, just before the bot's own cards start levelling at 120 — so the full roster is in hand exactly when the opponent starts scaling. A card not named here is unlocked from the start.",
   "cardUnlocks": [
-    { "level": 3,   "card": "barricade" },
-    { "level": 5,   "card": "dab" },
-    { "level": 8,   "card": "solvent" },
-    { "level": 12,  "card": "sprinkler" },
-    { "level": 16,  "card": "freeze" },
-    { "level": 21,  "card": "kite" },
-    { "level": 27,  "card": "swarmlets" },
-    { "level": 34,  "card": "nozzle" },
-    { "level": 42,  "card": "whirl" },
-    { "level": 51,  "card": "sniper_nib" },
-    { "level": 61,  "card": "warden" },
-    { "level": 72,  "card": "surge" },
-    { "level": 84,  "card": "bucket_bot" },
-    { "level": 97,  "card": "beamer" },
-    { "level": 110, "card": "scatter" }
+    {
+      "level": 3,
+      "card": "barricade"
+    },
+    {
+      "level": 5,
+      "card": "dab"
+    },
+    {
+      "level": 8,
+      "card": "solvent"
+    },
+    {
+      "level": 12,
+      "card": "sprinkler"
+    },
+    {
+      "level": 16,
+      "card": "freeze"
+    },
+    {
+      "level": 21,
+      "card": "kite"
+    },
+    {
+      "level": 27,
+      "card": "swarmlets"
+    },
+    {
+      "level": 34,
+      "card": "nozzle"
+    },
+    {
+      "level": 42,
+      "card": "whirl"
+    },
+    {
+      "level": 51,
+      "card": "sniper_nib"
+    },
+    {
+      "level": 61,
+      "card": "warden"
+    },
+    {
+      "level": 72,
+      "card": "surge"
+    },
+    {
+      "level": 84,
+      "card": "bucket_bot"
+    },
+    {
+      "level": 97,
+      "card": "beamer"
+    },
+    {
+      "level": 110,
+      "card": "scatter"
+    }
   ],
-
   "rewards": {
     "coinsPerStar": 12,
     "chestEveryLevels": 10,
     "milestoneEveryLevels": 50,
     "milestoneCoins": 150
+  },
+  "levelNames": {
+    "_comment": "A level name is built from one word of each list: first[(n-1) % 25] + second[(n-1) % 41]. The two lengths are coprime, so the pair does not repeat until level 1026 — every one of the 1000 levels gets its own name, and both halves change from one level to the next. Adding a word to either list is safe; making the two lengths share a factor is not, because the names would then start repeating early. The four arena names in levels.json (Primer Yard, Drip Works, Solvent Flats, Overspray Dome) deliberately use none of these words, so a level can never be mistaken for the board it is played on.",
+    "first": [
+      "Bright",
+      "Splatter",
+      "Rinse",
+      "Fleck",
+      "Undercoat",
+      "Tint",
+      "Gloss",
+      "Matte",
+      "Pigment",
+      "Varnish",
+      "Enamel",
+      "Lacquer",
+      "Stipple",
+      "Wash",
+      "Blot",
+      "Smear",
+      "Streak",
+      "Dapple",
+      "Speckle",
+      "Chroma",
+      "Shade",
+      "Bristle",
+      "Thinner",
+      "Sable",
+      "Ochre"
+    ],
+    "second": [
+      "Basin",
+      "Alley",
+      "Depot",
+      "Mill",
+      "Wharf",
+      "Pier",
+      "Bend",
+      "Gully",
+      "Ridge",
+      "Hollow",
+      "Terrace",
+      "Junction",
+      "Sidings",
+      "Quarry",
+      "Foundry",
+      "Reach",
+      "Bank",
+      "Cutting",
+      "Span",
+      "Court",
+      "Lot",
+      "Row",
+      "Gate",
+      "Loop",
+      "Rise",
+      "Vault",
+      "Shed",
+      "Cellar",
+      "Deck",
+      "Ramp",
+      "Chute",
+      "Trough",
+      "Pan",
+      "Well",
+      "Kiln",
+      "Forge",
+      "Landing",
+      "Crossing",
+      "Steps",
+      "Arch",
+      "Moat"
+    ]
   }
 }

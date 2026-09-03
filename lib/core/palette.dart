@@ -92,6 +92,14 @@ class Palette {
   /// contrast is not something anyone can see by reading a hex value.
   static const Color accent = Color(0xFF0D9488);
 
+  /// The flat shadow under a filled accent control.
+  ///
+  /// Same hue, darker: the near-black [outlineShadow] belongs under an
+  /// outlined tile on the page, and putting it under a small teal pill just
+  /// makes the pill look dirty. A tonal shade reads as the same object
+  /// catching less light.
+  static const Color accentShade = Color(0xFF0A6F66);
+
   /// Secondary highlight for stat chips and labels.
   ///
   /// Violet, hue 271 — 46 from blue. Deep rather than bright, because this

@@ -61,6 +61,8 @@ class CampaignConfig {
     required this.botCardLevelTo,
     required this.botMaxCardLevel,
     required this.arenaEveryLevels,
+    required this.nameFirst,
+    required this.nameSecond,
     required this.cardUnlocks,
     required this.coinsPerStar,
     required this.chestEveryLevels,
@@ -113,6 +115,30 @@ class CampaignConfig {
 
   /// The arena changes every this many levels, cycling through all of them.
   final int arenaEveryLevels;
+
+  /// The two word lists a level name is built from.
+  ///
+  /// Every level used to be titled with its arena, which meant twenty-five
+  /// rows in a row reading "Primer Yard" — the one piece of text on the tile
+  /// that never changed was also the largest. These give each level its own
+  /// name instead. The lengths are coprime on purpose (25 and 41), so the
+  /// pairing does not repeat until level 1026 and both halves advance every
+  /// level; two lists sharing a factor would start repeating early.
+  final List<String> nameFirst;
+  final List<String> nameSecond;
+
+  /// This level's own name.
+  String nameFor(int number) {
+    final i = number - 1;
+    return '${nameFirst[i % nameFirst.length]} '
+        '${nameSecond[i % nameSecond.length]}';
+  }
+
+  /// Whether [number] is the first level played on its arena.
+  ///
+  /// The board is worth naming where it changes and nowhere else: repeating
+  /// it on all twenty-five levels of a band is the noise this replaced.
+  bool arenaChangesAt(int number) => (number - 1) % arenaEveryLevels == 0;
 
   /// Which level hands over which card, keyed by card id.
   ///
@@ -237,6 +263,7 @@ class CampaignConfig {
       : 0;
 
   static CampaignConfig fromJson(Map<String, dynamic> json) {
+    final names = json['levelNames'] as Map<String, dynamic>;
     final stars = json['stars'] as Map<String, dynamic>;
     final brain = json['brain'] as Map<String, dynamic>;
     final tiers = json['tiers'] as Map<String, dynamic>;
@@ -265,6 +292,8 @@ class CampaignConfig {
       botCardLevelTo: (botCards['to'] as num).toInt(),
       botMaxCardLevel: (botCards['maxLevel'] as num).toInt(),
       arenaEveryLevels: (json['arenaEveryLevels'] as num).toInt(),
+      nameFirst: List<String>.from(names['first'] as List<dynamic>),
+      nameSecond: List<String>.from(names['second'] as List<dynamic>),
       cardUnlocks: {
         for (final raw in json['cardUnlocks'] as List<dynamic>? ?? const [])
           (raw as Map<String, dynamic>)['card'] as String: (raw['level'] as num)

@@ -33,6 +33,52 @@ void main() {
     campaign = data.campaign;
   });
 
+
+  group('level names', () {
+    // The tile used to be titled with its arena, which is the same for
+    // twenty-five levels at a stretch: the largest text on the row was the
+    // one thing that never changed.
+    test('no two levels share a name', () {
+      // Names are derived from two word lists whose lengths are coprime, and
+      // that is the whole guarantee. Add a word and make the lengths share a
+      // factor and names start repeating early — which is what this catches.
+      final seen = <String>{};
+      for (var n = 1; n <= campaign.levelCount; n++) {
+        expect(
+          seen.add(campaign.nameFor(n)),
+          isTrue,
+          reason: 'level $n repeats a name already used',
+        );
+      }
+    });
+
+    test('a level name never collides with an arena name', () {
+      // A row titled "Primer Yard" that is played in Drip Works would be a
+      // straight lie, so the two vocabularies are kept apart.
+      final arenaWords = <String>{
+        for (final a in data.arenas) ...a.name.toLowerCase().split(' '),
+      };
+      for (final pool in [campaign.nameFirst, campaign.nameSecond]) {
+        for (final word in pool) {
+          expect(
+            arenaWords,
+            isNot(contains(word.toLowerCase())),
+            reason: '"$word" is also part of an arena name',
+          );
+        }
+      }
+    });
+
+    test('the arena is named only where it changes', () {
+      // Naming the board on all twenty-five levels of a band is the
+      // repetition this whole change removed; the boundary is the one place
+      // it is news.
+      expect(campaign.arenaChangesAt(1), isTrue);
+      expect(campaign.arenaChangesAt(2), isFalse);
+      expect(campaign.arenaChangesAt(campaign.arenaEveryLevels), isFalse);
+      expect(campaign.arenaChangesAt(campaign.arenaEveryLevels + 1), isTrue);
+    });
+  });
   group('the ladder', () {
     test('runs the full thousand levels', () {
       expect(campaign.levelCount, 1000);

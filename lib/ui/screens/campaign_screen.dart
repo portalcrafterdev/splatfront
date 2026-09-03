@@ -106,8 +106,16 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
                     stars: profile.starsOnLevel(number),
                     unlocked: profile.isLevelUnlocked(number),
                     current: number == profile.campaignNextLevel,
-                    arenaName:
-                        data.arenas[level.arenaIndex % data.arenas.length].name,
+                    name: campaign.nameFor(number),
+                    // The board is named on the level it changes on and
+                    // nowhere else. It is the same arena for twenty-five
+                    // levels at a stretch, so printing it on every row was
+                    // the repetition, and the boundary is the only place it
+                    // is actually news.
+                    arenaName: campaign.arenaChangesAt(number)
+                        ? data.arenas[level.arenaIndex % data.arenas.length]
+                              .name
+                        : null,
                     // What this level pays over and above its stars. Most
                     // levels pay nothing extra and say nothing.
                     //
@@ -205,6 +213,7 @@ class _LevelTile extends StatelessWidget {
     required this.stars,
     required this.unlocked,
     required this.current,
+    required this.name,
     required this.arenaName,
     required this.reward,
     required this.onPlay,
@@ -218,7 +227,11 @@ class _LevelTile extends StatelessWidget {
   /// the one thing the page is asking the player to do.
   final bool current;
 
-  final String arenaName;
+  /// This level's own name, so that no two rows in the list read alike.
+  final String name;
+
+  /// The board, named only on the level the board changes on.
+  final String? arenaName;
 
   /// What this level pays on top of its stars, or null for the majority that
   /// pay nothing extra. Twenty-five identical rows is what a list of derived
@@ -264,7 +277,7 @@ class _LevelTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  arenaName,
+                  name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -319,7 +332,10 @@ class _LevelTile extends StatelessWidget {
   /// choice. "Rival Bot" is what the player will actually see at the top of
   /// the arena, so it describes the fight without claiming to be a setting.
   String get _subtitle {
-    final parts = <String>[level.tier.opponentName];
+    final parts = <String>[
+      ?arenaName,
+      level.tier.opponentName,
+    ];
     if (level.botCardLevel > 1) parts.add('cards level ${level.botCardLevel}');
     if (reward case final extra?) parts.add(extra);
     return parts.join(' · ');

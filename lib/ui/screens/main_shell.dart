@@ -86,17 +86,37 @@ class _BottomBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => DecoratedBox(
+    // Palette.outline is a *shape* edge: it wraps a tile on all four sides
+    // and, with the flat shadow under it, reads as a chunky object. Stretched
+    // into a single full-width rule it stops being an edge and becomes a
+    // black crack across the bottom of the screen, which is what this used to
+    // be. The bar is a raised surface rather than a tile, so it gets the
+    // treatment every other surface gets — a gradient lighter at the top, so
+    // the light source stays overhead, and a soft lift that puts it above the
+    // page instead of butted against it. The hairline is only there to stop
+    // the two near-white tones bleeding into each other.
     decoration: const BoxDecoration(
-      color: Palette.uiSurface,
-      border: Border(
-        top: BorderSide(color: Palette.outline, width: Panel.stroke),
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Palette.uiSurfaceHigh, Palette.uiSurface],
       ),
+      border: Border(
+        top: BorderSide(color: Color(0x1A15201C), width: 1),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Color(0x14000000),
+          blurRadius: 14,
+          offset: Offset(0, -3),
+        ),
+      ],
     ),
     child: SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
         child: Row(
           children: [
             for (var i = 0; i < tabs.length; i++)
@@ -127,41 +147,48 @@ class _BarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ink = selected ? Palette.uiText : Palette.uiTextDim;
+    final ink = selected ? Palette.accent : Palette.uiTextDim;
 
     return PressScale(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // The selected tab gets a filled, outlined pill behind its icon.
-          // Colour alone is a weak signal at this size, and the pill is the
-          // same chunky shape language as every other control.
+          // The selected tab gets a filled pill behind its icon. Colour alone
+          // is a weak signal at this size. It keeps the flat offset shadow the
+          // rest of the app uses to make a control feel physical, but drops
+          // the black stroke: a 2px outline around a 28pt pill is most of the
+          // pill, and five of them in a row is where the bar went muddy.
           AnimatedContainer(
             duration: Motion.release,
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
             decoration: BoxDecoration(
               color: selected ? Palette.accent : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: selected ? Palette.outline : Colors.transparent,
-                width: 2,
-              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                        color: Palette.accentShade,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : const [],
             ),
             child: Icon(
               tab.icon,
-              size: 20,
+              size: 21,
               color: selected ? Colors.white : ink,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 5),
           Text(
             tab.label,
             style: TextStyle(
               color: ink,
               fontSize: 11,
-              fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              letterSpacing: 0.1,
             ),
           ),
         ],
