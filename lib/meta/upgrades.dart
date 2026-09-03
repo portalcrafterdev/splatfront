@@ -28,8 +28,9 @@ class UpgradeCosts {
 
   final List<UpgradeStep> steps;
 
-  int get maxLevel =>
-      steps.isEmpty ? 1 : steps.map((s) => s.level).reduce((a, b) => a > b ? a : b);
+  int get maxLevel => steps.isEmpty
+      ? 1
+      : steps.map((s) => s.level).reduce((a, b) => a > b ? a : b);
 
   /// What it costs to go from [level] to [level] + 1, or null at the cap.
   UpgradeStep? stepFrom(int level) {

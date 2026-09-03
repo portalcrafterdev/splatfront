@@ -135,13 +135,8 @@ class DeployOverlay extends PositionComponent {
   }
 
   void _renderGhost(Canvas canvas, DeployPreview preview) {
-    final centre = Offset(
-      preview.worldPosition.x,
-      preview.worldPosition.y,
-    );
-    final colour = preview.valid
-        ? Palette.deployValid
-        : Palette.deployInvalid;
+    final centre = Offset(preview.worldPosition.x, preview.worldPosition.y);
+    final colour = preview.valid ? Palette.deployValid : Palette.deployInvalid;
 
     _ghostFill.color = colour.withValues(alpha: 0.28);
     _ghostEdge.color = colour;

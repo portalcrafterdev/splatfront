@@ -103,12 +103,7 @@ class CardTile extends StatelessWidget {
                 Center(child: _art()),
                 if (card.bodyCount > 1)
                   Positioned(top: 3 * scale, right: 5 * scale, child: _count()),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _footer(),
-                ),
+                Positioned(left: 0, right: 0, bottom: 0, child: _footer()),
                 if (onCooldown) Positioned.fill(child: _shutter()),
               ],
             ),
@@ -139,9 +134,7 @@ class CardTile extends StatelessWidget {
             color: Palette.hudText,
             fontSize: 22 * scale,
             fontWeight: FontWeight.w900,
-            shadows: const [
-              Shadow(color: Color(0xCC000000), blurRadius: 4),
-            ],
+            shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
           ),
         ),
       ),

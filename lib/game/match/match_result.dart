@@ -54,9 +54,10 @@ class TrophyRules {
     if (outcome == MatchOutcome.draw) return 0;
 
     final gap = opponentTrophies - playerTrophies;
-    final adjustment = (gap / trophiesPerAdjustment)
-        .round()
-        .clamp(-maxAdjustment, maxAdjustment);
+    final adjustment = (gap / trophiesPerAdjustment).round().clamp(
+      -maxAdjustment,
+      maxAdjustment,
+    );
 
     final base = outcome == MatchOutcome.win ? win : loss;
     final change = base + adjustment;
@@ -68,7 +69,8 @@ class TrophyRules {
   }
 
   factory TrophyRules.fromJson(Map<String, dynamic> json) {
-    final offsets = json['botTrophyOffset'] as Map<String, dynamic>? ?? const {};
+    final offsets =
+        json['botTrophyOffset'] as Map<String, dynamic>? ?? const {};
     return TrophyRules(
       win: (json['win'] as num).toInt(),
       loss: (json['loss'] as num).toInt(),

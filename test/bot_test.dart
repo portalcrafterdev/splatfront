@@ -146,10 +146,7 @@ void main() {
           greaterThan(tiers[i - 1].lanePrecision),
           reason: 'the ladder has to be monotonic to be a ladder',
         );
-        expect(
-          tiers[i].cardPrecision,
-          greaterThan(tiers[i - 1].cardPrecision),
-        );
+        expect(tiers[i].cardPrecision, greaterThan(tiers[i - 1].cardPrecision));
       }
     });
 
@@ -264,15 +261,20 @@ void main() {
   });
 
   group('bot brain', () {
-    gameTest('the bot gets its own hand and elixir, separate from the player',
-        (game, tester) async {
+    gameTest('the bot gets its own hand and elixir, separate from the player', (
+      game,
+      tester,
+    ) async {
       expect(game.opponent.hasHand, isTrue);
       expect(game.opponent.team, Team.blue);
       expect(game.bot, isNotNull);
 
       game.player.elixir.reset(to: 1);
-      expect(game.opponent.elixir.amount, ElixirSpec.start,
-          reason: 'the two pools are independent');
+      expect(
+        game.opponent.elixir.amount,
+        ElixirSpec.start,
+        reason: 'the two pools are independent',
+      );
     });
 
     gameTest('both pools regenerate over the match', (game, tester) async {
@@ -296,9 +298,7 @@ void main() {
       expect(botUnits, isNotEmpty, reason: 'it should have spent something');
     });
 
-    testWidgets('the bot keeps deploying across a whole match', (
-      tester,
-    ) async {
+    testWidgets('the bot keeps deploying across a whole match', (tester) async {
       // A guard against the blue side going silent. It has gone quiet twice
       // for different reasons — no legal spot in its chosen lane, and sitting
       // on elixir waiting for a threshold while the hand lockout ate its
@@ -310,10 +310,7 @@ void main() {
         botDeck: config.deckFor('arena_1'),
         botDifficulty: config[BotTier.normal],
         botRandom: _NeverWastes(),
-        economy: const MatchRules(
-          territorySpread: 0.25,
-          cardRefillSeconds: 10,
-        ),
+        economy: const MatchRules(territorySpread: 0.25, cardRefillSeconds: 10),
         playerTeam: Team.red,
       );
       await tester.pumpWidget(GameWidget(game: game));
@@ -413,10 +410,7 @@ void main() {
       for (var i = 0; i < 40; i++) {
         await run(game, tester, seconds: 1);
         expect(game.opponent.elixir.amount, greaterThanOrEqualTo(0));
-        expect(
-          game.opponent.elixir.amount,
-          lessThanOrEqualTo(ElixirSpec.max),
-        );
+        expect(game.opponent.elixir.amount, lessThanOrEqualTo(ElixirSpec.max));
       }
     });
 

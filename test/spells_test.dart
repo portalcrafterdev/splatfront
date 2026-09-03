@@ -425,10 +425,7 @@ void main() {
       game.castSpell(cards['paint_bomb'], Team.red, Vector2(8, 6));
 
       // 150 damage reduced by a quarter.
-      expect(
-        protectedUnit.hp,
-        closeTo(protectedUnit.stats.hp - 112.5, 0.001),
-      );
+      expect(protectedUnit.hp, closeTo(protectedUnit.stats.hp - 112.5, 0.001));
     });
 
     gameTest('a dead Warden protects nobody', (game, tester) async {
@@ -484,8 +481,11 @@ void main() {
       expect(played, isTrue);
       expect(game.elixir.amount, closeTo(elixirBefore - 3, 1e-9));
       expect(victim.hp, lessThan(victim.stats.hp));
-      expect(game.hand!.hand.value[0], isNot('paint_bomb'),
-          reason: 'it rotated out');
+      expect(
+        game.hand!.hand.value[0],
+        isNot('paint_bomb'),
+        reason: 'it rotated out',
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

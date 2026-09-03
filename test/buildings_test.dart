@@ -13,6 +13,7 @@ import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
 import 'package:splatfront/game/units/building.dart';
 import 'package:splatfront/game/units/projectile.dart';
+import 'package:splatfront/game/units/unit_stats.dart';
 import 'package:splatfront/game/units/unit_art.dart';
 
 /// Buildings, and elixir income scaling with territory.
@@ -60,7 +61,7 @@ void main() {
 
   // --- Buildings ---------------------------------------------------------
 
-  test('every building is a unit with a body and a lifetime', () {
+  test('every building is a unit with a body, and stands until killed', () {
     expect(cards.buildings, isNotEmpty);
     for (final card in cards.buildings) {
       expect(card.kind, CardKind.building);
@@ -72,10 +73,14 @@ void main() {
         0,
         reason: '${card.id} must be static, not slow',
       );
+      // Buildings ship with no clock: they hold their spot until something
+      // breaks them. What stops the board silting up with turrets is the
+      // live-building cap, which refuses the drop rather than taking the
+      // card — with the timer off, the cap carries that on its own.
       expect(
         card.unit!.isTemporary,
-        isTrue,
-        reason: '${card.id} needs a clock, or the board silts up',
+        isFalse,
+        reason: '${card.id} is on a clock; buildings stand until destroyed',
       );
       expect(
         unitArt.containsKey(card.id),
@@ -103,27 +108,23 @@ void main() {
     expect(turret.position.y, closeTo(18, 0.001));
   });
 
-  gameTest('a building expires on its own clock', (game, tester) async {
+  gameTest('a building outlives any clock it used to be on', (
+    game,
+    tester,
+  ) async {
     final barricade =
-        game.spawnUnit(
-              'barricade',
-              team: Team.red,
-              position: Vector2(8, 18),
-            )
+        game.spawnUnit('barricade', team: Team.red, position: Vector2(8, 18))
             as Building;
 
-    final lifetime = barricade.stats.lifetime;
-    expect(lifetime, greaterThan(0));
+    // Comfortably past the longest lifetime any building ever shipped with.
+    tick(game, seconds: 45);
 
-    tick(game, seconds: lifetime - 1);
-    expect(barricade.isAlive, isTrue, reason: 'still standing before time');
-    expect(barricade.wear, greaterThan(0.9));
-
-    tick(game, seconds: 2);
-    expect(barricade.isAlive, isFalse, reason: 'and gone after it');
+    expect(barricade.isAlive, isTrue, reason: 'nothing has broken it');
+    expect(barricade.secondsLeft, isNull, reason: 'and it is on no clock');
+    expect(barricade.wear, 0);
   });
 
-  gameTest('an expiring building still leaves its ground painted', (
+  gameTest('a building goes when it is destroyed, and paints where it fell', (
     game,
     tester,
   ) async {
@@ -132,7 +133,12 @@ void main() {
       team: Team.red,
       position: Vector2(8, 18),
     );
-    tick(game, seconds: sprinkler.stats.lifetime + 0.5);
+
+    tick(game, seconds: 2);
+    expect(sprinkler.isAlive, isTrue);
+
+    sprinkler.takeDamage(9999);
+    tick(game, seconds: 0.2);
 
     expect(sprinkler.isAlive, isFalse);
     expect(
@@ -140,6 +146,32 @@ void main() {
       isTrue,
       reason: 'the death splash is queued',
     );
+  });
+
+  // The timer is off, not gone. Putting a lifetime back in `cards.json` has
+  // to be all it takes to bring a card's clock back, so the mechanism is
+  // pinned here rather than left to rot behind a roster of zeroes.
+  test('a lifetime above zero still puts a building on a clock', () {
+    final shipped = cards.buildings
+        .firstWhere((c) => c.id == 'barricade')
+        .unit!;
+    expect(shipped.isTemporary, isFalse);
+    expect(shipped.lifetime, 0);
+
+    final timed = UnitStats.fromJson({
+      'id': 'barricade',
+      'name': 'Barricade',
+      'cost': 2,
+      'hp': 950,
+      'damage': 0,
+      'hitRate': 0,
+      'speed': 'static',
+      'range': 'melee',
+      'lifetime': 25.0,
+    }, cards.units.tuning);
+
+    expect(timed.isTemporary, isTrue);
+    expect(timed.lifetime, 25.0);
   });
 
   gameTest('a Turret with nothing to shoot fires all round itself', (
@@ -376,8 +408,18 @@ void main() {
     // such spawn has to go through the queue instead.
     //
     // Runs one of everything, both sides, and lets them all fight.
-    const ours = ['beamer', 'turret', 'scatter', 'sprinkler', 'whirl',
-        'nozzle', 'sprayer', 'pin', 'sniper_nib', 'warden'];
+    const ours = [
+      'beamer',
+      'turret',
+      'scatter',
+      'sprinkler',
+      'whirl',
+      'nozzle',
+      'sprayer',
+      'pin',
+      'sniper_nib',
+      'warden',
+    ];
     for (var i = 0; i < ours.length; i++) {
       game.spawnUnit(
         ours[i],
@@ -418,28 +460,31 @@ void main() {
     expect(MatchRules.flat.multiplierFor(1.0), 1.0);
   });
 
-  test('the shipped economy comes from progression.json, not from Dart', () async {
-    final loaded = await MatchRules.load();
-    expect(
-      loaded.territorySpread,
-      greaterThan(0),
-      reason: 'the real game scales income with territory',
-    );
+  test(
+    'the shipped economy comes from progression.json, not from Dart',
+    () async {
+      final loaded = await MatchRules.load();
+      expect(
+        loaded.territorySpread,
+        greaterThan(0),
+        reason: 'the real game scales income with territory',
+      );
 
-    // Territory income is a positive feedback loop, so the shipped spread has
-    // to stay gentle: the side that is losing must keep enough income to play
-    // its way back, or one early mistake decides the match.
-    expect(
-      loaded.multiplierFor(0),
-      greaterThanOrEqualTo(0.7),
-      reason: 'a side pinned at zero coverage can still afford cards',
-    );
-    expect(
-      loaded.multiplierFor(1) / loaded.multiplierFor(0),
-      lessThanOrEqualTo(1.8),
-      reason: 'the gap between winning and losing income stays recoverable',
-    );
-  });
+      // Territory income is a positive feedback loop, so the shipped spread has
+      // to stay gentle: the side that is losing must keep enough income to play
+      // its way back, or one early mistake decides the match.
+      expect(
+        loaded.multiplierFor(0),
+        greaterThanOrEqualTo(0.7),
+        reason: 'a side pinned at zero coverage can still afford cards',
+      );
+      expect(
+        loaded.multiplierFor(1) / loaded.multiplierFor(0),
+        lessThanOrEqualTo(1.8),
+        reason: 'the gap between winning and losing income stays recoverable',
+      );
+    },
+  );
 
   gameTest(
     'holding more ground fills the bar faster',

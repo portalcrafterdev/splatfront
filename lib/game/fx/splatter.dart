@@ -15,8 +15,7 @@ import '../splatfront_game.dart';
 /// so a busy fight costs a handful of components instead of hundreds. Section
 /// 13 caps live particles at 300; [Splatter.budget] enforces that from the
 /// spawn side, because the cheapest particle is the one never created.
-class Splatter extends PositionComponent
-    with HasGameReference<SplatfrontGame> {
+class Splatter extends PositionComponent with HasGameReference<SplatfrontGame> {
   Splatter._({
     required Vector2 at,
     required this.colour,

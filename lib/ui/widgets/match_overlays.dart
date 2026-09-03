@@ -4,6 +4,7 @@ import '../../core/palette.dart';
 import '../../game/arena/paint_sampler.dart';
 import '../../game/match/match_controller.dart';
 import '../../game/match/match_result.dart';
+import '../../meta/campaign.dart';
 import 'coverage_bar.dart';
 
 /// The clock. Counts the countdown down to Splat, then normal time, then
@@ -168,11 +169,17 @@ class ResultOverlay extends StatelessWidget {
     required this.onRematch,
     required this.onHome,
     this.chestKept = true,
+    this.campaign,
   });
 
   final MatchResult result;
   final VoidCallback onRematch;
   final VoidCallback onHome;
+
+  /// Set on a campaign level. The campaign does not move trophies, so the
+  /// end screen shows the stars the level was worth instead of a number that
+  /// would be a lie.
+  final CampaignBattle? campaign;
 
   /// Whether the chest this win earned actually went into a slot. False when
   /// every slot was already full and it was forfeited.
@@ -221,7 +228,17 @@ class ResultOverlay extends StatelessWidget {
               ),
 
               const SizedBox(height: 22),
-              _TrophyChange(change: result.trophyChange),
+              if (campaign case final level?)
+                _StarsEarned(
+                  level: level,
+                  stars: level.starsFor(
+                    won: result.won,
+                    playerShare: result.playerShare,
+                  ),
+                  playerShare: result.playerShare,
+                )
+              else
+                _TrophyChange(change: result.trophyChange),
 
               if (result.chestEarned) ...[
                 const SizedBox(height: 14),
@@ -285,6 +302,74 @@ class _FinalCoverageState extends State<_FinalCoverage> {
   );
 }
 
+/// The three stars a campaign level was worth, and the one line that says
+/// what the next one would have taken.
+///
+/// The miss is the useful half. "You held 54%" on its own is a fact about
+/// the past; "60% for the second star" is the thing that decides whether the
+/// player taps REMATCH, so the shortfall is spelled out rather than left for
+/// them to work out from a row of grey outlines.
+class _StarsEarned extends StatelessWidget {
+  const _StarsEarned({
+    required this.level,
+    required this.stars,
+    required this.playerShare,
+  });
+
+  final CampaignBattle level;
+  final int stars;
+  final double playerShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final next = level.nextStarAt(stars);
+    final percent = (playerShare * 100).round();
+
+    return Column(
+      children: [
+        Text(
+          'LEVEL ${level.level}',
+          style: const TextStyle(
+            color: Palette.hudTextDim,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 1; i <= 3; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  i <= stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: i <= stars ? 44 : 38,
+                  color: i <= stars
+                      ? Palette.gold
+                      : Palette.hudTextDim.withValues(alpha: 0.5),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          switch (stars) {
+            0 => 'No stars. Win the match to earn the first.',
+            3 => 'You held $percent% of the board.',
+            _ =>
+              'You held $percent%. '
+                  '${(next! * 100).round()}% earns the next star.',
+          },
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Palette.hudTextDim, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
 class _TrophyChange extends StatelessWidget {
   const _TrophyChange({required this.change});
 
@@ -346,11 +431,7 @@ class _ChestEarned extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            kept ? Icons.inventory_2 : Icons.block,
-            color: accent,
-            size: 18,
-          ),
+          Icon(kept ? Icons.inventory_2 : Icons.block, color: accent, size: 18),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -392,9 +473,7 @@ class _ResultButton extends StatelessWidget {
         backgroundColor: secondary ? Palette.hudSurface : accent,
         foregroundColor: secondary ? Palette.hudTextDim : Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(
         label,

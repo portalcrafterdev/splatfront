@@ -57,9 +57,11 @@ class _FrameStatsState extends State<FrameStats> {
 
     // Republish about four times a second: often enough to be live, rarely
     // enough that the readout is not itself a source of jank.
-    final now = Duration(microseconds: timings.last.timestampInMicroseconds(
-      FramePhase.rasterFinish,
-    ));
+    final now = Duration(
+      microseconds: timings.last.timestampInMicroseconds(
+        FramePhase.rasterFinish,
+      ),
+    );
     if (now - _lastPublish < const Duration(milliseconds: 250)) return;
     _lastPublish = now;
 

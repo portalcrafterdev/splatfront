@@ -65,9 +65,7 @@ void main() {
           profileProvider.overrideWith(
             (ref) => _InMemoryProfile(
               data: data,
-              initial: const PlayerProfile(
-                chests: [ChestSlot(typeId: 'wood')],
-              ),
+              initial: const PlayerProfile(chests: [ChestSlot(typeId: 'wood')]),
             ),
           ),
         ],
@@ -296,7 +294,8 @@ void main() {
     expect(
       (blockCentre - screen.center.dy).abs(),
       lessThan(40),
-      reason: 'the rewards sit ${(blockCentre - screen.center.dy).round()}px '
+      reason:
+          'the rewards sit ${(blockCentre - screen.center.dy).round()}px '
           'off centre',
     );
   });

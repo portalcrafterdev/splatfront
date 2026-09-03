@@ -124,7 +124,9 @@ class Deck {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     return [
       for (final deck in json['decks'] as List<dynamic>)
-        Deck(List<String>.from((deck as Map<String, dynamic>)['cards'] as List)),
+        Deck(
+          List<String>.from((deck as Map<String, dynamic>)['cards'] as List),
+        ),
     ];
   }
 }
@@ -132,9 +134,19 @@ class Deck {
 /// Level of each owned card. Real progression lands in Phase 7; until then
 /// everything is level 1.
 class CardLevels {
-  const CardLevels([this._levels = const {}]);
+  const CardLevels([this._levels = const {}]) : _floor = 1;
+
+  /// Every card at the same level.
+  ///
+  /// The campaign scales its opponent this way: one number, rather than a map
+  /// that would have to be rebuilt every time the bot's deck changed and
+  /// would silently leave a card at level 1 if it ever fell out of step.
+  const CardLevels.uniform(int level) : _levels = const {}, _floor = level;
 
   final Map<String, int> _levels;
 
-  int of(String cardId) => _levels[cardId] ?? 1;
+  /// What a card not named in [_levels] is played at.
+  final int _floor;
+
+  int of(String cardId) => _levels[cardId] ?? _floor;
 }

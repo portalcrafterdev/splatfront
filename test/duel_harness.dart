@@ -58,16 +58,16 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => game.arena.resampleNow());
 
-    await game.add(BotBrain(
-      side: game.opponent,
-      difficulty: bot,
-      random: math.Random(seed),
-    ));
-    await game.add(BotBrain(
-      side: game.player,
-      difficulty: player,
-      random: math.Random(seed + 7777),
-    ));
+    await game.add(
+      BotBrain(side: game.opponent, difficulty: bot, random: math.Random(seed)),
+    );
+    await game.add(
+      BotBrain(
+        side: game.player,
+        difficulty: player,
+        random: math.Random(seed + 7777),
+      ),
+    );
     game.updateTree(0);
 
     for (var half = 0; half < 180; half++) {
@@ -100,8 +100,10 @@ void main() {
         if (share > 0.5) wins++;
       }
       // ignore: avoid_print
-      print('RESULT vs=${tier.name} wins=$wins/$runs '
-          'coverage=${(total / runs * 100).toStringAsFixed(1)}%');
+      print(
+        'RESULT vs=${tier.name} wins=$wins/$runs '
+        'coverage=${(total / runs * 100).toStringAsFixed(1)}%',
+      );
     });
   }
 }

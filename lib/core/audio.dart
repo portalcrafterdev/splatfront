@@ -185,10 +185,7 @@ class Audio {
         ..._splatVariants,
       ]);
       for (final file in _pooled) {
-        _pools[file] = await FlameAudio.createPool(
-          file,
-          maxPlayers: _poolSize,
-        );
+        _pools[file] = await FlameAudio.createPool(file, maxPlayers: _poolSize);
       }
       _ready = true;
     } catch (error, stack) {

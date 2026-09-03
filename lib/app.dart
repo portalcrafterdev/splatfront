@@ -25,13 +25,8 @@ class SplatfrontApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Palette.accent,
           brightness: Brightness.light,
-        ).copyWith(
-          surface: Palette.uiSurface,
-          onSurface: Palette.uiText,
-        ),
-        dialogTheme: const DialogThemeData(
-          backgroundColor: Palette.uiSurface,
-        ),
+        ).copyWith(surface: Palette.uiSurface, onSurface: Palette.uiText),
+        dialogTheme: const DialogThemeData(backgroundColor: Palette.uiSurface),
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Palette.uiSurface,
         ),

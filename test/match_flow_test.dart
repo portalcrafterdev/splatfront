@@ -106,10 +106,7 @@ void main() {
 
       expect(game.match!.phase.value, MatchPhase.playing);
       expect(game.acceptsInput, isTrue);
-      expect(
-        game.match!.timeRemaining.value,
-        closeTo(Timings.normalTime, 0.5),
-      );
+      expect(game.match!.timeRemaining.value, closeTo(Timings.normalTime, 0.5));
 
       final before = game.player.elixir.amount;
       run(game, ElixirSpec.regenNormal);
@@ -137,11 +134,7 @@ void main() {
       // to leave the screen.
       Audio.gameplayMuted = false;
       run(game, Timings.countdown + 0.1);
-      expect(
-        Audio.gameplayMuted,
-        isFalse,
-        reason: 'a live match is audible',
-      );
+      expect(Audio.gameplayMuted, isFalse, reason: 'a live match is audible');
 
       await paintEverything(game, tester, Team.red);
       run(game, Timings.normalTime + 0.1);
@@ -197,10 +190,7 @@ void main() {
 
       expect(game.player.elixir.suddenDeath, isTrue);
       expect(game.opponent.elixir.suddenDeath, isTrue);
-      expect(
-        game.player.elixir.secondsPerElixir,
-        ElixirSpec.regenSuddenDeath,
-      );
+      expect(game.player.elixir.secondsPerElixir, ElixirSpec.regenSuddenDeath);
     });
 
     gameTest('sudden death running out finishes the match', (
@@ -339,22 +329,24 @@ void main() {
       );
     });
 
-    test('beating someone above you is worth more, losing to them costs less',
-        () {
-      final bigWin = trophies.change(
-        outcome: MatchOutcome.win,
-        playerTrophies: 500,
-        opponentTrophies: 800,
-      );
-      final softLoss = trophies.change(
-        outcome: MatchOutcome.loss,
-        playerTrophies: 500,
-        opponentTrophies: 800,
-      );
+    test(
+      'beating someone above you is worth more, losing to them costs less',
+      () {
+        final bigWin = trophies.change(
+          outcome: MatchOutcome.win,
+          playerTrophies: 500,
+          opponentTrophies: 800,
+        );
+        final softLoss = trophies.change(
+          outcome: MatchOutcome.loss,
+          playerTrophies: 500,
+          opponentTrophies: 800,
+        );
 
-      expect(bigWin, greaterThan(30));
-      expect(softLoss, greaterThan(-25), reason: 'it hurts less');
-    });
+        expect(bigWin, greaterThan(30));
+        expect(softLoss, greaterThan(-25), reason: 'it hurts less');
+      },
+    );
 
     test('the adjustment is capped, and can never flip the sign', () {
       final absurdWin = trophies.change(
@@ -380,8 +372,11 @@ void main() {
 
       expect(easy, lessThan(normal));
       expect(normal, lessThan(hard));
-      expect(trophies.trophiesForBot(0, BotTier.easy), 0,
-          reason: 'never negative');
+      expect(
+        trophies.trophiesForBot(0, BotTier.easy),
+        0,
+        reason: 'never negative',
+      );
     });
 
     gameTest('a drawn match pays out nothing', (game, tester) async {
@@ -416,8 +411,11 @@ void main() {
       run(game, Timings.normalTime + 0.2);
 
       final result = game.match!.result.value!;
-      expect(result.reason, EndReason.timeUp,
-          reason: 'a clear gap skips sudden death');
+      expect(
+        result.reason,
+        EndReason.timeUp,
+        reason: 'a clear gap skips sudden death',
+      );
       expect(result.won, isTrue);
       expect(result.trophyChange, greaterThan(0));
       expect(result.chestEarned, isTrue);
@@ -425,24 +423,25 @@ void main() {
   });
 
   group('a full match against the bot', () {
-    gameTest(
-      'runs from countdown to result without intervention',
-      (game, tester) async {
-        // Countdown, 90 seconds, and sudden death if it is close.
-        run(game, Timings.countdown + Timings.normalTime + 1);
-        await tester.runAsync(() => game.arena.resampleNow());
+    gameTest('runs from countdown to result without intervention', (
+      game,
+      tester,
+    ) async {
+      // Countdown, 90 seconds, and sudden death if it is close.
+      run(game, Timings.countdown + Timings.normalTime + 1);
+      await tester.runAsync(() => game.arena.resampleNow());
 
-        if (game.match!.phase.value == MatchPhase.suddenDeath) {
-          run(game, Timings.suddenDeathTime + 1);
-        }
+      if (game.match!.phase.value == MatchPhase.suddenDeath) {
+        run(game, Timings.suddenDeathTime + 1);
+      }
 
-        expect(game.match!.phase.value, MatchPhase.finished);
-        final result = game.match!.result.value!;
-        expect(result.coverage.red + result.coverage.blue,
-            lessThanOrEqualTo(1.0));
-        expect(game.acceptsInput, isFalse);
-      },
-      withBot: true,
-    );
+      expect(game.match!.phase.value, MatchPhase.finished);
+      final result = game.match!.result.value!;
+      expect(
+        result.coverage.red + result.coverage.blue,
+        lessThanOrEqualTo(1.0),
+      );
+      expect(game.acceptsInput, isFalse);
+    }, withBot: true);
   });
 }

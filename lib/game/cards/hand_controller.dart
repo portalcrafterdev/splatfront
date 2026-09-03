@@ -68,8 +68,7 @@ class HandController {
   /// True when [slot] may be played right now. The answer is the same for
   /// every slot; the argument is kept so callers read naturally and so a
   /// future per-slot rule would not change every call site.
-  bool isReady(int slot) =>
-      slot >= 0 && slot < handSize && _lockout <= 0;
+  bool isReady(int slot) => slot >= 0 && slot < handSize && _lockout <= 0;
 
   /// Seconds left on the lockout.
   double secondsLeft(int slot) => _lockout;

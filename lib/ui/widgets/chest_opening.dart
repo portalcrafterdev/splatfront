@@ -180,8 +180,7 @@ class _ChestOpeningState extends State<_ChestOpening>
 
   /// How far through the settle the layout is: 0 until the flash has
   /// finished, then 0 to 1 as the chest's empty space is given back.
-  double _settle(double reveal) =>
-      ((reveal - 0.35) / 0.35).clamp(0.0, 1.0);
+  double _settle(double reveal) => ((reveal - 0.35) / 0.35).clamp(0.0, 1.0);
 
   /// The chest itself: shakes harder and harder, then blows apart.
   Widget _chest(double t, bool opened, double reveal) {

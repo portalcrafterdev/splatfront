@@ -79,8 +79,7 @@ class SpellStats {
     damage: (json['damage'] as num?)?.toDouble() ?? 0,
     duration: (json['duration'] as num?)?.toDouble() ?? 0,
     speedMultiplier: (json['speedMultiplier'] as num?)?.toDouble() ?? 1,
-    paintRateMultiplier:
-        (json['paintRateMultiplier'] as num?)?.toDouble() ?? 1,
+    paintRateMultiplier: (json['paintRateMultiplier'] as num?)?.toDouble() ?? 1,
     friendlyOnly: json['friendlyOnly'] as bool? ?? false,
   );
 }

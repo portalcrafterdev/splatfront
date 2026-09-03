@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../core/audio.dart';
 import '../../core/palette.dart';
 import '../widgets/motion.dart';
+import 'campaign_screen.dart';
 import 'collection_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'shop_screen.dart';
 
-/// The app's four places, and the bar that switches between them.
+/// The app's five places, and the bar that switches between them.
 ///
 /// Home used to carry everything: the chests, the opponent picker, the battle
 /// button, a row of links to three other screens and the day's quests, all
@@ -17,11 +18,11 @@ import 'shop_screen.dart';
 /// home screen and makes them reachable from anywhere instead of only from
 /// the top of the stack.
 ///
-/// Only the selected tab is built, rather than keeping all four alive in an
+/// Only the selected tab is built, rather than keeping them all alive in an
 /// [IndexedStack]. Every screen reads its state from Riverpod, so nothing is
-/// lost by rebuilding, and an IndexedStack would leave the other three tabs
-/// sitting in the widget tree — findable, testable and, worse, all answering
-/// to the same text at once.
+/// lost by rebuilding, and an IndexedStack would leave the other tabs sitting
+/// in the widget tree — findable, testable and, worse, all answering to the
+/// same text at once.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -34,6 +35,7 @@ class _MainShellState extends State<MainShell> {
 
   static const List<_Tab> _tabs = [
     _Tab(icon: Icons.home_rounded, label: 'Home'),
+    _Tab(icon: Icons.flag_rounded, label: 'Levels'),
     _Tab(icon: Icons.style_rounded, label: 'Cards'),
     _Tab(icon: Icons.storefront_rounded, label: 'Shop'),
     _Tab(icon: Icons.settings_rounded, label: 'Settings'),
@@ -49,9 +51,10 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Palette.uiBackground,
     body: switch (_index) {
-      1 => const CollectionScreen(),
-      2 => const ShopScreen(),
-      3 => const SettingsScreen(),
+      1 => const CampaignScreen(),
+      2 => const CollectionScreen(),
+      3 => const ShopScreen(),
+      4 => const SettingsScreen(),
       _ => const HomeScreen(),
     },
     bottomNavigationBar: _BottomBar(

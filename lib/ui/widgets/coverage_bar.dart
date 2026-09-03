@@ -90,10 +90,7 @@ class CoverageBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _percent(mine),
-                  _percent(theirs),
-                ],
+                children: [_percent(mine), _percent(theirs)],
               ),
             ),
         ],

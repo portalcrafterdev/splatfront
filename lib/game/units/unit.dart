@@ -294,7 +294,9 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     }
 
     _tickEffects(dt);
-    if (_attackAnim > 0) _attackAnim = math.max(0, _attackAnim - dt / _swingTime);
+    if (_attackAnim > 0) {
+      _attackAnim = math.max(0, _attackAnim - dt / _swingTime);
+    }
 
     if (isStunned) {
       _walking = false;
@@ -331,7 +333,12 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     // Until the first readback lands the grid is all-neutral, which would tell
     // every unit it is already standing on the frontier and freeze the board.
     _frontierY = zone.hasOwners
-        ? zone.frontierY(position.x, team, position.y, goalY > position.y ? 1 : -1)
+        ? zone.frontierY(
+            position.x,
+            team,
+            position.y,
+            goalY > position.y ? 1 : -1,
+          )
         : goalY;
   }
 
@@ -369,10 +376,7 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
       // it manufactures the very frontier it is walking to and never arrives.
       // [_hasAdvanced] is what actually bounds it.
       final dy = _frontierY - position.y;
-      _desired.setValues(
-        lane - position.x,
-        dy.abs() < _atFrontier ? 0 : dy,
-      );
+      _desired.setValues(lane - position.x, dy.abs() < _atFrontier ? 0 : dy);
     }
 
     if (_desired.length2 > 0) _desired.normalize();

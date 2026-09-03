@@ -41,7 +41,11 @@ class UnitsRegistry {
   UnitStats operator [](String id) {
     final stats = _byId[id];
     if (stats == null) {
-      throw ArgumentError.value(id, 'id', 'No troop with this id in cards.json');
+      throw ArgumentError.value(
+        id,
+        'id',
+        'No troop with this id in cards.json',
+      );
     }
     return stats;
   }

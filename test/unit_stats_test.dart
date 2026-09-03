@@ -49,8 +49,11 @@ void main() {
     final roller = registry['roller'];
     expect(roller.hp, 620);
     expect(roller.paint, 2.2);
-    expect(roller.speed, lessThan(registry['brusher'].speed),
-        reason: 'Roller is slow, Brusher is medium');
+    expect(
+      roller.speed,
+      lessThan(registry['brusher'].speed),
+      reason: 'Roller is slow, Brusher is medium',
+    );
   });
 
   test('speed words resolve to numbers, and melee resolves to a reach', () {

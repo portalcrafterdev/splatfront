@@ -13,6 +13,7 @@ import '../../game/cards/card_registry.dart';
 import '../../game/match/match_controller.dart';
 import '../../game/match/match_result.dart';
 import '../../game/splatfront_game.dart';
+import '../../meta/campaign.dart';
 import '../../meta/quests.dart';
 import '../../game/units/units_registry.dart';
 import '../widgets/card_tile.dart';
@@ -35,6 +36,8 @@ class BattleScreen extends StatefulWidget {
     this.botTier = BotTier.normal,
     this.trophyRules,
     this.levels = const CardLevels(),
+    this.botLevels = const CardLevels(),
+    this.campaign,
     this.economy = MatchRules.flat,
     this.startingTrophies = 0,
     this.onFinished,
@@ -59,6 +62,14 @@ class BattleScreen extends StatefulWidget {
 
   /// The player's card levels, so upgrades actually show up in the arena.
   final CardLevels levels;
+
+  /// The opponent's card levels. The campaign scales these with the level
+  /// number; a ladder match leaves the bot at level 1.
+  final CardLevels botLevels;
+
+  /// Set when this match is a campaign level, which swaps the trophy change
+  /// on the end screen for the stars the level was worth.
+  final CampaignBattle? campaign;
 
   /// Elixir income scaling. Flat in the sandboxes.
   final MatchRules economy;
@@ -94,6 +105,7 @@ class _BattleScreenState extends State<BattleScreen> {
     botTier: widget.botTier,
     trophyRules: widget.trophyRules,
     levels: widget.levels,
+    botLevels: widget.botLevels,
     economy: widget.economy,
     startingTrophies: widget.startingTrophies,
     playerTeam: widget.playerTeam,
@@ -260,6 +272,7 @@ class _BattleScreenState extends State<BattleScreen> {
         return ResultOverlay(
           result: result,
           chestKept: _chestKept,
+          campaign: widget.campaign,
           onRematch: () => Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
               builder: (_) => BattleScreen(
@@ -271,6 +284,8 @@ class _BattleScreenState extends State<BattleScreen> {
                 botTier: widget.botTier,
                 trophyRules: widget.trophyRules,
                 levels: widget.levels,
+                botLevels: widget.botLevels,
+                campaign: widget.campaign,
                 economy: widget.economy,
                 startingTrophies: widget.startingTrophies,
                 onFinished: widget.onFinished,
@@ -378,7 +393,11 @@ class _BattleScreenState extends State<BattleScreen> {
               width: 3,
             ),
             boxShadow: const [
-              BoxShadow(color: Color(0x66000000), blurRadius: 14, spreadRadius: 1),
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 14,
+                spreadRadius: 1,
+              ),
             ],
           ),
           child: ClipRRect(
@@ -386,7 +405,9 @@ class _BattleScreenState extends State<BattleScreen> {
             borderRadius: BorderRadius.circular(11),
             child: Stack(
               children: [
-                Positioned.fill(child: GameWidget(key: _arenaKey, game: _game)),
+                Positioned.fill(
+                  child: GameWidget(key: _arenaKey, game: _game),
+                ),
                 if (match != null) ...[
                   Positioned.fill(child: WipeOverlay(match: match)),
                   Positioned.fill(child: CountdownOverlay(match: match)),

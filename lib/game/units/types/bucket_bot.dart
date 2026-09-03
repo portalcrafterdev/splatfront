@@ -9,7 +9,11 @@ import '../unit_stats.dart';
 /// Fully stat-driven: everything that makes it distinct lives in
 /// `cards.json`. This type names it and gives its Rive artboard a home.
 class BucketBot extends Unit {
-  BucketBot({required super.stats, required super.team, required super.position});
+  BucketBot({
+    required super.stats,
+    required super.team,
+    required super.position,
+  });
 
   static const String id = 'bucket_bot';
   static const String riveArtboard = 'bucket_bot';

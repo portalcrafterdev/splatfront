@@ -34,8 +34,21 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final layout = Breakpoints.of(context);
 
     final deck = controller.deck.cardIds;
-    final collection = data.cards.playable.toList()
+
+    // Owned cards first, sorted by cost; the locked ones follow in the order
+    // they will arrive, which turns the tail of the page into a road map
+    // rather than a wall of padlocks in an arbitrary order.
+    final owned = controller.unlockedCards.toList()
       ..sort((a, b) => a.cost.compareTo(b.cost));
+    final locked =
+        data.cards.playable
+            .where((c) => !controller.isCardUnlocked(c.id))
+            .toList()
+          ..sort(
+            (a, b) => (controller.campaign.unlockLevelFor(a.id) ?? 0).compareTo(
+              controller.campaign.unlockLevelFor(b.id) ?? 0,
+            ),
+          );
 
     final swapping = _swapping;
     return Scaffold(
@@ -57,45 +70,84 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 children: [
-            SectionHeading(
-              swapping == null ? 'Your deck' : 'Swapping out',
-              trailing: swapping == null ? '${deck.length} cards' : null,
-            ),
-            _grid(
-              cards: [for (final id in deck) data.cards[id]],
-              profile: profile,
-              layout: layout,
-              readyToUpgrade: controller.canUpgrade,
-              copiesNeeded: (level) => data.upgrades.stepFrom(level)?.copies,
-              highlight: _swapping,
-              onTap: (card) => setState(
-                () => _swapping = _swapping == card.id ? null : card.id,
-              ),
-            ),
+                  SectionHeading(
+                    swapping == null ? 'Your deck' : 'Swapping out',
+                    trailing: swapping == null ? '${deck.length} cards' : null,
+                  ),
+                  _grid(
+                    cards: [for (final id in deck) data.cards[id]],
+                    profile: profile,
+                    layout: layout,
+                    readyToUpgrade: controller.canUpgrade,
+                    copiesNeeded: (level) =>
+                        data.upgrades.stepFrom(level)?.copies,
+                    lockedUntil: (_) => null,
+                    highlight: _swapping,
+                    onTap: (card) => setState(
+                      () => _swapping = _swapping == card.id ? null : card.id,
+                    ),
+                  ),
 
-            const SizedBox(height: 22),
-            SectionHeading(
-              'Every card',
-              trailing: '${collection.length} in the game',
-            ),
-            _grid(
-              cards: collection,
-              profile: profile,
-              layout: layout,
-              readyToUpgrade: controller.canUpgrade,
-              copiesNeeded: (level) => data.upgrades.stepFrom(level)?.copies,
-              dimmed: deck.toSet(),
-              onTap: (card) {
-                final swapping = _swapping;
-                if (swapping == null) {
-                  _showUpgradeSheet(card);
-                  return;
-                }
-                if (deck.contains(card.id)) return;
-                controller.swapCard(outId: swapping, inId: card.id);
-                setState(() => _swapping = null);
-              },
-            ),
+                  const SizedBox(height: 22),
+                  SectionHeading(
+                    'Your cards',
+                    trailing:
+                        '${owned.length} of ${data.cards.playable.length}',
+                  ),
+                  // Until the campaign hands over a seventh card, everything
+                  // owned is already in the deck and this grid is a second
+                  // copy of the one above it. A line saying where more come
+                  // from is more use than the duplicate.
+                  if (owned.length <= deck.length)
+                    const _EmptyNote(
+                      'Every card you own is in your deck. Clear campaign '
+                      'levels to earn more.',
+                    )
+                  else
+                    _grid(
+                      cards: owned,
+                      profile: profile,
+                      layout: layout,
+                      readyToUpgrade: controller.canUpgrade,
+                      copiesNeeded: (level) =>
+                          data.upgrades.stepFrom(level)?.copies,
+                      lockedUntil: (_) => null,
+                      dimmed: deck.toSet(),
+                      onTap: (card) {
+                        final swapping = _swapping;
+                        if (swapping == null) {
+                          _showUpgradeSheet(card);
+                          return;
+                        }
+                        if (deck.contains(card.id)) return;
+                        controller.swapCard(outId: swapping, inId: card.id);
+                        setState(() => _swapping = null);
+                      },
+                    ),
+
+                  if (locked.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    // Says what opens them, not just that they are shut. "Still to
+                    // come" plus the level on each tile is a plan; a row of
+                    // padlocks is a nag.
+                    SectionHeading(
+                      'Still to come',
+                      trailing: 'from the campaign',
+                    ),
+                    _grid(
+                      cards: locked,
+                      profile: profile,
+                      layout: layout,
+                      readyToUpgrade: (_) => false,
+                      copiesNeeded: (_) => null,
+                      lockedUntil: (id) =>
+                          controller.campaign.unlockLevelFor(id),
+                      // Tapping one does nothing on purpose: there is no action to
+                      // offer. An upgrade sheet for a card you do not own would be
+                      // a dead end dressed up as a screen.
+                      onTap: (_) {},
+                    ),
+                  ],
                   const SizedBox(height: 24),
                 ],
               ),
@@ -113,6 +165,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     required int? Function(int level) copiesNeeded,
     required LayoutClass layout,
     required void Function(CardModel card) onTap,
+    required int? Function(String cardId) lockedUntil,
     Set<String> dimmed = const {},
     String? highlight,
   }) {
@@ -133,6 +186,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             ready: readyToUpgrade(card.id),
             selected: card.id == highlight,
             dimmed: dimmed.contains(card.id),
+            lockedUntil: lockedUntil(card.id),
             onTap: () => onTap(card),
           ),
       ],
@@ -160,12 +214,20 @@ class _CollectionCard extends StatelessWidget {
     required this.ready,
     required this.selected,
     required this.dimmed,
+    required this.lockedUntil,
     required this.onTap,
   });
 
   final CardModel card;
   final int level;
   final int copies;
+
+  /// The campaign level that hands this card over, or null once it is owned.
+  ///
+  /// Locked cards are still drawn rather than hidden. Knowing that Kite is
+  /// waiting at level 21 is a reason to play level 20; a collection that
+  /// silently grows has nothing to look forward to.
+  final int? lockedUntil;
 
   /// Copies required for the next level, or null at the cap.
   final int? needed;
@@ -218,21 +280,27 @@ class _CollectionCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: CardTile(
-                    card: card,
-                    width: constraints.maxWidth - 6 - Panel.stroke * 2,
+                  child: _maybeLocked(
+                    CardTile(
+                      card: card,
+                      width: constraints.maxWidth - 6 - Panel.stroke * 2,
+                    ),
+                    locked: lockedUntil != null,
                   ),
                 ),
                 const SizedBox(height: 8),
                 // The bare copy count used to sit under "Lv 1" as a lone
                 // number, which read as a second level. What a player wants
                 // to know here is one thing: how close is this to going up.
-                _Progress(
-                  level: level,
-                  copies: copies,
-                  needed: needed,
-                  ready: ready,
-                ),
+                if (lockedUntil case final at?)
+                  _LockedLabel(level: at)
+                else
+                  _Progress(
+                    level: level,
+                    copies: copies,
+                    needed: needed,
+                    ready: ready,
+                  ),
               ],
             ),
           ),
@@ -240,6 +308,85 @@ class _CollectionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Drains the colour out of a locked card and lays a padlock over it.
+///
+/// Greyscale rather than a low opacity: the art has to stay readable so the
+/// player can see what they are working toward, and fading it out on a pale
+/// page just makes it disappear.
+Widget _maybeLocked(Widget tile, {required bool locked}) {
+  if (!locked) return tile;
+  return Stack(
+    alignment: Alignment.center,
+    children: [
+      ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+        ]),
+        child: Opacity(opacity: 0.75, child: tile),
+      ),
+      const Icon(Icons.lock_rounded, size: 26, color: Colors.white),
+    ],
+  );
+}
+
+/// A line where a grid would otherwise repeat itself.
+class _EmptyNote extends StatelessWidget {
+  const _EmptyNote(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: Palette.uiTextDim,
+        fontSize: 13,
+        height: 1.35,
+      ),
+    ),
+  );
+}
+
+/// What a locked card is waiting for, in place of its upgrade progress.
+class _LockedLabel extends StatelessWidget {
+  const _LockedLabel({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    'Level $level',
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+      color: Palette.uiTextDim,
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+    ),
+  );
 }
 
 /// Upgrade one card: what it costs, and whether it can be paid for.
@@ -294,9 +441,12 @@ class _UpgradeSheet extends ConsumerWidget {
                       Text(
                         '${card.unit!.hp.round()} HP  ·  '
                         '${card.unit!.damage.round()} dmg'
-                        // A building's clock is the stat that decides how you
-                        // use it, so it belongs on the same line.
-                        '${card.isBuilding ? '  ·  ${card.unit!.lifetime.round()}s' : ''}',
+                        // A building on a clock says how long it has; one
+                        // without says so, because "stands until destroyed"
+                        // is the stat that decides how you use it. Reading
+                        // the lifetime blindly printed "0s" on a building
+                        // that in fact never expires.
+                        '${card.isBuilding ? '  ·  ${card.unit!.isTemporary ? '${card.unit!.lifetime.round()}s' : 'until destroyed'}' : ''}',
                         style: const TextStyle(
                           color: Palette.uiTextDim,
                           fontSize: 12,
@@ -327,17 +477,9 @@ class _UpgradeSheet extends ConsumerWidget {
               style: TextStyle(color: Palette.uiTextDim, fontSize: 13),
             )
           else ...[
-            _CostRow(
-              label: 'Cards',
-              have: copies,
-              need: step.copies,
-            ),
+            _CostRow(label: 'Cards', have: copies, need: step.copies),
             const SizedBox(height: 6),
-            _CostRow(
-              label: 'Coins',
-              have: profile.coins,
-              need: step.coins,
-            ),
+            _CostRow(label: 'Coins', have: profile.coins, need: step.coins),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -364,11 +506,7 @@ class _UpgradeSheet extends ConsumerWidget {
 }
 
 class _CostRow extends StatelessWidget {
-  const _CostRow({
-    required this.label,
-    required this.have,
-    required this.need,
-  });
+  const _CostRow({required this.label, required this.have, required this.need});
 
   final String label;
   final int have;

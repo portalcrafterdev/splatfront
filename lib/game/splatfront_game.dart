@@ -58,6 +58,7 @@ class SplatfrontGame extends FlameGame {
     this.botTier = BotTier.normal,
     this.startingTrophies = 0,
     this.levels = const CardLevels(),
+    this.botLevels = const CardLevels(),
     this.economy = MatchRules.flat,
     this.playerTeam = Team.blue,
     this.sandbox = SandboxMode.off,
@@ -91,6 +92,11 @@ class SplatfrontGame extends FlameGame {
   final int startingTrophies;
 
   final CardLevels levels;
+
+  /// The opponent's card levels. Level 1 everywhere on the ladder; the
+  /// campaign raises it as the levels climb, which is what keeps the back
+  /// half getting harder after the brain has run out of room to improve.
+  final CardLevels botLevels;
 
   /// Match economy. Defaults to flat so the sandboxes and any test that is
   /// not about income behave exactly as they always did.
@@ -171,7 +177,6 @@ class SplatfrontGame extends FlameGame {
     }
   }
 
-
   // --- Cards, elixir and deploying --------------------------------------
 
   /// The two sides. Both are the same shape, so the deploy rule, the elixir
@@ -190,6 +195,7 @@ class SplatfrontGame extends FlameGame {
   late final MatchSide opponent = MatchSide(
     team: playerTeam.opponent,
     deck: _validated(botDeck),
+    levels: botLevels,
     // The bot lives under the same brake as the player.
     cardRefillSeconds: economy.cardRefillSeconds,
   );
@@ -214,9 +220,10 @@ class SplatfrontGame extends FlameGame {
   /// async `onLoad` has run: creating it there left the timer reading `--:--`
   /// for the whole match and the result screen never appearing at all.
   late final MatchController? _match = switch (trophyRules) {
-    final rules? =>
-      MatchController(trophyRules: rules, botTier: botTier)
-        ..playerTrophies = startingTrophies,
+    final rules? => MatchController(
+      trophyRules: rules,
+      botTier: botTier,
+    )..playerTrophies = startingTrophies,
     null => null,
   };
 
@@ -241,9 +248,10 @@ class SplatfrontGame extends FlameGame {
     if (!acceptsInput) return false;
     final controller = hand;
     if (controller == null) return false;
-    final card = cards.at(controller.cardIdAt(slot), controller.levelOf(
+    final card = cards.at(
       controller.cardIdAt(slot),
-    ));
+      controller.levelOf(controller.cardIdAt(slot)),
+    );
     if (!elixir.canAfford(card.cost)) return false;
     // A slot that has just been spent is still cooling down.
     if (!controller.isReady(slot)) return false;
@@ -298,9 +306,8 @@ class SplatfrontGame extends FlameGame {
 
   /// The live-building cap for one side, or a very large number when the
   /// rules set none.
-  int get buildingCap => economy.maxLiveBuildings > 0
-      ? economy.maxLiveBuildings
-      : 1 << 30;
+  int get buildingCap =>
+      economy.maxLiveBuildings > 0 ? economy.maxLiveBuildings : 1 << 30;
 
   /// How many of [team]'s buildings are standing right now.
   ///
@@ -631,7 +638,10 @@ class SplatfrontGame extends FlameGame {
       spawnUnit(
         registry.implemented[i % registry.implemented.length],
         team: playerTeam,
-        position: Vector2(x, ArenaSpec.worldHeight - 2 - _random.nextDouble() * 4),
+        position: Vector2(
+          x,
+          ArenaSpec.worldHeight - 2 - _random.nextDouble() * 4,
+        ),
       );
       spawnUnit(
         registry.implemented[i % registry.implemented.length],

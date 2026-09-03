@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,6 +85,42 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('the levels tab opens on the level you are up to', (
+    tester,
+  ) async {
+    // A thousand tiles, and the one that matters is the next uncleared
+    // level. Landing at level 1 after clearing forty of them would mean
+    // scrolling past forty rows to reach anything playable, so the list
+    // opens where the player actually is.
+    await pumpApp(
+      tester,
+      profile: const PlayerProfile(
+        campaignStars: {1: 3, 2: 2, 3: 3, 4: 1, 5: 2},
+      ),
+    );
+
+    await openRoute(tester, find.text('Levels'));
+
+    expect(find.text('Level 6'), findsOneWidget, reason: 'the heading');
+    expect(find.text('6'), findsWidgets, reason: 'and its tile is on screen');
+    expect(find.text('1'), findsNothing, reason: 'level 1 is scrolled past');
+
+    await unmount(tester);
+  });
+
+  testWidgets('a locked level cannot be started', (tester) async {
+    await pumpApp(tester);
+    await openRoute(tester, find.text('Levels'));
+
+    // Level 1 is playable on a fresh profile; everything past it is not, and
+    // a locked tile has no tap target at all rather than one that silently
+    // does nothing.
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_rounded), findsWidgets);
+
+    await unmount(tester);
+  });
+
   testWidgets('reduced motion is honoured', (tester) async {
     // The OS already knows whether this player has asked for less movement,
     // and nothing here was reading it. Vestibular disorders are common
@@ -100,7 +137,8 @@ void main() {
           overrides: [
             gameDataProvider.overrideWithValue(data),
             profileProvider.overrideWith(
-              (ref) => _InMemoryProfile(data: data, initial: const PlayerProfile()),
+              (ref) =>
+                  _InMemoryProfile(data: data, initial: const PlayerProfile()),
             ),
           ],
           child: const SplatfrontApp(),
@@ -187,9 +225,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('the arena shown follows the player\'s trophies', (
-    tester,
-  ) async {
+  testWidgets('the arena shown follows the player\'s trophies', (tester) async {
     // Case matters: the strip at the top says ARENA 1 and the trophy road at
     // the bottom of the quest list says "Arena 2 at 400, Arena 3 at 900", so
     // a case-insensitive match would find both and prove nothing.

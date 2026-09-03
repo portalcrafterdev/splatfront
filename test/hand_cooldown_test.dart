@@ -24,8 +24,11 @@ void main() {
     deck = starters.first;
   });
 
-  HandController hand({double refill = 10}) =>
-      HandController(deck: deck, levels: const CardLevels(), refillSeconds: refill);
+  HandController hand({double refill = 10}) => HandController(
+    deck: deck,
+    levels: const CardLevels(),
+    refillSeconds: refill,
+  );
 
   test('a played slot goes cold and comes back on time', () {
     final h = hand();
@@ -100,7 +103,9 @@ void main() {
 
   test('a reset clears every cooldown', () {
     final h = hand();
-    h..play(0)..play(2);
+    h
+      ..play(0)
+      ..play(2);
     expect(h.hasCooldowns, isTrue);
 
     h.reset();
@@ -146,10 +151,7 @@ void main() {
     game.cancelDeploy();
 
     // Play it for real, which puts the slot on cooldown.
-    expect(
-      game.playFromHand(game.player, 0, Vector2(8, 20)),
-      isTrue,
-    );
+    expect(game.playFromHand(game.player, 0, Vector2(8, 20)), isTrue);
     expect(game.hand!.isReady(0), isFalse);
 
     game.elixir.value.value = 10;
@@ -192,10 +194,7 @@ void main() {
     await tester.runAsync(() => game.arena.resampleNow());
 
     game.opponent.elixir.value.value = 10;
-    expect(
-      game.playFromHand(game.opponent, 0, Vector2(8, 4)),
-      isTrue,
-    );
+    expect(game.playFromHand(game.opponent, 0, Vector2(8, 4)), isTrue);
     expect(
       game.opponent.hand!.isReady(0),
       isFalse,

@@ -101,26 +101,29 @@ void main() {
     expect(() => run(game, seconds: 4.0), returnsNormally);
   });
 
-  test('a Nozzle fires when it swings, and its splat matches its blast', () async {
-    final game = newGame();
-    await game.onLoad();
+  test(
+    'a Nozzle fires when it swings, and its splat matches its blast',
+    () async {
+      final game = newGame();
+      await game.onLoad();
 
-    final nozzle = game.spawnUnit(
-      'nozzle',
-      team: Team.red,
-      position: Vector2(8, 14),
-    );
-    game.spawnUnit('brusher', team: Team.blue, position: Vector2(8, 11));
-    game.updateTree(0);
+      final nozzle = game.spawnUnit(
+        'nozzle',
+        team: Team.red,
+        position: Vector2(8, 14),
+      );
+      game.spawnUnit('brusher', team: Team.blue, position: Vector2(8, 11));
+      game.updateTree(0);
 
-    // Long enough to acquire the target, close to range and swing once.
-    run(game, seconds: 3.0);
+      // Long enough to acquire the target, close to range and swing once.
+      run(game, seconds: 3.0);
 
-    expect(
-      game.arena.paintLayer.hasPendingStamps || shotsIn(game).isNotEmpty,
-      isTrue,
-      reason: 'the cannon has fired something by now',
-    );
-    expect(nozzle.stats.splashRadius, greaterThan(0));
-  });
+      expect(
+        game.arena.paintLayer.hasPendingStamps || shotsIn(game).isNotEmpty,
+        isTrue,
+        reason: 'the cannon has fired something by now',
+      );
+      expect(nozzle.stats.splashRadius, greaterThan(0));
+    },
+  );
 }

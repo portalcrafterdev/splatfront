@@ -1,5 +1,5 @@
 {
-  "_comment": "All balance numbers live here. A balance pass is a JSON edit and a hot restart, nothing more. Stats are card level 1; levels 2-9 apply levelScaling to hp and damage only.",
+  "_comment": "All balance numbers live here. A balance pass is a JSON edit and a hot restart, nothing more. Stats are card level 1; levels 2-9 apply levelScaling to hp and damage only. A building with lifetime 0 stands until something destroys it; put a number above zero back and that card goes on a clock again, no code change.",
 
   "levelScaling": 0.08,
   "maxLevel": 9,
@@ -100,7 +100,7 @@
       "speed": "static", "range": 6.0, "paint": 0, "shellPaint": 1.7,
       "volley": 12,
       "targets": "airGround", "count": 1, "flying": false, "radius": 0.45,
-      "lifetime": 30.0,
+      "lifetime": 0,
       "note": "Stands where you drop it and shells ground you cannot reach. The splat lands where the shell does. With nothing to shoot it keeps firing all the way round itself; volley is how many shells make one sweep out to full range, so a bigger number spreads them thinner and fills the circle more slowly."
     },
     {
@@ -108,7 +108,7 @@
       "hp": 260, "damage": 0, "hitRate": 0,
       "speed": "static", "range": "melee", "paint": 2.4,
       "targets": "ground", "count": 1, "flying": false, "radius": 0.4,
-      "lifetime": 20.0,
+      "lifetime": 0,
       "note": "The widest stamp in the set, laid down in place. No attack at all."
     },
     {
@@ -116,7 +116,7 @@
       "hp": 950, "damage": 0, "hitRate": 0,
       "speed": "static", "range": "melee", "paint": 0.9,
       "targets": "ground", "count": 1, "flying": false, "radius": 0.55,
-      "lifetime": 25.0,
+      "lifetime": 0,
       "note": "Soaks a push. Deals nothing, but a push spends its time hitting this instead of your Roller."
     },
     {
@@ -132,7 +132,7 @@
       "hp": 340, "damage": 55, "hitRate": 1.2,
       "speed": "static", "range": 7.0, "paint": 0, "shellPaint": 0.9,
       "targets": "airGround", "count": 1, "flying": false, "radius": 0.42,
-      "lifetime": 24.0,
+      "lifetime": 0,
       "note": "A laser. Paints the whole line it burns, not just the far end, which cuts a deploy corridor into enemy colour."
     },
     {
@@ -141,7 +141,7 @@
       "speed": "static", "range": 3.4, "paint": 0, "shellPaint": 1.15,
       "volley": 8,
       "targets": "airGround", "count": 1, "flying": false, "radius": 0.5,
-      "lifetime": 22.0,
+      "lifetime": 0,
       "note": "Throws a full ring of shells all round itself, turning a little each time so the gaps fill in. Barely hurts, paints an enormous circle, and the ring bursts high enough to swat a flyer."
     },
     {

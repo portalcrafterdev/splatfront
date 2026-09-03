@@ -87,10 +87,7 @@ void main() {
 
       controller.updateSettings(const Settings(musicVolume: 0.1));
       expect(controller.lastSaved, isNotNull);
-      expect(
-        (controller.lastSaved!['settings'] as Map)['musicVolume'],
-        0.1,
-      );
+      expect((controller.lastSaved!['settings'] as Map)['musicVolume'], 0.1);
     });
   });
 
@@ -99,17 +96,72 @@ void main() {
       expect(fresh().deck.cardIds, data.defaultDeck.cardIds);
     });
 
-    test('swapping a card keeps the deck eight long and distinct', () {
-      final controller = fresh();
+    // Far enough into the campaign to own something outside the starter six.
+    // A brand new profile owns exactly its deck and has nothing to swap in,
+    // which is the point of unlocking cards as you go.
+    PlayerProfile withProgress([int levels = 40]) =>
+        PlayerProfile(campaignStars: {for (var i = 1; i <= levels; i++) i: 3});
+
+    test('swapping a card keeps the deck six long and distinct', () {
+      final controller = fresh(withProgress());
       final out = controller.deck.cardIds.first;
-      final inCard = data.cards.playable
-          .firstWhere((c) => !controller.deck.cardIds.contains(c.id));
+      final inCard = controller.unlockedCards.firstWhere(
+        (c) => !controller.deck.cardIds.contains(c.id),
+      );
 
       expect(controller.swapCard(outId: out, inId: inCard.id), isTrue);
       expect(controller.deck.cardIds, hasLength(Deck.size));
       expect(controller.deck.cardIds, contains(inCard.id));
       expect(controller.deck.cardIds, isNot(contains(out)));
       expect(controller.deck.cardIds.toSet(), hasLength(Deck.size));
+    });
+
+    test('a fresh player owns the starter deck and nothing else', () {
+      final controller = fresh();
+      expect(
+        controller.unlockedCards.map((c) => c.id).toSet(),
+        controller.deck.cardIds.toSet(),
+      );
+    });
+
+    test('a locked card cannot be built with', () {
+      final controller = fresh();
+      final locked = data.cards.playable.firstWhere(
+        (c) => !controller.isCardUnlocked(c.id),
+      );
+      final out = controller.deck.cardIds.first;
+
+      expect(controller.swapCard(outId: out, inId: locked.id), isFalse);
+      expect(controller.deck.cardIds, contains(out));
+    });
+
+    test('clearing its level unlocks a card', () {
+      final entry = data.campaign.cardUnlocks.entries.first;
+      final before = fresh(withProgress(entry.value - 1));
+      final after = fresh(withProgress(entry.value));
+
+      expect(before.isCardUnlocked(entry.key), isFalse);
+      expect(after.isCardUnlocked(entry.key), isTrue);
+    });
+
+    // A chest that banks copies of a card you cannot play for another eighty
+    // levels spends itself on nothing, and arrives at the unlock already half
+    // used up.
+    test('a chest only ever gives copies of unlocked cards', () {
+      final controller = fresh(
+        withProgress(3).copyWith(chests: [const ChestSlot(typeId: 'wood')]),
+      );
+      controller.startUnlocking(0, now: DateTime(2026));
+      final reward = controller.openChest(0, now: DateTime(2027));
+
+      expect(reward, isNotNull);
+      for (final id in reward!.cards.keys) {
+        expect(
+          controller.isCardUnlocked(id),
+          isTrue,
+          reason: '$id is not unlocked yet',
+        );
+      }
     });
 
     test('a card already in the deck cannot be added twice', () {
@@ -173,7 +225,10 @@ void main() {
     test('a win with every slot full earns nothing', () {
       final controller = fresh(
         const PlayerProfile(
-          chests: [ChestSlot(typeId: 'wood'), ChestSlot(typeId: 'wood')],
+          chests: [
+            ChestSlot(typeId: 'wood'),
+            ChestSlot(typeId: 'wood'),
+          ],
         ),
       );
       controller.applyMatch(
@@ -192,7 +247,10 @@ void main() {
     test('only one chest may unlock at a time', () {
       final controller = fresh(
         const PlayerProfile(
-          chests: [ChestSlot(typeId: 'wood'), ChestSlot(typeId: 'silver')],
+          chests: [
+            ChestSlot(typeId: 'wood'),
+            ChestSlot(typeId: 'silver'),
+          ],
         ),
       );
       final now = DateTime(2026, 8, 31, 12);
@@ -213,8 +271,10 @@ void main() {
       controller.startUnlocking(0, now: start);
 
       // Wood takes three minutes.
-      expect(controller.openChest(0, now: start.add(const Duration(minutes: 2))),
-          isNull);
+      expect(
+        controller.openChest(0, now: start.add(const Duration(minutes: 2))),
+        isNull,
+      );
       final reward = controller.openChest(
         0,
         now: start.add(const Duration(minutes: 4)),
@@ -393,8 +453,9 @@ void main() {
     });
 
     test('paint share takes the best match, not the sum', () {
-      final quest = data.quests.pool
-          .firstWhere((q) => q.type == QuestType.paintShare);
+      final quest = data.quests.pool.firstWhere(
+        (q) => q.type == QuestType.paintShare,
+      );
       final controller = fresh(
         PlayerProfile(
           questDay: '2026-08-31',
@@ -420,8 +481,9 @@ void main() {
     });
 
     test('a finished quest pays out once', () {
-      final quest = data.quests.pool
-          .firstWhere((q) => q.type == QuestType.winMatches && q.target == 1);
+      final quest = data.quests.pool.firstWhere(
+        (q) => q.type == QuestType.winMatches && q.target == 1,
+      );
       final controller = fresh(
         PlayerProfile(
           questDay: '2026-08-31',
@@ -437,8 +499,9 @@ void main() {
     });
 
     test('an unfinished quest pays nothing', () {
-      final quest = data.quests.pool
-          .firstWhere((q) => q.type == QuestType.winMatches && q.target == 2);
+      final quest = data.quests.pool.firstWhere(
+        (q) => q.type == QuestType.winMatches && q.target == 2,
+      );
       final controller = fresh(
         PlayerProfile(
           questDay: '2026-08-31',
@@ -450,13 +513,18 @@ void main() {
     });
 
     test('a claimed quest stops accruing', () {
-      final quest = data.quests.pool
-          .firstWhere((q) => q.type == QuestType.playMatches);
+      final quest = data.quests.pool.firstWhere(
+        (q) => q.type == QuestType.playMatches,
+      );
       final controller = fresh(
         PlayerProfile(
           questDay: '2026-08-31',
           quests: [
-            QuestProgress(questId: quest.id, progress: quest.target, claimed: true),
+            QuestProgress(
+              questId: quest.id,
+              progress: quest.target,
+              claimed: true,
+            ),
           ],
         ),
       );

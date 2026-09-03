@@ -55,11 +55,13 @@ void main() {
           .toList();
 
       expect(
-        air.where((c) => c.isTroop), isNotEmpty,
+        air.where((c) => c.isTroop),
+        isNotEmpty,
         reason: 'a deck without a building still has to answer a flyer',
       );
       expect(
-        air.where((c) => c.isBuilding), isNotEmpty,
+        air.where((c) => c.isBuilding),
+        isNotEmpty,
         reason: 'and a static answer has to exist too',
       );
       expect(
@@ -72,10 +74,7 @@ void main() {
     test('every shipped deck can answer a flyer', () {
       // The roster-wide floor is worthless if a deck can still be built with
       // no answer in it at all.
-      for (final deck in [
-        ...playerDecks,
-        ...bots.decksByArena.values,
-      ]) {
+      for (final deck in [...playerDecks, ...bots.decksByArena.values]) {
         final air = deck.cardIds
             .map((id) => cards[id])
             .where((c) => c.isUnit && c.unit!.targets.canHit(flying: true));
@@ -113,7 +112,9 @@ void main() {
         final swarms = u.count > 1;
         final reaches = u.range > cards.units.tuning.meleeRange;
         final special =
-            u.splashRadius > 0 || u.auraRadius > 0 || u.targets.canHit(flying: true);
+            u.splashRadius > 0 ||
+            u.auraRadius > 0 ||
+            u.targets.canHit(flying: true);
 
         expect(
           paints || tanks || swarms || reaches || special,
@@ -137,16 +138,35 @@ void main() {
       );
     });
 
-    test('every building still expires on its own clock', () {
-      // The cap and the timer answer different halves of the problem.
-      for (final card in cards.buildings) {
+    // The design note asked for a cap *and* a per-building timer, calling
+    // them two halves of one problem. The timer half is off on the owner's
+    // call: a gun that vanished on its own made four elixir feel like a
+    // rental, and a building you have to break is a better fight.
+    //
+    // That is deliberate, and it is why this test asserts the state rather
+    // than deleting the rule. Every building standing until killed puts the
+    // whole weight of rule 3 on the cap below, so the cap may not be relaxed
+    // while this is how the roster reads.
+    test(
+      'buildings stand until destroyed, so the cap carries rule 3 alone',
+      () {
+        for (final card in cards.buildings) {
+          expect(
+            card.unit!.isTemporary,
+            isFalse,
+            reason:
+                '${card.id} is back on a clock — if that is intended, this '
+                'test and the cap reasoning above need revisiting together',
+          );
+        }
+
         expect(
-          card.unit!.isTemporary,
-          isTrue,
-          reason: '${card.id} would stand forever',
+          rules.maxLiveBuildings,
+          greaterThan(0),
+          reason: 'with no timer, an uncapped side could stack turrets forever',
         );
-      }
-    });
+      },
+    );
 
     testWidgets('the deploy is refused once the cap is reached', (
       tester,
@@ -168,7 +188,11 @@ void main() {
       expect(game.canDeployFor(Team.red, card, spot), isTrue);
 
       for (var i = 0; i < rules.maxLiveBuildings; i++) {
-        game.spawnCard('turret', team: Team.red, position: Vector2(4.0 + i, 20));
+        game.spawnCard(
+          'turret',
+          team: Team.red,
+          position: Vector2(4.0 + i, 20),
+        );
       }
       game.updateTree(0);
 
@@ -185,10 +209,7 @@ void main() {
       expect(game.canDeployFor(Team.blue, card, Vector2(8, 4)), isTrue);
 
       // A troop is still fine — the cap is on buildings only.
-      expect(
-        game.canDeployFor(Team.red, cards['brusher'], spot),
-        isTrue,
-      );
+      expect(game.canDeployFor(Team.red, cards['brusher'], spot), isTrue);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

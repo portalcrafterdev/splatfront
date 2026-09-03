@@ -87,11 +87,7 @@ class ChestConfig {
   }
 
   /// Rolls the contents of [type], spreading the card copies over [cardPool].
-  ChestReward open(
-    ChestType type,
-    List<String> cardPool,
-    math.Random random,
-  ) {
+  ChestReward open(ChestType type, List<String> cardPool, math.Random random) {
     final coins =
         type.coinsMin + random.nextInt(type.coinsMax - type.coinsMin + 1);
     final total =

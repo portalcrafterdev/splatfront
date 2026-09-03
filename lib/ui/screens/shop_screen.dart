@@ -25,10 +25,7 @@ class ShopScreen extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     final controller = ref.read(profileProvider.notifier);
 
-    final offers = _offersFor(
-      QuestConfig.dayKey(DateTime.now()),
-      data,
-    );
+    final offers = _offersFor(QuestConfig.dayKey(DateTime.now()), controller);
 
     return Scaffold(
       backgroundColor: Palette.uiBackground,
@@ -42,26 +39,28 @@ class ShopScreen extends ConsumerWidget {
             MetaHeader(
               title: 'Shop',
               profile: profile,
-              subtitle: 'Four card deals, new every day. Coins come from '
+              subtitle:
+                  'Four card deals, new every day. Coins come from '
                   'chests and quests — nothing here costs real money.',
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
-            for (final offer in offers)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _OfferRow(
-                  card: data.cards[offer.cardId],
-                  copies: offer.copies,
-                  cost: offer.copies * data.shopCoinsPerCopy,
-                  short: (offer.copies * data.shopCoinsPerCopy) -
-                      profile.coins,
-                  onBuy: () =>
-                      controller.buyCopies(offer.cardId, offer.copies),
-                ),
-              ),
+                  for (final offer in offers)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _OfferRow(
+                        card: data.cards[offer.cardId],
+                        copies: offer.copies,
+                        cost: offer.copies * data.shopCoinsPerCopy,
+                        short:
+                            (offer.copies * data.shopCoinsPerCopy) -
+                            profile.coins,
+                        onBuy: () =>
+                            controller.buyCopies(offer.cardId, offer.copies),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -72,10 +71,14 @@ class ShopScreen extends ConsumerWidget {
   }
 
   /// Deterministic from the day, so the shop does not reshuffle on rebuild.
-  List<_Offer> _offersFor(String day, GameData data) {
+  List<_Offer> _offersFor(String day, ProfileController controller) {
     // Salted so the shop does not mirror the quest draw for the same day.
     final random = math.Random(Object.hash(day, 'shop'));
-    final pool = data.cards.playable.toList();
+    // Unlocked cards only. Selling copies of a card the player cannot put in
+    // a deck is selling them nothing, and it spends the shop slot that could
+    // have carried something they can use today.
+    final data = controller.data;
+    final pool = controller.unlockedCards.toList();
     if (pool.isEmpty) return const [];
 
     final picked = <_Offer>[];
@@ -150,10 +153,7 @@ class _OfferRow extends StatelessWidget {
               ),
               Text(
                 'x$copies cards',
-                style: const TextStyle(
-                  color: Palette.uiTextDim,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Palette.uiTextDim, fontSize: 12),
               ),
             ],
           ),

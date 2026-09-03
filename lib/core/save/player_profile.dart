@@ -24,7 +24,9 @@ class ChestSlot {
     typeId: json['typeId'] as String,
     unlockStartedAt: json['startedAt'] == null
         ? null
-        : DateTime.fromMillisecondsSinceEpoch((json['startedAt'] as num).toInt()),
+        : DateTime.fromMillisecondsSinceEpoch(
+            (json['startedAt'] as num).toInt(),
+          ),
   );
 }
 
@@ -115,6 +117,7 @@ class PlayerProfile {
     this.chests = const [],
     this.quests = const [],
     this.questDay,
+    this.campaignStars = const {},
     this.settings = const Settings(),
   });
 
@@ -136,7 +139,30 @@ class PlayerProfile {
   final List<QuestProgress> quests;
   final String? questDay;
 
+  /// Stars earned per campaign level, keyed by level number.
+  ///
+  /// Only cleared levels appear, so the map stays small however long the
+  /// campaign is — a player 300 levels in carries 300 entries, not 1000.
+  final Map<int, int> campaignStars;
+
   final Settings settings;
+
+  /// The highest level cleared, or 0 before the first one.
+  int get campaignCleared =>
+      campaignStars.keys.fold(0, (best, level) => level > best ? level : best);
+
+  /// The level the campaign is asking you to play next.
+  int get campaignNextLevel => campaignCleared + 1;
+
+  /// Every star earned so far.
+  int get campaignTotalStars =>
+      campaignStars.values.fold(0, (sum, stars) => sum + stars);
+
+  int starsOnLevel(int level) => campaignStars[level] ?? 0;
+
+  /// Whether [level] may be played. The next uncleared level is always
+  /// playable; everything past it is not.
+  bool isLevelUnlocked(int level) => level <= campaignNextLevel;
 
   /// Highest trophies ever reached is not tracked separately in v1; arenas
   /// unlock off the current count.
@@ -155,6 +181,7 @@ class PlayerProfile {
     List<ChestSlot>? chests,
     List<QuestProgress>? quests,
     String? questDay,
+    Map<int, int>? campaignStars,
     Settings? settings,
   }) => PlayerProfile(
     trophies: trophies ?? this.trophies,
@@ -165,6 +192,7 @@ class PlayerProfile {
     chests: chests ?? this.chests,
     quests: quests ?? this.quests,
     questDay: questDay ?? this.questDay,
+    campaignStars: campaignStars ?? this.campaignStars,
     settings: settings ?? this.settings,
   );
 
@@ -178,6 +206,11 @@ class PlayerProfile {
     'chests': [for (final c in chests) c.toJson()],
     'quests': [for (final q in quests) q.toJson()],
     'questDay': questDay,
+    // JSON object keys are strings, so the level number goes out as one and
+    // is parsed back on the way in.
+    'campaignStars': {
+      for (final entry in campaignStars.entries) '${entry.key}': entry.value,
+    },
     'settings': settings.toJson(),
   };
 
@@ -196,10 +229,25 @@ class PlayerProfile {
         QuestProgress.fromJson(Map<String, dynamic>.from(q as Map)),
     ],
     questDay: json['questDay'] as String?,
+    campaignStars: _levelMap(json['campaignStars']),
     settings: Settings.fromJson(
       Map<String, dynamic>.from(json['settings'] as Map? ?? const {}),
     ),
   );
+
+  /// The saved star map, whose keys are strings on disk and level numbers in
+  /// memory. A key that is not a number is dropped rather than throwing: a
+  /// corrupt save should cost you the campaign, not the whole profile.
+  static Map<int, int> _levelMap(Object? raw) {
+    if (raw is! Map) return const {};
+    final out = <int, int>{};
+    for (final entry in raw.entries) {
+      final level = int.tryParse('${entry.key}');
+      final stars = entry.value;
+      if (level != null && stars is num) out[level] = stars.toInt();
+    }
+    return out;
+  }
 
   static Map<String, int> _intMap(Object? raw) {
     if (raw is! Map) return const {};

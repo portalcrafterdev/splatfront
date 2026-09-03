@@ -69,11 +69,11 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
-            for (var i = 0; i < slots; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _slotAt(i, profile, data, controller),
-              ),
+                  for (var i = 0; i < slots; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _slotAt(i, profile, data, controller),
+                    ),
                   const SizedBox(height: 8),
                   const Text(
                     'Win a match to earn a chest. With every slot full, a win '

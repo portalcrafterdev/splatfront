@@ -99,10 +99,7 @@ void main() {
   testWidgets('a wiped-out side leaves the bar intact', (tester) async {
     await pumpBar(tester, const Coverage(1.0, 0.0));
 
-    expect(
-      segmentSize(tester, Palette.red).width,
-      closeTo(screenWidth, 1.0),
-    );
+    expect(segmentSize(tester, Palette.red).width, closeTo(screenWidth, 1.0));
     // Zero-width is fine; zero-height would mean the bar vanished.
     expect(segmentSize(tester, Palette.blue).height, barHeight);
   });

@@ -50,33 +50,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: Palette.uiBackground,
       body: MenuBackground(
         child: SafeArea(
-        child: ResponsiveBuilder(
-          builder: (context, layout) {
-            const left = _PlayerPane();
-            const right = _QuestPane();
-            // Clears the bottom bar. At 16 the last line of the trophy road
-            // ended up underneath it and was cut in half.
-            const bottomGap = SizedBox(height: 28);
+          child: ResponsiveBuilder(
+            builder: (context, layout) {
+              const left = _PlayerPane();
+              const right = _QuestPane();
+              // Clears the bottom bar. At 16 the last line of the trophy road
+              // ended up underneath it and was cut in half.
+              const bottomGap = SizedBox(height: 28);
 
-            if (layout.isWide) {
-              return const Row(
-                children: [
-                  Expanded(child: SingleChildScrollView(child: left)),
-                  Expanded(child: right),
-                ],
+              if (layout.isWide) {
+                return const Row(
+                  children: [
+                    Expanded(child: SingleChildScrollView(child: left)),
+                    Expanded(child: right),
+                  ],
+                );
+              }
+              // One scroll for the whole page rather than a fixed block with a
+              // scrolling list under it. Home outgrew the screen the moment it
+              // started showing your deck, and a fixed column does not overflow
+              // gracefully — it throws in debug and silently clips in release.
+              return const SingleChildScrollView(
+                child: Column(
+                  children: [left, _QuestPane(fillsHeight: false), bottomGap],
+                ),
               );
-            }
-            // One scroll for the whole page rather than a fixed block with a
-            // scrolling list under it. Home outgrew the screen the moment it
-            // started showing your deck, and a fixed column does not overflow
-            // gracefully — it throws in debug and silently clips in release.
-            return const SingleChildScrollView(
-              child: Column(
-                children: [left, _QuestPane(fillsHeight: false), bottomGap],
-              ),
-            );
-          },
-        ),
+            },
+          ),
         ),
       ),
     );
@@ -163,7 +163,6 @@ class _PlayerPane extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 /// The chest slots on Home.
@@ -211,9 +210,9 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
       // Opaque, so the gaps between the tiles are tappable too rather than
       // dropping the tap through to nothing.
       behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const ChestScreen()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const ChestScreen())),
       child: Row(
         children: [
           for (var i = 0; i < widget.slots; i++)
@@ -241,9 +240,7 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
         : formatDuration(remaining);
 
     return _box(
-      border: ready
-          ? Palette.accent
-          : Palette.accent.withValues(alpha: 0.6),
+      border: ready ? Palette.accent : Palette.accent.withValues(alpha: 0.6),
       borderWidth: ready ? 2 : 1,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -359,30 +356,27 @@ class _QuestPane extends ConsumerWidget {
           _QuestList(
             fillsHeight: fillsHeight,
             children: [
-                for (final quest in quests)
-                  _QuestRow(
-                    quest: quest,
-                    progress: controller.progressFor(quest.id),
-                    onClaim: () => controller.claimQuest(quest.id),
-                  ),
-                if (quests.isEmpty)
-                  const Text(
-                    'No quests today.',
-                    style: TextStyle(
-                      color: Palette.uiTextDim,
-                      fontSize: 12,
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                Text(
-                  'Trophy road unlocks Arena 2 at 400, Arena 3 at 900 and '
-                  'Arena 4 at 1500. You have ${profile.trophies}.',
-                  style: const TextStyle(
-                    color: Palette.uiTextDim,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
+              for (final quest in quests)
+                _QuestRow(
+                  quest: quest,
+                  progress: controller.progressFor(quest.id),
+                  onClaim: () => controller.claimQuest(quest.id),
                 ),
+              if (quests.isEmpty)
+                const Text(
+                  'No quests today.',
+                  style: TextStyle(color: Palette.uiTextDim, fontSize: 12),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                'Trophy road unlocks Arena 2 at 400, Arena 3 at 900 and '
+                'Arena 4 at 1500. You have ${profile.trophies}.',
+                style: const TextStyle(
+                  color: Palette.uiTextDim,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
             ],
           ),
         ],
@@ -604,7 +598,12 @@ class _DifficultyPicker extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const SectionHeading('Opponent'),
+      // Named for what it governs. There are two ways to start a fight now,
+      // and this picker reaches only one of them: a campaign level sets its
+      // own opponent from its number, so a bare "Opponent" heading over
+      // Easy/Normal/Hard read as a global difficulty setting that would also
+      // apply over on the Levels tab. It does not.
+      const SectionHeading('Quick battle', trailing: 'trophies'),
       Row(
         children: [
           for (final tier in BotTier.values)
@@ -692,7 +691,6 @@ class _AnimatedBar extends StatelessWidget {
     ),
   );
 }
-
 
 /// The orange block at the top: who you are and how far along you are.
 ///
@@ -862,7 +860,6 @@ class _BandChip extends StatelessWidget {
   );
 }
 
-
 /// The quest list, scrolling on its own or not depending on who owns the
 /// height.
 ///
@@ -879,5 +876,8 @@ class _QuestList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => fillsHeight
       ? Expanded(child: ListView(children: children))
-      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        );
 }

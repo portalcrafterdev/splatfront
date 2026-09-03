@@ -23,7 +23,8 @@ enum MatchPhase {
 }
 
 extension MatchPhaseX on MatchPhase {
-  bool get isLive => this == MatchPhase.playing || this == MatchPhase.suddenDeath;
+  bool get isLive =>
+      this == MatchPhase.playing || this == MatchPhase.suddenDeath;
   bool get isOver => this == MatchPhase.finished;
 }
 
@@ -32,8 +33,7 @@ extension MatchPhaseX on MatchPhase {
 ///
 /// Everything it publishes is a [ValueNotifier], so the HUD updates without a
 /// single `setState` anywhere near the arena.
-class MatchController extends Component
-    with HasGameReference<SplatfrontGame> {
+class MatchController extends Component with HasGameReference<SplatfrontGame> {
   MatchController({required this.trophyRules, required this.botTier});
 
   final TrophyRules trophyRules;
@@ -119,8 +119,7 @@ class MatchController extends Component
 
   bool get _isCloseEnoughForSuddenDeath {
     final coverage = game.arena.coverage.value;
-    return (coverage.red - coverage.blue).abs() <=
-        Timings.suddenDeathThreshold;
+    return (coverage.red - coverage.blue).abs() <= Timings.suddenDeathThreshold;
   }
 
   void _enterSuddenDeath() {

@@ -108,7 +108,11 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => game.arena.resampleNow());
 
-    final unit = game.spawnUnit(id, team: Team.red, position: Vector2(8, dropY));
+    final unit = game.spawnUnit(
+      id,
+      team: Team.red,
+      position: Vector2(8, dropY),
+    );
 
     // Twenty seconds, resampling twice a second the way the real match does.
     for (var i = 0; i < 40; i++) {
@@ -138,11 +142,7 @@ void main() {
       lessThan(2),
       reason: 'it should have crossed the whole arena, and stopped at $y',
     );
-    expect(
-      y,
-      greaterThanOrEqualTo(0),
-      reason: 'but never off the board',
-    );
+    expect(y, greaterThanOrEqualTo(0), reason: 'but never off the board');
   });
 
   testWidgets('where a card is dropped does not decide how far it gets', (
@@ -158,12 +158,16 @@ void main() {
     final fromEdge = await restingY(tester, 'brusher', dropY: 13);
 
     final mid = ArenaSpec.worldHeight / 2;
-    for (final entry in {22.0: fromBack, 18.0: fromMiddle, 13.0: fromEdge}
-        .entries) {
+    for (final entry in {
+      22.0: fromBack,
+      18.0: fromMiddle,
+      13.0: fromEdge,
+    }.entries) {
       expect(
         entry.value,
         lessThan(mid - 1.0),
-        reason: 'dropped at ${entry.key} it stopped at ${entry.value}, which '
+        reason:
+            'dropped at ${entry.key} it stopped at ${entry.value}, which '
             'is not a push into enemy ground',
       );
     }

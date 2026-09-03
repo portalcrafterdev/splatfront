@@ -115,8 +115,14 @@ void main() {
     test('the fight is match sound and the outcome is not', () {
       // The arena keeps running after the clock stops: units already swinging
       // carry on, so these are what used to leak under the result screen.
-      for (final sound in [Sfx.hit, Sfx.death, Sfx.splat, Sfx.deploy,
-          Sfx.leadChange, Sfx.elixirFull]) {
+      for (final sound in [
+        Sfx.hit,
+        Sfx.death,
+        Sfx.splat,
+        Sfx.deploy,
+        Sfx.leadChange,
+        Sfx.elixirFull,
+      ]) {
         expect(sound.isGameplay, isTrue, reason: sound.name);
       }
       // And these have to survive the mute, or the whistle makes no sound.

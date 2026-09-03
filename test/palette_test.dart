@@ -111,7 +111,8 @@ void main() {
         expect(
           hueGap(entry.value, team),
           greaterThan(40),
-          reason: '${entry.key} is too close to a team colour to read as '
+          reason:
+              '${entry.key} is too close to a team colour to read as '
               'chrome over the board',
         );
       }
@@ -129,8 +130,7 @@ void main() {
     // caught it, because contrast is not something you can see by reading a
     // hex value. This is the check that would have.
     double luminance(Color c) {
-      double channel(double v) =>
-          v <= 0.03928
+      double channel(double v) => v <= 0.03928
           ? v / 12.92
           : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
       return 0.2126 * channel(c.r) +

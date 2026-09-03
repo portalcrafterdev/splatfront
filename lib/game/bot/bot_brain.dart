@@ -28,11 +28,8 @@ class _PendingPlay {
 /// waits out its reaction delay before actually playing, so a slow bot reads
 /// as slow rather than as stupid.
 class BotBrain extends Component with HasGameReference<SplatfrontGame> {
-  BotBrain({
-    required this.side,
-    required this.difficulty,
-    math.Random? random,
-  }) : _random = random ?? math.Random();
+  BotBrain({required this.side, required this.difficulty, math.Random? random})
+    : _random = random ?? math.Random();
 
   final MatchSide side;
   final BotDifficulty difficulty;
@@ -68,9 +65,8 @@ class BotBrain extends Component with HasGameReference<SplatfrontGame> {
   Team get team => side.team;
 
   /// The bot defends the edge the player is walking toward.
-  double get _baseY => team == game.arena.playerTeam
-      ? ArenaSpec.worldHeight
-      : 0.0;
+  double get _baseY =>
+      team == game.arena.playerTeam ? ArenaSpec.worldHeight : 0.0;
 
   /// Positive y is "forward" for the side defending y = 0.
   double get _forward => _baseY == 0 ? 1.0 : -1.0;
@@ -114,7 +110,8 @@ class BotBrain extends Component with HasGameReference<SplatfrontGame> {
     // Jitter of 0..reactionDelay on every decision, so it never feels
     // metronomic.
     play.delay =
-        difficulty.reactionDelay + _random.nextDouble() * difficulty.reactionDelay;
+        difficulty.reactionDelay +
+        _random.nextDouble() * difficulty.reactionDelay;
     _pending = play;
   }
 
@@ -235,8 +232,9 @@ class BotBrain extends Component with HasGameReference<SplatfrontGame> {
     final threats = <Unit>[];
     for (final unit in game.units) {
       if (unit.team == team || !unit.isAlive) continue;
-      final inOurHalf =
-          _forward > 0 ? unit.position.y < mid : unit.position.y > mid;
+      final inOurHalf = _forward > 0
+          ? unit.position.y < mid
+          : unit.position.y > mid;
       if (inOurHalf) threats.add(unit);
     }
     return threats;
@@ -412,9 +410,8 @@ class BotBrain extends Component with HasGameReference<SplatfrontGame> {
   }
 
   /// Troops need owned ground; spells do not.
-  Vector2? _spotForCard(int slot, int lane) => _cardAt(slot).isSpell
-      ? _spellSpotInLane(lane)
-      : _legalSpotInLane(lane);
+  Vector2? _spotForCard(int slot, int lane) =>
+      _cardAt(slot).isSpell ? _spellSpotInLane(lane) : _legalSpotInLane(lane);
 
   Vector2? _legalSpotInLane(int lane) {
     // Start at the front of its own half and walk back to its base.

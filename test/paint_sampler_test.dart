@@ -30,8 +30,7 @@ SampleResult _sample(Uint8List pixels, {Uint8List? blocked}) => samplePaint(
     pixels: pixels,
     imageWidth: ArenaSpec.paintImageWidth,
     imageHeight: ArenaSpec.paintImageHeight,
-    blockedCells:
-        blocked ?? Uint8List(ArenaSpec.gridCols * ArenaSpec.gridRows),
+    blockedCells: blocked ?? Uint8List(ArenaSpec.gridCols * ArenaSpec.gridRows),
   ),
 );
 
@@ -105,9 +104,11 @@ void main() {
     final result = _sample(_buffer(w, h, (_) => redPixel), blocked: blocked);
 
     expect(result.coverage.red, 1.0, reason: 'blockers are not neutral ground');
-    for (var i = ArenaSpec.gridCols * ArenaSpec.gridRows ~/ 2;
-        i < ArenaSpec.gridCols * ArenaSpec.gridRows;
-        i++) {
+    for (
+      var i = ArenaSpec.gridCols * ArenaSpec.gridRows ~/ 2;
+      i < ArenaSpec.gridCols * ArenaSpec.gridRows;
+      i++
+    ) {
       expect(result.owners[i], Team.neutral.index);
     }
   });

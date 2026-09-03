@@ -90,17 +90,11 @@ class _PressScaleState extends State<PressScale> {
     // alone does not.
     child: AnimatedSlide(
       offset: _down ? const Offset(0, 0.012) : Offset.zero,
-      duration: Motion.of(
-        context,
-        _down ? Motion.press : Motion.release,
-      ),
+      duration: Motion.of(context, _down ? Motion.press : Motion.release),
       curve: _down ? Curves.easeOut : Curves.easeOutBack,
       child: AnimatedScale(
         scale: _down ? widget.scale : 1.0,
-        duration: Motion.of(
-        context,
-        _down ? Motion.press : Motion.release,
-      ),
+        duration: Motion.of(context, _down ? Motion.press : Motion.release),
         curve: _down ? Curves.easeOut : Curves.easeOutBack,
         child: widget.child,
       ),
@@ -142,11 +136,7 @@ class Entrance extends StatelessWidget {
 /// Coins and trophies are the reward for the last match, and a number that
 /// snaps gives that away for free.
 class AnimatedCount extends StatelessWidget {
-  const AnimatedCount({
-    super.key,
-    required this.value,
-    required this.style,
-  });
+  const AnimatedCount({super.key, required this.value, required this.style});
 
   final int value;
   final TextStyle style;
@@ -161,9 +151,7 @@ class AnimatedCount extends StatelessWidget {
     builder: (context, v, _) => Text(
       v.round().toString(),
       // Tabular figures, or the row jitters as the digits change width.
-      style: style.copyWith(
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
+      style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
     ),
   );
 }

@@ -42,8 +42,11 @@ void main() {
       final solvent = cards['solvent'];
       expect(solvent.spell!.effect, SpellEffect.wipeToNeutral);
       expect(solvent.spell!.damage, 0);
-      expect(solvent.spell!.paints, isTrue,
-          reason: 'wiping to neutral is still a repaint');
+      expect(
+        solvent.spell!.paints,
+        isTrue,
+        reason: 'wiping to neutral is still a repaint',
+      );
 
       final freeze = cards['freeze'];
       expect(freeze.spell!.effect, SpellEffect.stun);
@@ -88,14 +91,7 @@ void main() {
 
     test('a deck may not repeat a card', () {
       expect(
-        () => Deck(const [
-          'dab',
-          'dab',
-          'roller',
-          'brusher',
-          'pin',
-          'sprayer',
-        ]),
+        () => Deck(const ['dab', 'dab', 'roller', 'brusher', 'pin', 'sprayer']),
         throwsArgumentError,
       );
     });
@@ -136,8 +132,11 @@ void main() {
       final played = hand.play(0);
 
       expect(played, deck[0]);
-      expect(hand.hand.value[0], deck[4],
-          reason: 'the preview filled the slot it vacated');
+      expect(
+        hand.hand.value[0],
+        deck[4],
+        reason: 'the preview filled the slot it vacated',
+      );
       expect(hand.next.value, deck[5]);
       expect(hand.queue.last, played, reason: 'and it went to the back');
     });

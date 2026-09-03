@@ -47,9 +47,10 @@ void main() {
 
     final owners = _startOwners();
     owners[DeployZone.cellIndex(
-      DeployZone.colAt(wiped.x),
-      DeployZone.rowAt(wiped.y),
-    )] = Team.neutral.index;
+          DeployZone.colAt(wiped.x),
+          DeployZone.rowAt(wiped.y),
+        )] =
+        Team.neutral.index;
     zone.updateOwners(owners);
 
     expect(zone.ownerAt(wiped), Team.neutral);
@@ -64,9 +65,10 @@ void main() {
     // Recolour that cell to red, as a Roller walking up would.
     final owners = _startOwners();
     owners[DeployZone.cellIndex(
-      DeployZone.colAt(target.x),
-      DeployZone.rowAt(target.y),
-    )] = Team.red.index;
+          DeployZone.colAt(target.x),
+          DeployZone.rowAt(target.y),
+        )] =
+        Team.red.index;
     zone.updateOwners(owners);
 
     expect(zone.canDeploy(target, Team.red), isTrue);
@@ -74,8 +76,10 @@ void main() {
 
   test('out of bounds is never deployable', () {
     expect(zone.canDeploy(Vector2(-1, 22), Team.red), isFalse);
-    expect(zone.canDeploy(Vector2(8, ArenaSpec.worldHeight + 1), Team.red),
-        isFalse);
+    expect(
+      zone.canDeploy(Vector2(8, ArenaSpec.worldHeight + 1), Team.red),
+      isFalse,
+    );
   });
 
   test('blockers are undeployable even on your own colour', () {
@@ -91,8 +95,11 @@ void main() {
     zone.updateBlocked(layout.buildBlockedMask());
 
     final onBlocker = Vector2(8, 21);
-    expect(zone.ownerOf(DeployZone.colAt(8), DeployZone.rowAt(21)),
-        Team.red, reason: 'the cell under the blocker is red ground');
+    expect(
+      zone.ownerOf(DeployZone.colAt(8), DeployZone.rowAt(21)),
+      Team.red,
+      reason: 'the cell under the blocker is red ground',
+    );
     expect(zone.canDeploy(onBlocker, Team.red), isFalse);
     expect(zone.canDeploy(Vector2(2, 21), Team.red), isTrue);
   });
@@ -112,7 +119,11 @@ void main() {
   });
 
   test('cell centres round-trip through the world transform', () {
-    for (final cell in [[0, 0], [63, 95], [32, 48]]) {
+    for (final cell in [
+      [0, 0],
+      [63, 95],
+      [32, 48],
+    ]) {
       final centre = DeployZone.cellCentre(cell[0], cell[1]);
       expect(DeployZone.colAt(centre.x), cell[0]);
       expect(DeployZone.rowAt(centre.y), cell[1]);

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/game_data.dart';
 import '../core/save/hive_boxes.dart';
 import '../core/save/player_profile.dart';
+import '../game/cards/card_model.dart';
 import '../game/cards/card_registry.dart';
+import 'campaign.dart';
 import 'chests.dart';
 import 'quests.dart';
 import 'upgrades.dart';
@@ -29,6 +31,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   ChestConfig get chests => data.chests;
   UpgradeCosts get upgrades => data.upgrades;
   QuestConfig get questConfig => data.quests;
+  CampaignConfig get campaign => data.campaign;
 
   void _save(PlayerProfile next) {
     state = next;
@@ -60,6 +63,25 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     return data.defaultDeck;
   }
 
+  // --- What the player owns -----------------------------------------------
+
+  /// Whether [cardId] has been unlocked yet.
+  ///
+  /// Cards arrive as the campaign is cleared rather than all at once: a
+  /// twenty-one card collection handed over on the first launch is twenty-one
+  /// cards nobody reads, and it leaves the deck builder with nothing to give
+  /// later. The six in the starter deck are never locked.
+  bool isCardUnlocked(String cardId) =>
+      campaign.isCardUnlocked(cardId, state.campaignCleared);
+
+  /// The cards the player may actually build with, in roster order.
+  Iterable<CardModel> get unlockedCards =>
+      data.cards.playable.where((c) => isCardUnlocked(c.id));
+
+  /// The level [cardId] unlocks at, or null if it is already available.
+  int? unlockLevelFor(String cardId) =>
+      isCardUnlocked(cardId) ? null : campaign.unlockLevelFor(cardId);
+
   /// Swaps [outId] for [inId]. Returns false if that would break the deck.
   bool swapCard({required String outId, required String inId}) {
     final current = List<String>.of(deck.cardIds);
@@ -67,6 +89,8 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     if (index < 0) return false;
     if (current.contains(inId)) return false; // no duplicates
     if (!data.cards.playable.any((c) => c.id == inId)) return false;
+    // A locked card cannot be built with, however it was reached.
+    if (!isCardUnlocked(inId)) return false;
 
     current[index] = inId;
     _save(state.copyWith(deck: current));
@@ -99,6 +123,53 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     return kept;
   }
 
+  // --- Campaign -----------------------------------------------------------
+
+  /// Banks the result of a campaign level.
+  ///
+  /// The quests still count and the chest is still rolled, so playing the
+  /// campaign feeds the same meta loop as a ladder match. Trophies are the
+  /// one thing it does not touch: the campaign is its own progression, and
+  /// letting it move the ladder as well would mean a player could grind the
+  /// first ten levels into Arena 4.
+  CampaignReward applyCampaignLevel({
+    required int level,
+    required int stars,
+    required MatchTally tally,
+  }) {
+    final before = state.starsOnLevel(level);
+    final firstClear = before == 0 && stars > 0;
+
+    var next = _withQuestProgress(state, tally);
+
+    // Only an improvement is recorded, so replaying a level you already
+    // three-starred can never take those stars away.
+    final coins = campaign.coinsFor(before: before, after: stars);
+    var purse = coins;
+    if (firstClear) purse += campaign.milestoneCoinsOn(level);
+
+    if (stars > before) {
+      next = next.copyWith(
+        campaignStars: {...next.campaignStars, level: stars},
+      );
+    }
+    if (purse > 0) next = next.copyWith(coins: next.coins + purse);
+
+    final chestsBefore = next.chests.length;
+    if (firstClear && campaign.chestOn(level)) next = _withEarnedChest(next);
+    final chestKept = next.chests.length > chestsBefore;
+
+    _save(next);
+
+    return CampaignReward(
+      starsBefore: before,
+      starsAfter: math.max(before, stars),
+      coins: purse,
+      chestKept: chestKept,
+      chestForfeited: firstClear && campaign.chestOn(level) && !chestKept,
+    );
+  }
+
   // --- Chests -------------------------------------------------------------
 
   int get chestSlots => chests.slotsFor(state.trophies);
@@ -116,7 +187,10 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     }
     final type = chests.roll(_random);
     return profile.copyWith(
-      chests: [...profile.chests, ChestSlot(typeId: type.id)],
+      chests: [
+        ...profile.chests,
+        ChestSlot(typeId: type.id),
+      ],
     );
   }
 
@@ -149,11 +223,13 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     final slot = state.chests[index];
     if (!isReady(slot, now: now)) return null;
 
-    final reward = chests.open(
-      chests.byId(slot.typeId),
-      [for (final card in data.cards.playable) card.id],
-      _random,
-    );
+    // A chest can only hand over copies of cards you have actually unlocked.
+    // Otherwise it quietly banks duplicates of a card you cannot play for
+    // another eighty levels, and the level that unlocks it arrives already
+    // half spent — which makes both the chest and the unlock feel cheaper.
+    final reward = chests.open(chests.byId(slot.typeId), [
+      for (final card in unlockedCards) card.id,
+    ], _random);
 
     final copies = Map<String, int>.of(state.cardCopies);
     reward.cards.forEach((id, count) {
@@ -184,8 +260,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     if (!canUpgrade(cardId)) return false;
     final step = upgrades.stepFrom(state.levelOf(cardId))!;
 
-    final levels = Map<String, int>.of(state.cardLevels)
-      ..[cardId] = step.level;
+    final levels = Map<String, int>.of(state.cardLevels)..[cardId] = step.level;
     final copies = Map<String, int>.of(state.cardCopies)
       ..[cardId] = state.copiesOf(cardId) - step.copies;
 
@@ -276,9 +351,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
       for (final q in state.quests)
         q.questId == questId ? q.copyWith(claimed: true) : q,
     ];
-    _save(
-      state.copyWith(coins: state.coins + quest.coins, quests: updated),
-    );
+    _save(state.copyWith(coins: state.coins + quest.coins, quests: updated));
     return true;
   }
 
@@ -292,7 +365,6 @@ class ProfileController extends StateNotifier<PlayerProfile> {
 }
 
 /// Overridden in `main()` once Hive has been read.
-final profileProvider =
-    StateNotifierProvider<ProfileController, PlayerProfile>(
-      (ref) => throw StateError('profileProvider must be overridden in main()'),
-    );
+final profileProvider = StateNotifierProvider<ProfileController, PlayerProfile>(
+  (ref) => throw StateError('profileProvider must be overridden in main()'),
+);

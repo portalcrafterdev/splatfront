@@ -61,8 +61,8 @@ class UnitTuning {
     return UnitTuning(
       advanceRange: (json['advanceRange'] as num?)?.toDouble() ?? 6.0,
       speeds: {
-        for (final e in (json['speeds'] as Map<String, dynamic>? ?? const {})
-            .entries)
+        for (final e
+            in (json['speeds'] as Map<String, dynamic>? ?? const {}).entries)
           e.key: (e.value as num).toDouble(),
       },
       meleeRange: (json['meleeRange'] as num?)?.toDouble() ?? 0.85,
@@ -169,10 +169,7 @@ class UnitStats {
   /// Seconds between attacks.
   double get attackInterval => hitRate > 0 ? 1 / hitRate : double.infinity;
 
-  factory UnitStats.fromJson(
-    Map<String, dynamic> json,
-    UnitTuning tuning,
-  ) {
+  factory UnitStats.fromJson(Map<String, dynamic> json, UnitTuning tuning) {
     final rawRange = json['range'];
     final melee = rawRange is! num;
     final range = rawRange is num ? rawRange.toDouble() : tuning.meleeRange;

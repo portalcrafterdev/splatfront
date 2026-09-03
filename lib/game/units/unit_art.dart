@@ -195,9 +195,8 @@ const double _footY = 1.0;
 /// Vertical bounce of a body. Two dips per stride while walking, since both
 /// feet land in one cycle; a slow breath while standing, so an idle unit is
 /// never a still image.
-double _bob(UnitPose p) => p.moving
-    ? -math.sin(p.walk * 2).abs() * 0.07
-    : math.sin(p.breath) * 0.035;
+double _bob(UnitPose p) =>
+    p.moving ? -math.sin(p.walk * 2).abs() * 0.07 : math.sin(p.breath) * 0.035;
 
 /// Squash and stretch, as a (horizontal, vertical) scale pair.
 ///
@@ -228,11 +227,7 @@ void _underShade(Canvas c, UnitPose p, Offset centre, double radius) {
       centre.dy + radius,
     ),
   );
-  c.drawCircle(
-    centre,
-    radius,
-    p.solid(p.dark.withValues(alpha: 0.28)),
-  );
+  c.drawCircle(centre, radius, p.solid(p.dark.withValues(alpha: 0.28)));
   c.restore();
 }
 
@@ -487,11 +482,7 @@ class _Brusher extends UnitArt {
     );
     final bristle = p.line(p.body, 0.13);
     for (var i = -1; i <= 1; i++) {
-      c.drawLine(
-        Offset(i * 0.11, 0.10),
-        Offset(i * 0.20, 0.56),
-        bristle,
-      );
+      c.drawLine(Offset(i * 0.11, 0.10), Offset(i * 0.20, 0.56), bristle);
     }
     c.restore();
   }
@@ -515,10 +506,7 @@ class _Kite extends UnitArt {
       c.save();
       c.translate(side * 0.35, cy - 0.12);
       c.rotate(side * (0.55 + flap));
-      c.drawOval(
-        const Rect.fromLTRB(0, -0.20, 1.15, 0.20),
-        p.solid(p.dark),
-      );
+      c.drawOval(const Rect.fromLTRB(0, -0.20, 1.15, 0.20), p.solid(p.dark));
       c.restore();
     }
 
@@ -529,11 +517,7 @@ class _Kite extends UnitArt {
     _underShade(c, p, Offset(0, cy), 0.60);
     // Tail ribbon, trailing behind and swinging with the beat.
     final tail = p.line(p.dark, 0.12);
-    c.drawLine(
-      Offset(0, cy + 0.62),
-      Offset(flap * 0.35, cy + 1.20),
-      tail,
-    );
+    c.drawLine(Offset(0, cy + 0.62), Offset(flap * 0.35, cy + 1.20), tail);
     _face(c, p, y: cy - 0.12, r: 0.56, size: 0.28);
   }
 }
@@ -641,10 +625,7 @@ class _Nozzle extends UnitArt {
     c.translate(side * (0.86 - recoil), 0.02 + bob);
     c.rotate(side * 0.28);
     c.drawPath(_bell, p.solid(p.tool));
-    c.drawOval(
-      const Rect.fromLTRB(0.52, -0.44, 0.74, 0.44),
-      p.solid(p.dark),
-    );
+    c.drawOval(const Rect.fromLTRB(0.52, -0.44, 0.74, 0.44), p.solid(p.dark));
     if (swing > 0.02) {
       c.drawCircle(
         const Offset(0.95, 0),
@@ -806,11 +787,7 @@ class _Warden extends UnitArt {
 
     _arm(c, p, shoulderY, shieldX * 0.7, shieldY);
     c.drawCircle(Offset(shieldX, shieldY), 0.62, p.solid(p.tool));
-    c.drawCircle(
-      Offset(shieldX, shieldY),
-      0.62,
-      p.line(p.body, 0.14),
-    );
+    c.drawCircle(Offset(shieldX, shieldY), 0.62, p.line(p.body, 0.14));
     c.drawCircle(Offset(shieldX, shieldY), 0.20, p.solid(p.body));
   }
 }
@@ -952,10 +929,7 @@ class _Sprinkler extends UnitArt {
       ),
       p.solid(p.tool),
     );
-    c.drawOval(
-      const Rect.fromLTRB(-0.62, -0.88, 0.62, -0.24),
-      p.solid(p.body),
-    );
+    c.drawOval(const Rect.fromLTRB(-0.62, -0.88, 0.62, -0.24), p.solid(p.body));
     _underShade(c, p, const Offset(0, -0.56), 0.60);
 
     // Four arcs of spray, turning on the breath clock. It has no walk cycle
@@ -1018,17 +992,11 @@ class _Beamer extends UnitArt {
     if (!p.outlinePass && !p.flashPass) {
       final charge = 0.45 + 0.25 * math.sin(p.breath * 1.6).abs();
       final flare = _swing(p);
-      c.drawCircle(
-        const Offset(0, -0.03),
-        0.26,
-        p.solid(p.dark),
-      );
+      c.drawCircle(const Offset(0, -0.03), 0.26, p.solid(p.dark));
       c.drawCircle(
         const Offset(0, -0.03),
         0.18 + flare * 0.10,
-        p.solid(
-          Color.lerp(p.body, p.light, (charge + flare).clamp(0.0, 1.0))!,
-        ),
+        p.solid(Color.lerp(p.body, p.light, (charge + flare).clamp(0.0, 1.0))!),
       );
     }
     c.restore();
@@ -1093,10 +1061,7 @@ class _Barricade extends UnitArt {
     const mid = 0.16;
     const bottom = 0.96;
 
-    for (final row in const [
-      (top, mid, 0.0),
-      (mid, bottom, 0.36),
-    ]) {
+    for (final row in const [(top, mid, 0.0), (mid, bottom, 0.36)]) {
       final (y0, y1, offset) = row;
       for (var i = -1; i <= 1; i++) {
         final x = i * 0.72 + offset;

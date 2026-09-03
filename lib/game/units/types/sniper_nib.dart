@@ -9,7 +9,11 @@ import '../unit_stats.dart';
 /// Fully stat-driven: everything that makes it distinct lives in
 /// `cards.json`. This type names it and gives its Rive artboard a home.
 class SniperNib extends Unit {
-  SniperNib({required super.stats, required super.team, required super.position});
+  SniperNib({
+    required super.stats,
+    required super.team,
+    required super.position,
+  });
 
   static const String id = 'sniper_nib';
   static const String riveArtboard = 'sniper_nib';

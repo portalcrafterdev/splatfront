@@ -8,6 +8,7 @@ import '../game/bot/bot_difficulty.dart';
 import '../game/cards/card_registry.dart';
 import '../game/match/match_result.dart';
 import '../game/units/units_registry.dart';
+import '../meta/campaign.dart';
 import '../meta/chests.dart';
 import '../meta/quests.dart';
 import '../meta/upgrades.dart';
@@ -59,6 +60,7 @@ class GameData {
     required this.upgrades,
     required this.quests,
     required this.shop,
+    required this.campaign,
   });
 
   final List<ArenaLayout> arenas;
@@ -81,6 +83,9 @@ class GameData {
   final UpgradeCosts upgrades;
   final QuestConfig quests;
   final ShopConfig shop;
+
+  /// The 1000-level campaign: a curve and a few rules, not a level list.
+  final CampaignConfig campaign;
 
   UnitsRegistry get units => cards.units;
 
@@ -114,6 +119,7 @@ class GameData {
     final upgrades = await UpgradeCosts.load();
     final quests = await QuestConfig.load();
     final shop = await ShopConfig.load();
+    final campaign = await CampaignConfig.load();
 
     // Fail at startup, not mid-match, if any deck names something that
     // cannot be played.
@@ -132,6 +138,7 @@ class GameData {
       upgrades: upgrades,
       quests: quests,
       shop: shop,
+      campaign: campaign,
     );
   }
 }

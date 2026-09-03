@@ -139,7 +139,10 @@ void main() {
     expect(game.canDeployHere(card, enemyGround), isFalse);
   });
 
-  gameTest('a troop is refused on ground wiped to neutral', (game, tester) async {
+  gameTest('a troop is refused on ground wiped to neutral', (
+    game,
+    tester,
+  ) async {
     // The board starts with no neutral ground at all, so this makes some the
     // way Solvent does: nobody's colour, and therefore nobody's deploy zone.
     final card = game.cards['brusher'];
@@ -152,7 +155,10 @@ void main() {
     expect(game.canDeployHere(card, ownGround), isFalse);
   });
 
-  gameTest('a spell may target anywhere, including the enemy half', (game, tester) async {
+  gameTest('a spell may target anywhere, including the enemy half', (
+    game,
+    tester,
+  ) async {
     final spell = game.cards['paint_bomb'];
     expect(spell.obeysDeployZone, isFalse);
     expect(game.canDeployHere(spell, enemyGround), isTrue);
@@ -164,11 +170,16 @@ void main() {
     expect(game.canDeployHere(card, Vector2(-1, 22)), isFalse);
     expect(game.canDeployHere(card, Vector2(8, 30)), isFalse);
     // Not even a spell.
-    expect(game.canDeployHere(game.cards['paint_bomb'], Vector2(-5, 5)),
-        isFalse);
+    expect(
+      game.canDeployHere(game.cards['paint_bomb'], Vector2(-5, 5)),
+      isFalse,
+    );
   });
 
-  gameTest('a legal drop spawns the card and spends the elixir', (game, tester) async {
+  gameTest('a legal drop spawns the card and spends the elixir', (
+    game,
+    tester,
+  ) async {
     final slot = 0;
     final card = game.cards[game.hand!.cardIdAt(slot)];
     final before = game.elixir.amount;
@@ -181,7 +192,10 @@ void main() {
     expect(game.elixir.amount, closeTo(before - card.cost, 1e-9));
   });
 
-  gameTest('an illegal drop spawns nothing and costs nothing', (game, tester) async {
+  gameTest('an illegal drop spawns nothing and costs nothing', (
+    game,
+    tester,
+  ) async {
     final before = game.elixir.amount;
     final handBefore = List<String>.of(game.hand!.hand.value);
 
@@ -194,7 +208,10 @@ void main() {
     expect(game.hand!.hand.value, handBefore, reason: 'the card is still held');
   });
 
-  gameTest('a card you cannot afford will not even start a drag', (game, tester) async {
+  gameTest('a card you cannot afford will not even start a drag', (
+    game,
+    tester,
+  ) async {
     game.elixir.reset(to: 0);
     expect(game.beginDeploy(0), isFalse);
     expect(game.draggingSlot.value, isNull);
@@ -211,7 +228,10 @@ void main() {
     expect(game.hand!.queue.last, played);
   });
 
-  gameTest('the drop ghost tracks the finger and reports validity', (game, tester) async {
+  gameTest('the drop ghost tracks the finger and reports validity', (
+    game,
+    tester,
+  ) async {
     game.beginDeploy(0);
 
     game.updateDeploy(ownGround);
@@ -228,7 +248,10 @@ void main() {
     expect(game.deployOverlay.preview, isNull, reason: 'ghost cleared');
   });
 
-  gameTest('cancelling a drag clears the ghost and keeps the card', (game, tester) async {
+  gameTest('cancelling a drag clears the ghost and keeps the card', (
+    game,
+    tester,
+  ) async {
     final before = List<String>.of(game.hand!.hand.value);
     final elixir = game.elixir.amount;
 
@@ -242,14 +265,20 @@ void main() {
     expect(game.elixir.amount, elixir);
   });
 
-  gameTest('releasing off the arena entirely is a rejection, not a crash', (game, tester) async {
+  gameTest('releasing off the arena entirely is a rejection, not a crash', (
+    game,
+    tester,
+  ) async {
     game.beginDeploy(0);
     expect(game.endDeploy(null), isFalse);
     expect(game.units, isEmpty);
     expect(game.draggingSlot.value, isNull);
   });
 
-  gameTest('painting forward opens new ground to deploy on', (game, tester) async {
+  gameTest('painting forward opens new ground to deploy on', (
+    game,
+    tester,
+  ) async {
     final card = game.cards['brusher'];
     // A world unit into the bot's half: enemy territory as far as deploying
     // is concerned.
@@ -281,13 +310,19 @@ void main() {
     expect(game.canDeployHere(card, target), isFalse);
   });
 
-  gameTest('elixir accrues over the match and caps at ten', (game, tester) async {
+  gameTest('elixir accrues over the match and caps at ten', (
+    game,
+    tester,
+  ) async {
     game.elixir.reset(to: 0);
     game.updateTree(ElixirSpec.regenNormal * 3);
     expect(game.elixir.amount, closeTo(3.0, 0.05));
   });
 
-  gameTest('a multi-body card puts all its bodies down for one cost', (game, tester) async {
+  gameTest('a multi-body card puts all its bodies down for one cost', (
+    game,
+    tester,
+  ) async {
     // Swarmlets is six bodies for four elixir.
     final card = game.cards['swarmlets'];
     final before = game.elixir.amount;
