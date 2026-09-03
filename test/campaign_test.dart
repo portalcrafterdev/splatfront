@@ -137,6 +137,65 @@ void main() {
     });
   });
 
+  group('opponent names', () {
+    test('the three names split the campaign into three blocks', () {
+      expect(campaign.tierAt(1), BotTier.easy);
+      expect(campaign.tierAt(300), BotTier.easy);
+      expect(campaign.tierAt(301), BotTier.normal);
+      expect(campaign.tierAt(600), BotTier.normal);
+      expect(campaign.tierAt(601), BotTier.hard);
+      expect(campaign.tierAt(1000), BotTier.hard);
+    });
+
+    test('every level wears exactly one name, in order', () {
+      var seen = BotTier.easy;
+      for (var n = 1; n <= campaign.levelCount; n++) {
+        final tier = campaign.tierAt(n);
+        expect(
+          tier.index,
+          greaterThanOrEqualTo(seen.index),
+          reason: 'level $n went backwards to ${tier.name}',
+        );
+        seen = tier;
+      }
+      expect(seen, BotTier.hard);
+    });
+
+    // The name has to describe the fight. If the brain finished improving
+    // before the last Novice level, a "Novice Bot" near the end of its block
+    // would be playing at full strength and the label would be a lie.
+    test('the brain is still improving for as long as the names say', () {
+      expect(
+        campaign.rampLevels,
+        greaterThanOrEqualTo(campaign.veteranFrom),
+        reason:
+            'the brain maxes out at level ${campaign.rampLevels}, before '
+            'Veteran begins at ${campaign.veteranFrom}',
+      );
+    });
+
+    // Same argument for the stats: the whole Novice block should be a fight
+    // against level 1 cards, or "Novice" covers an opponent already scaling.
+    test('the bot only starts levelling its cards once Novice is over', () {
+      expect(campaign.botCardLevelAt(campaign.rivalFrom - 1), 1);
+      expect(
+        campaign.botCardLevelFrom,
+        greaterThanOrEqualTo(campaign.rivalFrom),
+      );
+    });
+
+    test('each block is a real stretch of the difficulty curve', () {
+      // Novice should not be over before it starts, and Veteran should not be
+      // the only block with any difficulty in it.
+      final atNoviceEnd = campaign.rampAt(campaign.rivalFrom - 1);
+      final atRivalEnd = campaign.rampAt(campaign.veteranFrom - 1);
+
+      expect(atNoviceEnd, greaterThan(0.1));
+      expect(atNoviceEnd, lessThan(atRivalEnd));
+      expect(atRivalEnd, lessThan(1.0));
+    });
+  });
+
   group('card unlocks', () {
     test('every unlock names a card that exists', () {
       final ids = data.cards.playable.map((c) => c.id).toSet();

@@ -132,15 +132,32 @@ void main() {
   testWidgets('a unit walks the board until it runs out of ground', (
     tester,
   ) async {
-    // advanceRange is set to the full height of the arena, so the leash never
-    // binds: the owner asked for units that go all the way rather than
-    // halting partway up. Lower advanceRange in cards.json and they hold a
-    // post again — the mechanism is still there, the number is what changed.
+    // The frontier gives the bearing, advanceRange gives the depth. A unit
+    // with nothing to fight has to cross its own paint edge and push into
+    // enemy ground — standing on the frontier is not arriving.
+    //
+    // This is the regression test for a real bug: the walk direction was
+    // zeroed inside the _atFrontier deadband, so a unit caught up with its
+    // own paint edge and stopped there. It still inched forward, but only as
+    // fast as its own stamp widened the edge, so a push advanced at the paint
+    // rate instead of the unit's walking speed and cut a single-file stripe
+    // rather than taking ground. The old assertion here passed anyway,
+    // because creeping for ninety seconds still reached the far wall.
     final y = await restingY(tester, 'brusher', dropY: 22);
+    final mid = ArenaSpec.worldHeight / 2;
+    final leash = cards.units.tuning.advanceRange;
+
     expect(
       y,
-      lessThan(2),
-      reason: 'it should have crossed the whole arena, and stopped at $y',
+      lessThan(mid - leash / 2),
+      reason:
+          'it stopped at $y, barely past the halfway line at $mid — it is '
+          'parking on the frontier instead of pushing through it',
+    );
+    expect(
+      y,
+      closeTo(mid - leash, 2.5),
+      reason: 'a push should run about $leash deep past the frontier',
     );
     expect(y, greaterThanOrEqualTo(0), reason: 'but never off the board');
   });

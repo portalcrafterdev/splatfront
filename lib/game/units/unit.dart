@@ -375,8 +375,22 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
       // painting unit lays its own colour about a radius ahead of itself, so
       // it manufactures the very frontier it is walking to and never arrives.
       // [_hasAdvanced] is what actually bounds it.
+      // Standing on the frontier is not arriving. The ground ahead is the
+      // objective, so once the unit has caught up with its own paint edge it
+      // keeps marching in the direction that edge pointed — [_hasAdvanced] is
+      // what stops it, not the frontier.
+      //
+      // Setting the step to zero here instead is what made a push look like a
+      // single-file stripe: the unit parked on the boundary and crept forward
+      // only as fast as its own stamp widened the edge, so its advance ran at
+      // the paint rate rather than its walking speed and it never entered
+      // enemy ground as a body.
       final dy = _frontierY - position.y;
-      _desired.setValues(lane - position.x, dy.abs() < _atFrontier ? 0 : dy);
+      final forward = goalY > position.y ? 1.0 : -1.0;
+      _desired.setValues(
+        lane - position.x,
+        dy.abs() < _atFrontier ? forward : dy,
+      );
     }
 
     if (_desired.length2 > 0) _desired.normalize();

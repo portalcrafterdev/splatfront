@@ -6,8 +6,14 @@
     "threeStarCoverage": 0.75
   },
 
+  "_tierComment": "Which levels wear which opponent name. These are level numbers, not shares of the difficulty curve, so the three names split the campaign into three equal blocks of about 300. rampLevels below is deliberately set to the FIRST Veteran level, so the brain reaches full strength exactly as that block opens: the brain has to still be improving for as long as the names say it is, or a 'Novice Bot' at level 280 would already be playing at full strength and the name would be a lie.",
+  "tiers": {
+    "rivalFrom": 301,
+    "veteranFrom": 601
+  },
+
   "brain": {
-    "rampLevels": 250,
+    "rampLevels": 601,
     "exponent": 1.4,
     "reactionDelay": [5.0, 0.7],
     "elixirWasteRate": [0.9, 0.1],
@@ -17,8 +23,9 @@
     "playsSpellsFrom": 30
   },
 
+  "_botCardComment": "The bot's cards start levelling where Rival begins, so the whole Novice block is a fight against level 1 cards and stays a place to learn. From 301 the opponent's stats climb as well as its brain, and past 600 — where the brain is maxed — this is the only thing still rising.",
   "botCardLevel": {
-    "from": 120,
+    "from": 301,
     "to": 1000,
     "maxLevel": 9
   },

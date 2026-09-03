@@ -47,6 +47,8 @@ class CampaignConfig {
     required this.levelCount,
     required this.twoStarCoverage,
     required this.threeStarCoverage,
+    required this.rivalFrom,
+    required this.veteranFrom,
     required this.rampLevels,
     required this.exponent,
     required this.reactionDelay,
@@ -77,6 +79,11 @@ class CampaignConfig {
   /// new tracking code to notice.
   final double twoStarCoverage;
   final double threeStarCoverage;
+
+  /// The first level of the Rival Bot block, and of the Veteran Bot block.
+  /// Everything below [rivalFrom] is Novice.
+  final int rivalFrom;
+  final int veteranFrom;
 
   /// How many levels the brain takes to go from blunt to its best, and the
   /// curve it follows getting there.
@@ -147,12 +154,21 @@ class CampaignConfig {
   static double _lerp(List<double> pair, double t) =>
       pair.first + (pair.last - pair.first) * t;
 
-  /// The tier badge. Thirds of the ramp, so the label tracks the numbers
-  /// instead of being a second thing to keep in step.
-  BotTier _tierAt(double t) {
-    if (t < 1 / 3) return BotTier.easy;
-    if (t < 2 / 3) return BotTier.normal;
-    return BotTier.hard;
+  /// Which opponent name [level] fights.
+  ///
+  /// Split by level number, not by where the level sits on the difficulty
+  /// curve. Those are not the same thing and the difference is visible: an
+  /// eased curve packs most of its change into the early levels, so slicing
+  /// it into thirds put Veteran Bot at level 188 and left it there for eight
+  /// hundred levels. Counting levels instead gives the three names three
+  /// equal blocks, which is what a player reading a level list expects.
+  ///
+  /// [rampLevels] is set to [veteranFrom] so the two agree — see the note in
+  /// `campaign.json`.
+  BotTier tierAt(int level) {
+    if (level >= veteranFrom) return BotTier.hard;
+    if (level >= rivalFrom) return BotTier.normal;
+    return BotTier.easy;
   }
 
   int botCardLevelAt(int level) {
@@ -173,7 +189,7 @@ class CampaignConfig {
     return CampaignLevel(
       number: n,
       difficulty: BotDifficulty(
-        tier: _tierAt(t),
+        tier: tierAt(n),
         reactionDelay: _lerp(reactionDelay, t),
         elixirWasteRate: _lerp(elixirWasteRate, t),
         countersThreats: n >= countersThreatsFrom,
@@ -223,6 +239,7 @@ class CampaignConfig {
   static CampaignConfig fromJson(Map<String, dynamic> json) {
     final stars = json['stars'] as Map<String, dynamic>;
     final brain = json['brain'] as Map<String, dynamic>;
+    final tiers = json['tiers'] as Map<String, dynamic>;
     final botCards = json['botCardLevel'] as Map<String, dynamic>;
     final rewards = json['rewards'] as Map<String, dynamic>;
 
@@ -234,6 +251,8 @@ class CampaignConfig {
       levelCount: (json['levelCount'] as num).toInt(),
       twoStarCoverage: (stars['twoStarCoverage'] as num).toDouble(),
       threeStarCoverage: (stars['threeStarCoverage'] as num).toDouble(),
+      rivalFrom: (tiers['rivalFrom'] as num).toInt(),
+      veteranFrom: (tiers['veteranFrom'] as num).toInt(),
       rampLevels: (brain['rampLevels'] as num).toInt(),
       exponent: (brain['exponent'] as num?)?.toDouble() ?? 1.0,
       reactionDelay: pair('reactionDelay'),

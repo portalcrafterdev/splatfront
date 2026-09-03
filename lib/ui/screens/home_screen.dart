@@ -213,22 +213,61 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
       onTap: () => Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => const ChestScreen())),
-      child: Row(
-        children: [
-          for (var i = 0; i < widget.slots; i++)
-            Expanded(
-              child: i < widget.profile.chests.length
-                  ? _slot(
-                      widget.profile.chests[i],
-                      data.chests.byId(widget.profile.chests[i].typeId).name,
-                      controller,
-                    )
-                  : _empty(),
+      // With nothing to show, a row of tall empty boxes spends the best space
+      // on the screen — the strip directly above the battle button — saying
+      // "EMPTY", which the player can already see. One short line in its
+      // place says the thing they actually need, which is where chests come
+      // from, and hands the height back to the button.
+      child: widget.profile.chests.isEmpty
+          ? _noChests()
+          : Row(
+              children: [
+                for (var i = 0; i < widget.slots; i++)
+                  Expanded(
+                    child: i < widget.profile.chests.length
+                        ? _slot(
+                            widget.profile.chests[i],
+                            data.chests
+                                .byId(widget.profile.chests[i].typeId)
+                                .name,
+                            controller,
+                          )
+                        : _empty(),
+                  ),
+              ],
             ),
-        ],
-      ),
     );
   }
+
+  /// The whole row, when there is not a single chest to put in it.
+  Widget _noChests() => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: Palette.uiSurface,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: Palette.uiTextDim.withValues(alpha: 0.25),
+        width: 1,
+      ),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          Icons.inventory_2_outlined,
+          size: 20,
+          color: Palette.uiTextDim.withValues(alpha: 0.8),
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'No chests yet. Win a match to earn one.',
+            style: TextStyle(color: Palette.uiTextDim, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _slot(ChestSlot slot, String name, ProfileController controller) {
     final ready = controller.isReady(slot);
@@ -271,17 +310,19 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
     );
   }
 
+  /// A spare slot sitting beside a full one.
+  ///
+  /// Says what fills it rather than that it is empty, which the gap already
+  /// says. Tracked-out capitals are gone with it: "EMPTY" was a shout that
+  /// carried no information.
   Widget _empty() => _box(
     border: Palette.uiTextDim.withValues(alpha: 0.2),
     borderWidth: 1,
     child: const Center(
       child: Text(
-        'EMPTY',
-        style: TextStyle(
-          color: Palette.uiTextDim,
-          fontSize: 11,
-          letterSpacing: 1,
-        ),
+        'Win a match',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Palette.uiTextDim, fontSize: 11),
       ),
     ),
   );
