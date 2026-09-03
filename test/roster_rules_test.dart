@@ -9,7 +9,7 @@ import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
 import 'package:splatfront/ui/widgets/match_header.dart';
 
-/// The roster rules from CLAUDE.md section 17.
+/// The roster rules from the design notes.
 ///
 /// Every one of these exists because the reference game shipped without it
 /// and its reviews say so. They are checks rather than review-time judgement

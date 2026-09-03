@@ -6,7 +6,7 @@ import '../../core/palette.dart';
 
 /// How a troop looks on the field.
 ///
-/// CLAUDE.md puts unit animation on Rive state machines, and section 14 will
+/// The design spec puts unit animation on Rive state machines, and it will
 /// not call a unit done without idle/walk/attack/die artboards. Nothing here
 /// changes that plan: these are hand-drawn vector characters standing in
 /// until the `.riv` files exist, and they sit behind exactly the seam a Rive

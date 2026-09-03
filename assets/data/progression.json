@@ -9,7 +9,7 @@
     "refillSeconds": 5
   },
   "deploy": {
-    "_comment": "anywhere=false is the shipped rule: a body may only be dropped on a cell that is currently your own colour, so painting forward is what extends your reach and losing ground pushes your drop line back. Spells ignore it and may target anywhere. This is CLAUDE.md section 17 rule 5 and section 3. It was briefly overridden to anywhere=true on the owner call and then reversed again: dropping onto enemy paint made the deploy line meaningless, since any card could be placed anywhere regardless of who held the ground. claimRadius only applies when anywhere is true, and is kept so flipping this one value restores that behaviour whole; the code and deploy_test.dart still support both.",
+    "_comment": "anywhere=false is the shipped rule: a body may only be dropped on a cell that is currently your own colour, so painting forward is what extends your reach and losing ground pushes your drop line back. Spells ignore it and may target anywhere. This is the deploy rule the design notes settle on. It was briefly overridden to anywhere=true on the owner call and then reversed again: dropping onto enemy paint made the deploy line meaningless, since any card could be placed anywhere regardless of who held the ground. claimRadius only applies when anywhere is true, and is kept so flipping this one value restores that behaviour whole; the code and deploy_test.dart still support both.",
     "anywhere": false,
     "claimRadius": 1.6
   },
@@ -27,7 +27,7 @@
     }
   },
   "buildings": {
-    "_comment": "Live buildings allowed on the board per side. The reference game in CLAUDE.md section 17 had no cap and its reviews are dominated by turret spam: the AI stacked guns at the back of the map with almost no counterplay. The lifetime timer on each building is the other half of the answer, not a substitute — a timer limits how long one stands, a cap limits how many. A deploy over the cap is rejected before it costs elixir.",
+    "_comment": "Live buildings allowed on the board per side. The reference game studied in the design notes had no cap and its reviews are dominated by turret spam: the AI stacked guns at the back of the map with almost no counterplay. The lifetime timer on each building is the other half of the answer, not a substitute — a timer limits how long one stands, a cap limits how many. A deploy over the cap is rejected before it costs elixir.",
     "maxLive": 3
   }
 }

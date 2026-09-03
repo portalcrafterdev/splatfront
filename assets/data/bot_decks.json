@@ -77,5 +77,5 @@
       ]
     }
   ],
-  "_deckComment": "Six cards each, per CLAUDE.md section 17. Every deck must be able to answer air and must stay inside the live-building cap. Arena 1 is deliberately the same SHAPE as the player starter deck — same body count, same total cost, one building and one spell each — because it is the first deck anybody meets. It used to run Dab where the player runs Paint Bomb, which is three extra bodies for one less elixir, and with the same brain on both sides that deck alone took the match 17 times in 20 at Hard."
+  "_deckComment": "Six cards each, per the design spec. Every deck must be able to answer air and must stay inside the live-building cap. Arena 1 is deliberately the same SHAPE as the player starter deck — same body count, same total cost, one building and one spell each — because it is the first deck anybody meets. It used to run Dab where the player runs Paint Bomb, which is three extra bodies for one less elixir, and with the same brain on both sides that deck alone took the match 17 times in 20 at Hard."
 }
