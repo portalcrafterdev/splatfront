@@ -293,6 +293,7 @@ class CampaignReward {
     required this.starsBefore,
     required this.starsAfter,
     required this.coins,
+    required this.trophies,
     required this.chestKept,
     required this.chestForfeited,
   });
@@ -300,6 +301,10 @@ class CampaignReward {
   final int starsBefore;
   final int starsAfter;
   final int coins;
+
+  /// Trophies the clear paid. Zero on a replay — see applyCampaignLevel.
+  final int trophies;
+
   final bool chestKept;
   final bool chestForfeited;
 

@@ -99,8 +99,15 @@ class ProfileController extends StateNotifier<PlayerProfile> {
 
   // --- Trophies and the end of a match ------------------------------------
 
-  /// Applies a finished match: trophies, the chest a win earns, and quest
-  /// progress. One call so nothing can be applied twice or half-applied.
+  /// Applies a finished free-play match: trophies, the chest a win earns, and
+  /// quest progress. One call so nothing can be applied twice or half-applied.
+  ///
+  /// **No screen calls this any more.** Home's battle button plays the next
+  /// campaign level, so [applyCampaignLevel] is the live path. This is kept,
+  /// with its tests, because it is the whole of the rated-ladder rule —
+  /// including the trophy adjustment for the gap between two sides, which
+  /// the campaign has no use for — and rebuilding that from scratch would be
+  /// the expensive half of bringing free play back.
   ///
   /// Returns whether a chest was actually stored. A win with every slot full
   /// forfeits its chest, and the end screen has to be able to say so rather
@@ -127,11 +134,17 @@ class ProfileController extends StateNotifier<PlayerProfile> {
 
   /// Banks the result of a campaign level.
   ///
-  /// The quests still count and the chest is still rolled, so playing the
-  /// campaign feeds the same meta loop as a ladder match. Trophies are the
-  /// one thing it does not touch: the campaign is its own progression, and
-  /// letting it move the ladder as well would mean a player could grind the
-  /// first ten levels into Arena 4.
+  /// Levels are the only way to fight now — the battle button on Home plays
+  /// whichever one you are up to — so this call carries the whole meta loop:
+  /// stars, coins, quests, the chest, and the trophies that unlock arenas and
+  /// the third and fourth chest slot.
+  ///
+  /// **Everything except the star improvement is paid on a first clear only.**
+  /// That is what stops the one thing a single progression could go wrong on:
+  /// replaying level 1 forever would otherwise be an unlimited supply of
+  /// trophies and chests, and would carry a player to Arena 4 without ever
+  /// meeting a harder opponent. Replay to improve your stars; the coins for
+  /// the stars you gain are the reward for that, and nothing else repeats.
   CampaignReward applyCampaignLevel({
     required int level,
     required int stars,
@@ -155,8 +168,22 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     }
     if (purse > 0) next = next.copyWith(coins: next.coins + purse);
 
+    // Trophies. The campaign has no opponent rating to measure against, so
+    // this is the flat win figure from progression.json rather than the
+    // adjusted one — a level's difficulty is already expressed by being
+    // further up the ladder.
+    final trophies = firstClear ? data.trophies.win : 0;
+    if (trophies > 0) {
+      next = next.copyWith(trophies: next.trophies + trophies);
+    }
+
+    // A chest on every first clear, not only the marked levels. Quick Battle
+    // used to hand one out per win and it was where upgrade copies came from;
+    // with it gone, one chest per ten levels would starve card levels
+    // entirely. The marked levels still exist — they are what the level list
+    // advertises — but every new level now pays one.
     final chestsBefore = next.chests.length;
-    if (firstClear && campaign.chestOn(level)) next = _withEarnedChest(next);
+    if (firstClear) next = _withEarnedChest(next);
     final chestKept = next.chests.length > chestsBefore;
 
     _save(next);
@@ -165,8 +192,9 @@ class ProfileController extends StateNotifier<PlayerProfile> {
       starsBefore: before,
       starsAfter: math.max(before, stars),
       coins: purse,
+      trophies: trophies,
       chestKept: chestKept,
-      chestForfeited: firstClear && campaign.chestOn(level) && !chestKept,
+      chestForfeited: firstClear && !chestKept,
     );
   }
 

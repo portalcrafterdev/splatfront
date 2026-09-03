@@ -9,18 +9,17 @@ import '../../core/audio.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../game/arena/arena_layout.dart';
-import '../../game/bot/bot_difficulty.dart';
 import '../../game/splatfront_game.dart';
 import '../../meta/profile_controller.dart';
 import '../../meta/quests.dart';
+import '../widgets/card_tile.dart';
+import '../widgets/match_header.dart';
 import '../widgets/meta_widgets.dart';
 import '../widgets/motion.dart';
 import '../widgets/responsive.dart';
 import 'battle_screen.dart';
+import 'campaign_screen.dart';
 import 'chest_screen.dart';
-
-/// Chosen difficulty, kept for the session.
-final botTierProvider = StateProvider<BotTier>((ref) => BotTier.normal);
 
 /// Home: chests, player card, daily quests and the button that starts a
 /// match.
@@ -70,9 +69,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // scrolling list under it. Home outgrew the screen the moment it
               // started showing your deck, and a fixed column does not overflow
               // gracefully — it throws in debug and silently clips in release.
-              return const SingleChildScrollView(
-                child: Column(
-                  children: [left, _QuestPane(fillsHeight: false), bottomGap],
+              //
+              // The minimum height plus centre alignment is what shares out
+              // the leftover space when the page is *shorter* than the screen.
+              // Home lost a whole row when the difficulty picker went, and a
+              // top-aligned column put every pixel it saved into one dead band
+              // above the nav bar. Split evenly it reads as breathing room at
+              // both ends instead. A page taller than the screen exceeds the
+              // minimum, the alignment stops mattering, and it scrolls exactly
+              // as before.
+              return LayoutBuilder(
+                builder: (context, viewport) => SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        left,
+                        _QuestPane(fillsHeight: false),
+                        bottomGap,
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -91,7 +109,7 @@ class _PlayerPane extends ConsumerWidget {
     final data = ref.watch(gameDataProvider);
     final profile = ref.watch(profileProvider);
     final controller = ref.read(profileProvider.notifier);
-    final tier = ref.watch(botTierProvider);
+    final nextLevel = profile.campaignNextLevel;
 
     // Trophies pick the arena, exactly as section 10 lays out.
     final arena = data.arenaFor(profile.trophies);
@@ -116,38 +134,17 @@ class _PlayerPane extends ConsumerWidget {
             child: _ChestRow(profile: profile, slots: controller.chestSlots),
           ),
           const SizedBox(height: 16),
-          Entrance(
-            index: 3,
-            child: _DifficultyPicker(
-              selected: tier,
-              onChanged: (next) =>
-                  ref.read(botTierProvider.notifier).state = next,
-            ),
-          ),
-          const SizedBox(height: 12),
+          // Battle plays the level you are up to. There is no difficulty
+          // picker any more: with one progression, the level number *is* the
+          // difficulty, and a free-play match that fed nothing was the odd
+          // one out — it paid trophies and chests without ever advancing the
+          // thing the rest of the app is about.
           _BigButton(
             label: 'BATTLE',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => BattleScreen(
-                  layout: arena,
-                  cards: data.cards,
-                  deck: controller.deck,
-                  levels: profile.levels,
-                  botDeck: data.bot.deckFor(arena.id),
-                  botDifficulty: data.bot[tier],
-                  botTier: tier,
-                  trophyRules: data.trophies,
-                  economy: data.economy,
-                  startingTrophies: profile.trophies,
-                  onFinished: (result, tally) => controller.applyMatch(
-                    trophyChange: result.trophyChange,
-                    won: result.won,
-                    tally: tally,
-                  ),
-                ),
-              ),
-            ),
+            sublabel: nextLevel > data.campaign.levelCount
+                ? 'Campaign complete'
+                : 'Level $nextLevel  ·  ${data.campaign.levelAt(nextLevel).tier.opponentName}',
+            onPressed: () => startCampaignLevel(context, ref, nextLevel),
           ),
           // Debug builds only. These are development tools — a paint harness
           // and a unit spawner — and they have no business on a home screen
@@ -418,7 +415,142 @@ class _QuestPane extends ConsumerWidget {
                   height: 1.4,
                 ),
               ),
+              const SizedBox(height: 16),
+              const _NextCard(),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The card the campaign hands over next, and how far off it is.
+///
+/// This sits where the page used to simply run out. It is not filler: cards
+/// now arrive by clearing levels, so "what am I playing towards" is a real
+/// question the home screen was not answering anywhere. It also closes the
+/// loop the battle button opens — that button says which level is next, this
+/// says what beating a few of them is worth.
+class _NextCard extends ConsumerWidget {
+  const _NextCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(gameDataProvider);
+    final profile = ref.watch(profileProvider);
+    final controller = ref.read(profileProvider.notifier);
+    final campaign = data.campaign;
+
+    final locked = data.cards.playable
+        .where((c) => !controller.isCardUnlocked(c.id))
+        .toList();
+    if (locked.isEmpty) return const _AllCardsCollected();
+
+    locked.sort(
+      (a, b) => (campaign.unlockLevelFor(a.id) ?? 0).compareTo(
+        campaign.unlockLevelFor(b.id) ?? 0,
+      ),
+    );
+    final card = locked.first;
+    final at = campaign.unlockLevelFor(card.id) ?? 0;
+    final away = at - profile.campaignCleared;
+
+    return Panel(
+      child: Row(
+        children: [
+          // The same light mount the Collection gives every card. A CardTile
+          // is drawn against the dark hud* set, so on a pale page it reads as
+          // a hole punched in the paper without one.
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Palette.uiSurfaceHigh,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: Palette.outline, width: Panel.stroke),
+              boxShadow: const [
+                BoxShadow(
+                  color: Palette.outlineShadow,
+                  offset: Offset(0, Panel.lift),
+                ),
+              ],
+            ),
+            child: CardTile(card: card, width: 62),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Next card',
+                  style: TextStyle(
+                    color: Palette.uiTextDim,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  card.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Palette.uiText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  // The distance, not the destination. "Level 12" is a fact
+                  // about the ladder; "2 levels away" is a fact about you,
+                  // and it is the one that decides whether you play now.
+                  away <= 1
+                      ? 'Win the next level to unlock it'
+                      : '$away levels away  ·  level $at',
+                  style: const TextStyle(
+                    color: Palette.uiTextDim,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the slot says once there is nothing left to unlock.
+class _AllCardsCollected extends ConsumerWidget {
+  const _AllCardsCollected();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(gameDataProvider);
+    final profile = ref.watch(profileProvider);
+    final total = data.campaign.levelCount * 3;
+
+    return Panel(
+      child: Row(
+        children: [
+          const Icon(Icons.star_rounded, color: Palette.gold, size: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'All ${data.cards.playable.length} cards collected. '
+              '${profile.campaignTotalStars} of $total stars.',
+              style: const TextStyle(
+                color: Palette.uiText,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -443,8 +575,12 @@ class _QuestRow extends StatelessWidget {
     final fraction = (progress.progress / quest.target).clamp(0.0, 1.0);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      // Sixteen, not eight: the tile drops a hard [Panel.lift] shadow, so a
+      // gap has to clear that before any of it is visible. At 8 the shadow
+      // ate half of it and three quests read as one block with lines through
+      // it rather than three separate things to do.
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
           (done ? Palette.success : Palette.info).withValues(alpha: 0.18),
@@ -586,9 +722,19 @@ class _SandboxLinks extends StatelessWidget {
 }
 
 class _BigButton extends StatelessWidget {
-  const _BigButton({required this.label, required this.onPressed});
+  const _BigButton({
+    required this.label,
+    required this.onPressed,
+    this.sublabel,
+  });
 
   final String label;
+
+  /// What the button will actually do, when that is not obvious from one
+  /// word. "BATTLE" alone no longer says which fight you are walking into,
+  /// and the level number is the thing a player is keeping track of.
+  final String? sublabel;
+
   final VoidCallback onPressed;
 
   @override
@@ -613,14 +759,30 @@ class _BigButton extends StatelessWidget {
             BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 6)),
           ],
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
+            ),
+            if (sublabel case final sub?) ...[
+              const SizedBox(height: 3),
+              Text(
+                sub,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     ),
@@ -629,83 +791,6 @@ class _BigButton extends StatelessWidget {
 
 /// Easy / Normal / Hard. The same brain runs all three; only the numbers in
 /// `bot_decks.json` differ.
-class _DifficultyPicker extends StatelessWidget {
-  const _DifficultyPicker({required this.selected, required this.onChanged});
-
-  final BotTier selected;
-  final ValueChanged<BotTier> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Named for what it governs. There are two ways to start a fight now,
-      // and this picker reaches only one of them: a campaign level sets its
-      // own opponent from its number, so a bare "Opponent" heading over
-      // Easy/Normal/Hard read as a global difficulty setting that would also
-      // apply over on the Levels tab. It does not.
-      const SectionHeading('Quick battle', trailing: 'trophies'),
-      Row(
-        children: [
-          for (final tier in BotTier.values)
-            Expanded(
-              // Same outline and the same drop as every other tile. These
-              // were the one control still wearing a hairline border, which
-              // made the row read as disabled next to everything around it.
-              child: PressScale(
-                onTap: () => onChanged(tier),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  decoration: BoxDecoration(
-                    color: tier == selected
-                        ? Color.alphaBlend(
-                            Palette.info.withValues(alpha: 0.35),
-                            Palette.uiSurface,
-                          )
-                        : Palette.uiSurface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Palette.outline,
-                      width: Panel.stroke,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Palette.outlineShadow,
-                        // The chosen one sits proud; the other two sit flat,
-                        // so which is selected is legible from the shape
-                        // alone rather than only from the fill.
-                        offset: Offset(0, tier == selected ? Panel.lift : 2),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    tier.label,
-                    style: TextStyle(
-                      color: tier == selected
-                          ? Palette.uiText
-                          : Palette.uiTextDim,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    ],
-  );
-}
-
-/// A progress bar that animates to its value and then stops.
-///
-/// [LinearProgressIndicator] jumps straight to whatever it is given, so a
-/// quest ticking over from 2/3 to 3/3 changed with no sense of having
-/// happened. Deliberately a finite tween rather than an indeterminate
-/// indicator: an indeterminate one animates forever and would hang every
-/// `pumpAndSettle` in the suite.
 class _AnimatedBar extends StatelessWidget {
   const _AnimatedBar({
     required this.value,

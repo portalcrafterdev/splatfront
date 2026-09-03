@@ -144,48 +144,58 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
     return parts.isEmpty ? null : parts.join(' + ');
   }
 
-  void _play(BuildContext context, CampaignConfig campaign, int number) {
-    final data = ref.read(gameDataProvider);
-    final profile = ref.read(profileProvider);
-    final controller = ref.read(profileProvider.notifier);
+  void _play(BuildContext context, CampaignConfig campaign, int number) =>
+      startCampaignLevel(context, ref, number);
+}
 
-    final level = campaign.levelAt(number);
-    final arena = data.arenas[level.arenaIndex % data.arenas.length];
+/// Opens the arena on campaign level [number].
+///
+/// Top-level rather than a method, because two screens start a level: the
+/// list here, and the battle button on Home, which plays whichever level you
+/// are up to. One function so the two can never drift on what a level scores
+/// or how its result is banked.
+void startCampaignLevel(BuildContext context, WidgetRef ref, int number) {
+  final data = ref.read(gameDataProvider);
+  final profile = ref.read(profileProvider);
+  final controller = ref.read(profileProvider.notifier);
+  final campaign = data.campaign;
 
-    Audio.play(Sfx.uiTap);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BattleScreen(
-          layout: arena,
-          cards: data.cards,
-          deck: controller.deck,
-          levels: profile.levels,
-          botDeck: data.bot.deckFor(arena.id),
-          botDifficulty: level.difficulty,
-          botTier: level.tier,
-          botLevels: CardLevels.uniform(level.botCardLevel),
-          campaign: CampaignBattle(level: number, config: campaign),
-          // The clock and sudden death come from these rules; the trophy
-          // change they produce is ignored, because the campaign has its own
-          // progression and grinding level 1 should not move the ladder.
-          trophyRules: data.trophies,
-          economy: data.economy,
-          startingTrophies: profile.trophies,
-          onFinished: (result, tally) {
-            final reward = controller.applyCampaignLevel(
-              level: number,
-              stars: campaign.starsFor(
-                won: result.won,
-                playerShare: result.playerShare,
-              ),
-              tally: tally,
-            );
-            return reward.chestKept;
-          },
-        ),
+  final level = campaign.levelAt(number);
+  final arena = data.arenas[level.arenaIndex % data.arenas.length];
+
+  Audio.play(Sfx.uiTap);
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => BattleScreen(
+        layout: arena,
+        cards: data.cards,
+        deck: controller.deck,
+        levels: profile.levels,
+        botDeck: data.bot.deckFor(arena.id),
+        botDifficulty: level.difficulty,
+        botTier: level.tier,
+        botLevels: CardLevels.uniform(level.botCardLevel),
+        campaign: CampaignBattle(level: number, config: campaign),
+        // The clock and sudden death come from these rules; the trophy
+        // change they produce is ignored, because the campaign has its own
+        // progression and grinding level 1 should not move the ladder.
+        trophyRules: data.trophies,
+        economy: data.economy,
+        startingTrophies: profile.trophies,
+        onFinished: (result, tally) {
+          final reward = controller.applyCampaignLevel(
+            level: number,
+            stars: campaign.starsFor(
+              won: result.won,
+              playerShare: result.playerShare,
+            ),
+            tally: tally,
+          );
+          return reward.chestKept;
+        },
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// One row of the ladder.

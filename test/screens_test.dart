@@ -201,7 +201,10 @@ void main() {
     // match, and the result screen never appeared at all.
     expect(find.text('--:--'), findsNothing);
     expect(find.text('You'), findsOneWidget);
-    expect(find.text('Rival Bot'), findsOneWidget);
+    // Home's battle button plays the campaign level you are up to, so a fresh
+    // profile lands on level 1 — which is in the Novice block. There is no
+    // difficulty picker any more; the level number is the difficulty.
+    expect(find.text('Novice Bot'), findsOneWidget);
 
     await unmount(tester);
   });

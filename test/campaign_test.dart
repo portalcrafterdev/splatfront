@@ -369,13 +369,78 @@ void main() {
       expect(controller.state.coins, 0);
     });
 
-    // The campaign is its own progression. If it moved trophies as well, the
-    // first ten levels could be ground into Arena 4.
-    test('the campaign never moves trophies', () {
+    // Levels are the only way to fight, so a clear has to pay the trophies
+    // that unlock arenas and the extra chest slots — nothing else does.
+    test('a first clear pays trophies', () {
       final controller = fresh(const PlayerProfile(trophies: 120));
-      controller.applyCampaignLevel(level: 5, stars: 3, tally: _tally);
+      final reward = controller.applyCampaignLevel(
+        level: 5,
+        stars: 3,
+        tally: _tally,
+      );
 
-      expect(controller.state.trophies, 120);
+      expect(reward.trophies, greaterThan(0));
+      expect(controller.state.trophies, 120 + reward.trophies);
+    });
+
+    // And this is the rule that keeps the single progression honest. Without
+    // it, replaying level 1 is unlimited trophies and unlimited chests, and a
+    // player reaches Arena 4 without ever meeting a harder opponent.
+    test('a replay pays no trophies and no chest, however well it goes', () {
+      final controller = fresh(const PlayerProfile(trophies: 120));
+      controller.applyCampaignLevel(level: 1, stars: 1, tally: _tally);
+
+      final trophiesAfterFirst = controller.state.trophies;
+      final chestsAfterFirst = controller.state.chests.length;
+
+      // Replayed better: the improved stars still pay coins, nothing else.
+      final again = controller.applyCampaignLevel(
+        level: 1,
+        stars: 3,
+        tally: _tally,
+      );
+
+      expect(again.trophies, 0);
+      expect(again.chestKept, isFalse);
+      expect(again.coins, greaterThan(0), reason: 'the new stars still pay');
+      expect(controller.state.trophies, trophiesAfterFirst);
+      expect(controller.state.chests, hasLength(chestsAfterFirst));
+    });
+
+    // Quick Battle used to hand out a chest per win and it was where upgrade
+    // copies came from. With it gone, one chest per ten levels would starve
+    // card levels entirely.
+    test('every first clear earns a chest, not only the marked levels', () {
+      final controller = fresh();
+      final reward = controller.applyCampaignLevel(
+        level: 3,
+        stars: 1,
+        tally: _tally,
+      );
+
+      expect(campaign.chestOn(3), isFalse, reason: 'not a marked level');
+      expect(reward.chestKept, isTrue);
+      expect(controller.state.chests, hasLength(1));
+    });
+
+    test('a loss pays nothing at all', () {
+      final controller = fresh(const PlayerProfile(trophies: 90));
+      final reward = controller.applyCampaignLevel(
+        level: 1,
+        stars: 0,
+        tally: const MatchTally(
+          won: false,
+          cardsPlayed: 3,
+          spellsPlayed: 0,
+          paintSharePercent: 40,
+        ),
+      );
+
+      expect(reward.trophies, 0);
+      expect(reward.coins, 0);
+      expect(reward.chestKept, isFalse);
+      expect(controller.state.trophies, 90);
+      expect(controller.state.chests, isEmpty);
     });
 
     // A campaign level is still a match, so the day's quests have to move.
