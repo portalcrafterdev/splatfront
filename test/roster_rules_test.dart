@@ -283,18 +283,31 @@ void main() {
   });
 
   group('rule 6: single player, and honest about it', () {
-    test('every opponent plate says it is a bot', () {
-      // Not a naming preference. "Novice" and "Veteran" alone read as the
-      // handles of real people, and implying an opponent who is not there is
-      // the thing the reference game's reviews punish — not the absence of
-      // multiplayer, which nobody minded.
+    test('no opponent plate reads as a person', () {
+      // The plates used to say "Novice Bot", "Rival Bot", "Veteran Bot". The
+      // word was dropped on the owner's call, and this test is what is left
+      // of the rule — which is the half that actually matters.
+      //
+      // What the reference game's reviews punish is implying an opponent who
+      // is not there, and the way you imply one is with a name that reads
+      // like somebody's handle. "Red Team" is the side, not a person, so it
+      // cannot do that. A personal name here would be the lie, and this is
+      // what stops one arriving.
       for (final tier in BotTier.values) {
         expect(
-          tier.opponentName.toLowerCase(),
-          contains('bot'),
-          reason: 'the ${tier.name} plate hides that it is a bot',
+          tier.opponentName,
+          'Red Team',
+          reason: 'the ${tier.name} plate names the side, never a person',
         );
       }
+    });
+
+    test('the difficulty is described in words a player already knows', () {
+      // "Novice" and "Veteran" are ladder vocabulary. They were carrying the
+      // difficulty on every campaign tile and teaching nobody anything.
+      expect(BotTier.easy.rankName, 'Easy');
+      expect(BotTier.normal.rankName, 'Medium');
+      expect(BotTier.hard.rankName, 'Hard');
     });
   });
 

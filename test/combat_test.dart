@@ -143,21 +143,33 @@ void main() {
     // rate instead of the unit's walking speed and cut a single-file stripe
     // rather than taking ground. The old assertion here passed anyway,
     // because creeping for ninety seconds still reached the far wall.
+    //
+    // It also now catches the other end. `holdAtMidline` was tried and turned
+    // off, and with it on a unit stopped dead on the halfway line: this fails
+    // if that ever comes back without the assertions coming with it.
     final y = await restingY(tester, 'brusher', dropY: 22);
     final mid = ArenaSpec.worldHeight / 2;
     final leash = cards.units.tuning.advanceRange;
 
+    // Where the leash puts it, or the far edge when the leash is longer than
+    // the board — which is what `advanceRange` is set to now, and is the same
+    // as having no leash at all. Written from the tuning value rather than
+    // from a number, so changing the leash back does not break this.
+    final expected = math.max(0.0, mid - leash);
+
     expect(
       y,
-      lessThan(mid - leash / 2),
+      lessThan(mid - 1.0),
       reason:
           'it stopped at $y, barely past the halfway line at $mid — it is '
           'parking on the frontier instead of pushing through it',
     );
     expect(
       y,
-      closeTo(mid - leash, 2.5),
-      reason: 'a push should run about $leash deep past the frontier',
+      closeTo(expected, 2.5),
+      reason: leash >= mid
+          ? 'with no leash it should walk until it runs out of board'
+          : 'a push should run about $leash deep past the frontier',
     );
     expect(y, greaterThanOrEqualTo(0), reason: 'but never off the board');
   });

@@ -80,20 +80,41 @@ class CardTile extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
+            // A heavy dark line, the way a menu tile gets one. On a busy
+            // sky a card with a soft edge stops being an object and starts
+            // being a smudge; the outline is what holds it together.
             border: Border.all(
               color: affordable
-                  ? tint.withValues(alpha: 0.9)
-                  : Palette.hudTextDim.withValues(alpha: 0.35),
-              width: affordable ? 2 : 1,
+                  ? Palette.hudOutline
+                  : Palette.hudOutline.withValues(alpha: 0.35),
+              width: affordable ? 2 : 1.5,
             ),
+            // Lighter at the top, so the light source overhead is the same
+            // one the arena bezel and every menu surface assume. The tint is
+            // the card's kind — teal for a body, magenta for a spell — laid
+            // into the foot of the gradient rather than announced.
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
                 Palette.hudSurface,
-                Color.lerp(Palette.hudSurface, tint, 0.18)!,
+                Color.lerp(Palette.hudSurfaceLow, tint, 0.12)!,
               ],
             ),
+            // The hand is the one thing on this screen you touch, and it was
+            // sitting flush against the background like a printed panel. A
+            // card you can pay for is lifted; one you cannot is flat on the
+            // floor, which is a second, wordless reading of the same fact
+            // the dimming already gives.
+            boxShadow: affordable && !dragging
+                ? [
+                    BoxShadow(
+                      color: Palette.hudOutline.withValues(alpha: 0.55),
+                      blurRadius: 5 * scale,
+                      offset: Offset(0, 3 * scale),
+                    ),
+                  ]
+                : null,
           ),
           child: ClipRRect(
             borderRadius: radius,
@@ -101,6 +122,15 @@ class CardTile extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 Center(child: _art()),
+                // The cost is the one number checked before every single
+                // play — against the elixir bar four millimetres below it —
+                // and it was sharing a line with the card's name in 11pt.
+                // Its own corner, at its own size, is what that deserves.
+                Positioned(
+                  top: 3 * scale,
+                  left: 3 * scale,
+                  child: _costBadge(),
+                ),
                 if (card.bodyCount > 1)
                   Positioned(top: 3 * scale, right: 5 * scale, child: _count()),
                 Positioned(left: 0, right: 0, bottom: 0, child: _footer()),
@@ -123,7 +153,7 @@ class CardTile extends StatelessWidget {
         child: FractionallySizedBox(
           heightFactor: cooldown.clamp(0.0, 1.0),
           child: ColoredBox(
-            color: Palette.hudBackground.withValues(alpha: 0.72),
+            color: Palette.hudBackground.withValues(alpha: 0.62),
           ),
         ),
       ),
@@ -131,7 +161,7 @@ class CardTile extends StatelessWidget {
         child: Text(
           cooldownSeconds.ceil().toString(),
           style: TextStyle(
-            color: Palette.hudText,
+            color: Colors.white,
             fontSize: 22 * scale,
             fontWeight: FontWeight.w900,
             shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
@@ -147,49 +177,68 @@ class CardTile extends StatelessWidget {
         padding: EdgeInsets.only(bottom: height * 0.18),
         child: Icon(
           _spellIcons[card.id] ?? Icons.auto_awesome,
-          size: width * 0.46,
+          size: width * 0.5,
           color: Palette.elixir,
         ),
       );
     }
     return Padding(
       padding: EdgeInsets.only(bottom: height * 0.14),
-      child: UnitArtView(cardId: card.id, size: height * 0.72, team: team),
+      child: UnitArtView(cardId: card.id, size: height * 0.78, team: team),
     );
   }
 
-  /// Name and cost, on a strip dark enough to stay readable over the art.
+  /// The name, on a strip dark enough to stay readable over the art.
+  ///
+  /// It fades up into the art rather than butting against it with a hard
+  /// edge: a flat bar across the bottom of a small tile cuts the character
+  /// in half, and the character is how a card is actually recognised.
   Widget _footer() => Container(
-    padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 2 * scale),
-    color: Palette.hudBackground.withValues(alpha: 0.78),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _costBadge(),
-        SizedBox(width: 4 * scale),
-        Flexible(
-          child: FittedBox(
-            child: Text(
-              card.name,
-              maxLines: 1,
-              style: TextStyle(
-                color: Palette.hudText,
-                fontSize: 11 * scale,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+    width: double.infinity,
+    padding: EdgeInsets.fromLTRB(4 * scale, 6 * scale, 4 * scale, 3 * scale),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Palette.hudSurfaceLow.withValues(alpha: 0.0),
+          Palette.hudSurfaceLow,
+        ],
+      ),
+    ),
+    // scaleDown, never plain FittedBox.
+    //
+    // The name used to sit in a Row beside the cost badge, where Flexible
+    // bounded it. Alone in a full-width strip a bare FittedBox has nothing
+    // stopping it, and it scales text *up* to fill the box as happily as
+    // down — which turned every card name into a headline twice the size of
+    // the card's own art.
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        card.name,
+        maxLines: 1,
+        style: TextStyle(
+          color: Palette.hudText,
+          fontSize: 11 * scale,
+          fontWeight: FontWeight.w700,
         ),
-      ],
+      ),
     ),
   );
 
   Widget _costBadge() => Container(
-    width: 18 * scale,
-    height: 18 * scale,
+    width: 21 * scale,
+    height: 21 * scale,
     decoration: BoxDecoration(
       color: affordable ? Palette.elixir : Palette.hudTextDim,
       shape: BoxShape.circle,
+      // A dark ring, because the badge sits over the art rather than over a
+      // known ground, and a bare magenta disc on a pale unit disappears.
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.9),
+        width: 1.5 * scale,
+      ),
     ),
     alignment: Alignment.center,
     child: FittedBox(
@@ -210,13 +259,13 @@ class CardTile extends StatelessWidget {
   Widget _count() => Container(
     padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 1 * scale),
     decoration: BoxDecoration(
-      color: Palette.hudBackground.withValues(alpha: 0.7),
+      color: Palette.hudBackground.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(6 * scale),
     ),
     child: Text(
       'x${card.bodyCount}',
       style: TextStyle(
-        color: Palette.hudText,
+        color: Colors.white,
         fontSize: 9 * scale,
         fontWeight: FontWeight.w800,
       ),

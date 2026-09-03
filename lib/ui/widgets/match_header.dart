@@ -85,27 +85,38 @@ class _NamePlate extends StatelessWidget {
       height: 22,
       decoration: BoxDecoration(
         color: colour,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.opacity, size: 13, color: Colors.white),
+      child: const Icon(Icons.brush_rounded, size: 12, color: Colors.white),
     );
     final label = Text(
       name,
       style: TextStyle(
         color: colour,
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.4,
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.3,
       ),
     );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(4, 3, 8, 3),
       decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: colour.withValues(alpha: 0.45)),
+        color: Color.alphaBlend(
+          colour.withValues(alpha: 0.16),
+          Palette.hudSurface,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colour, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 5,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -148,46 +159,58 @@ class _TimerPill extends StatelessWidget {
 
   Widget _pill({required bool urgent}) => AnimatedContainer(
     duration: const Duration(milliseconds: 220),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
     decoration: BoxDecoration(
-      color: urgent
-          ? Palette.accent.withValues(alpha: 0.18)
-          : Palette.hudSurface,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: urgent
-            ? Palette.accent
-            : Palette.hudTextDim.withValues(alpha: 0.28),
-        width: urgent ? 1.5 : 1,
-      ),
+      color: urgent ? Palette.accent : Palette.hudBezelLow,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: Palette.hudOutline, width: 2),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x38000000),
+          blurRadius: 6,
+          offset: Offset(0, 2),
+        ),
+      ],
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.timer_outlined,
-          size: 13,
-          color: urgent ? Palette.accent : Palette.hudTextDim,
-        ),
+        Icon(Icons.timer_outlined, size: 14, color: Colors.white),
         const SizedBox(width: 6),
-        MatchTimer(match: match),
+        MatchTimer(match: match, ink: Colors.white),
       ],
     ),
   );
 }
 
 extension BotTierPlate on BotTier {
-  /// What the opponent is called on their name plate. Ours, not a borrowed
-  /// roster: section 14 rules out another game's names.
+  /// What the opponent is called on their name plate.
   ///
-  /// Every one of them says "Bot", and that is not decoration. Section 17
-  /// rule 6: v1 is single player and has to say so plainly on the battle
-  /// screen. "Novice" and "Veteran" on their own read as the handles of real
-  /// people, which is the fake-opponent-name trick the reference game's
-  /// reviews punish — not for lacking multiplayer, but for implying it.
-  String get opponentName => switch (this) {
-    BotTier.easy => 'Novice Bot',
-    BotTier.normal => 'Rival Bot',
-    BotTier.hard => 'Veteran Bot',
+  /// These used to read "Novice Bot", "Rival Bot", "Veteran Bot", on the
+  /// section 17 rule 6 argument that v1 has to say plainly it is single
+  /// player. **The word was dropped on the owner's call**, and the rule it
+  /// was serving still holds: what the reference game's reviews punish is
+  /// implying an opponent who is not there, not the absence of multiplayer.
+  ///
+  /// "Red Team" is the side you are actually fighting. It is true, it is a
+  /// phrase everybody knows, and it cannot be mistaken for somebody's handle
+  /// — which is the only part of this that would be a lie. The plain
+  /// statement moved to the Levels page and the store listing, which is where
+  /// a promise to a player is actually made. What must never come back is a
+  /// *personal* name on that plate; `roster_rules_test.dart` is what stops it.
+  ///
+  /// The tier no longer changes it. The level number is the difficulty, so
+  /// three near-identical plates were three ways of saying red.
+  String get opponentName => 'Red Team';
+
+  /// How hard this tier plays, in the plainest words there are.
+  ///
+  /// "Novice" and "Veteran" were doing this job and doing it badly: they are
+  /// the vocabulary of a ladder rank rather than a description, and a player
+  /// who does not know the word learns nothing at all from the tile.
+  String get rankName => switch (this) {
+    BotTier.easy => 'Easy',
+    BotTier.normal => 'Medium',
+    BotTier.hard => 'Hard',
   };
 }

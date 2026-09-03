@@ -42,21 +42,18 @@ class ElixirMeter extends StatelessWidget {
                     ),
                   ),
                 ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 22,
-                child: Text(
-                  '$full',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: amount >= ElixirSpec.max
-                        ? Palette.elixir
-                        : Palette.hudTextDim,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 8),
+
+              // The count, as a readout rather than as a stray digit.
+              //
+              // This was a dim 12pt number pushed hard against the right edge
+              // of the screen, which is a poor way to present the one number
+              // a player checks before every single play — the bar shows how
+              // full you are, but the number is what you compare against a
+              // card's cost. On its own chip it stops being an afterthought,
+              // and it goes bright at ten so a wasting bar is visible without
+              // counting segments.
+              _Count(amount: amount, full: full, height: height),
             ],
           ),
         );
@@ -81,7 +78,7 @@ class _Segment extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            const ColoredBox(color: Palette.hudSurface),
+            ColoredBox(color: Palette.hudOutline.withValues(alpha: 0.16)),
             if (fill > 0)
               FractionallySizedBox(
                 alignment: Alignment.centerLeft,
@@ -89,6 +86,50 @@ class _Segment extends StatelessWidget {
                 child: const ColoredBox(color: Palette.elixir),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The elixir count, on a chip keyed to the bar's own colour.
+class _Count extends StatelessWidget {
+  const _Count({
+    required this.amount,
+    required this.full,
+    required this.height,
+  });
+
+  final double amount;
+  final int full;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final brimming = amount >= ElixirSpec.max;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 30,
+      height: height + 6,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: brimming
+            ? Palette.elixir
+            : Palette.elixir.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: brimming
+              ? Palette.elixir
+              : Palette.elixir.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Text(
+        '$full',
+        style: TextStyle(
+          color: brimming ? Colors.white : Palette.elixir,
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+          height: 1,
         ),
       ),
     );

@@ -4,7 +4,7 @@
     "twoStarCoverage": 0.6,
     "threeStarCoverage": 0.75
   },
-  "_tierComment": "Which levels wear which opponent name. These are level numbers, not shares of the difficulty curve, so the three names split the campaign into three equal blocks of about 300. rampLevels below is deliberately set to the FIRST Veteran level, so the brain reaches full strength exactly as that block opens: the brain has to still be improving for as long as the names say it is, or a 'Novice Bot' at level 280 would already be playing at full strength and the name would be a lie.",
+  "_tierComment": "Which levels are played at which difficulty. These are level numbers, not shares of the difficulty curve, so the three tiers split the campaign into equal blocks of about 300: Easy to 300, Medium to 600, Hard to 1000. rampLevels below is deliberately set to the FIRST Hard level, so the brain reaches full strength exactly as that block opens — the brain has to still be improving for as long as the tier says it is, or an \"Easy\" level at 280 would already be playing at full strength and the label would be a lie. The opponent is never named after its tier: the plate says \"Red Team\" at every level, because the side is what it is and a rank name on a plate reads like a person.",
   "tiers": {
     "rivalFrom": 301,
     "veteranFrom": 601
@@ -31,7 +31,7 @@
     "countersThreatsFrom": 15,
     "playsSpellsFrom": 30
   },
-  "_botCardComment": "The bot's cards start levelling where Rival begins, so the whole Novice block is a fight against level 1 cards and stays a place to learn. From 301 the opponent's stats climb as well as its brain, and past 600 — where the brain is maxed — this is the only thing still rising.",
+  "_botCardComment": "The bot's cards start levelling where Medium begins, so the whole Easy block is a fight against level 1 cards and stays a place to learn. From 301 the opponent's stats climb as well as its brain, and past 600 — where the brain is maxed — this is the only thing still rising.",
   "botCardLevel": {
     "from": 301,
     "to": 1000,

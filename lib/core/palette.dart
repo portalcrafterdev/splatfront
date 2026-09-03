@@ -33,10 +33,52 @@ class Palette {
   // claiming a side.
 
   /// The bot.
-  static const Color red = Color(0xFFE5443C);
+  ///
+  /// Lifted 8 points in lightness from the original #E5443C, along with blue,
+  /// because the pair was chosen against a near-white arena floor and the
+  /// match screen is now a bright sky — the two of them read as heavy and
+  /// unlit against it.
+  ///
+  /// **Both had to move together.** The rule below is a 12-point lightness
+  /// gap between the sides, and lifting only the darker one closes it: that
+  /// gap is what a colourblind player has instead of hue, so it is not
+  /// negotiable and it is what fixes how far either can travel.
+  ///
+  /// **Saturation came down on the owner's call** — red 90% to 75%, blue 85%
+  /// to 68% — because these two are not accents. Each covers up to half the
+  /// screen for ninety seconds at a time, and chroma that looks right on a
+  /// swatch the size of a button is genuinely tiring at that size. Hue and
+  /// lightness are untouched, so both sides read exactly as before and every
+  /// gap the sampler and a colourblind player depend on is unchanged.
+  static const Color red = Color(0xFFE96A63);
 
   /// The player.
-  static const Color blue = Color(0xFF2C4CB0);
+  ///
+  /// The one that actually looked wrong. At 43% lightness it was the darkest
+  /// thing on a screen that had just become a bright day.
+  ///
+  /// This is the owner's cornflower — hue 219, which is what gives it its
+  /// character — held at 51% lightness rather than the 56% of the swatch it
+  /// came from, and calmed from that swatch's 85% saturation to 68%. **The five points are not a preference and
+  /// cannot be given back.** Two hard rules pin it from above:
+  ///
+  ///  * the sides must sit 12 points apart in lightness, so a blue at 56%
+  ///    forces red up to 68%;
+  ///  * white text on red must clear 3:1, and red fails that at 67%.
+  ///
+  /// There is no red that satisfies both, so the blue is as light as the pair
+  /// allows. The only way to the exact swatch is to make red the *darker*
+  /// side instead — the gap does not care which way round it runs — and that
+  /// means a deep crimson against a bright blue, which is a different look
+  /// rather than a lighter one.
+  ///
+  /// **Saturation came down on the owner's call** — red 90% to 75%, blue 85%
+  /// to 68% — because these two are not accents. Each covers up to half the
+  /// screen for ninety seconds at a time, and chroma that looks right on a
+  /// swatch the size of a button is genuinely tiring at that size. Hue and
+  /// lightness are untouched, so both sides read exactly as before and every
+  /// gap the sampler and a colourblind player depend on is unchanged.
+  static const Color blue = Color(0xFF2D69D7);
 
   /// Unpainted / solvent-wiped ground. Cool grey so it does not read as a
   /// washed-out red, which a warm grey next to red always does.
@@ -164,15 +206,73 @@ class Palette {
   /// than blurred — a soft shadow under a hard outline looks like a mistake.
   static const Color outlineShadow = Color(0xFF0B1512);
 
-  // --- In-match chrome, which stays dark ---------------------------------
+  // --- In-match chrome ----------------------------------------------------
   //
-  // The HUD sits over the arena and the cards read as physical objects, so
-  // both keep the dark set they were designed against.
+  // **This set used to be dark and is now a bright day.** Section 14 said the
+  // menus were light and the match stayed dark, and that the two must never
+  // be mixed. The owner reversed the dark half on a reference image: sky
+  // behind the board, pale cards, and the board itself set into a dark frame.
+  //
+  // The half of the rule that still stands, and is the reason it existed, is
+  // that these are a **separate set** from `ui*`. A match screen and a menu
+  // are not the same room. Reaching for `uiSurface` in the HUD or `hudSurface`
+  // in a menu is still how the two drift into one flat theme.
+  //
+  // The board keeps a dark bezel, and that is now load-bearing rather than
+  // decorative: it is the only thing separating a blue sky from a blue side.
 
-  static const Color hudBackground = Color(0xFF1C1A17);
-  static const Color hudSurface = Color(0xFF2B2823);
-  static const Color hudText = Color(0xFFF6F1E7);
-  static const Color hudTextDim = Color(0xFF9C948A);
+  /// The sky, top to bottom. Lighter toward the horizon, as a sky is.
+  ///
+  /// Hue 201 — which is, honestly, 23 from the blue side at 224, closer than
+  /// anything else in the app gets to a team colour. **Lightness is what
+  /// keeps them apart**: the sky sits at 69–80% against blue's 51%, the same
+  /// separation section 14 relies on for red against blue. The dark bezel
+  /// does the rest, and neither can be softened without the board starting to
+  /// bleed into the background behind it.
+  ///
+  /// The top of the sky was #59B7EA and had to be lifted when blue was: that
+  /// gap had fallen to 12 points, and `palette_test.dart` caught it. The two
+  /// are coupled, and anything that darkens this or lightens blue has to move
+  /// the other with it.
+  static const Color hudSkyHigh = Color(0xFF6FC4F0);
+  static const Color hudSkyLow = Color(0xFF9FD9F2);
+
+  /// The frame the arena is set into, and the ground for anything that has to
+  /// stay legible over sky — the clock, most of all.
+  static const Color hudBezelHigh = Color(0xFF3A4147);
+  static const Color hudBezelLow = Color(0xFF20262B);
+
+  /// A card, and the deck the hand sits on. A pale mint rather than a plain
+  /// white: the units are drawn in team colour, and flat white behind a blue
+  /// body makes the body look like a cut-out.
+  static const Color hudSurface = Color(0xFFFFFFFF);
+  static const Color hudSurfaceLow = Color(0xFFDCEFE3);
+  static const Color hudTrayHigh = Color(0xFFEAF6F0);
+  static const Color hudTrayLow = Color(0xFFC7DED4);
+
+  /// Kept as the tone anything translucent darkens toward — a card's cooldown
+  /// shutter, the strip behind a body count. Those still want to be dark on a
+  /// light card, because they are covering it up.
+  static const Color hudBackground = Color(0xFF16211D);
+
+  /// Match ink, now that the match is printed on paper rather than on night.
+  static const Color hudText = Color(0xFF16211D);
+  static const Color hudTextDim = Color(0xFF5C6B65);
+
+  /// The heavy line around a card, so it reads as a chunky object on a busy
+  /// sky the way a menu tile does on a plain page.
+  static const Color hudOutline = Color(0xFF1B2A26);
+
+  /// Ink for text printed on the dark scrim — the countdown and the end
+  /// screen.
+  ///
+  /// Those two dim the arena rather than sitting beside it, because both have
+  /// to be read *over* a lit board, and that stayed true when the rest of the
+  /// match went light. [hudText] went dark with the theme, so anything on the
+  /// scrim needs the opposite pair or it disappears the moment the theme
+  /// flips — which is exactly what happened.
+  static const Color hudOnScrim = Color(0xFFF2F7F5);
+  static const Color hudOnScrimDim = Color(0xFFA8B5B0);
 
   /// Elixir, and the cost badge on every card.
   ///

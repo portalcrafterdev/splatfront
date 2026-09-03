@@ -31,6 +31,7 @@ class UnitTuning {
     required this.levelScaling,
     required this.maxLevel,
     this.advanceRange = 6.0,
+    this.holdAtMidline = false,
   });
 
   final Map<String, double> speeds;
@@ -55,11 +56,44 @@ class UnitTuning {
   /// card is for, which is what makes the deploy line move.
   final double advanceRange;
 
+  /// Whether a unit refuses to walk past the halfway line.
+  ///
+  /// **Off.** It was tried on the owner's call and reversed after playing
+  /// it: units piling up motionless along the halfway line read as broken
+  /// rather than as disciplined, and the arena stopped being a fight over
+  /// ground and became two sides painting their own halves.
+  ///
+  /// The reasoning for it is still worth keeping, because it is the only
+  /// thing that ever actually bounded depth.
+  /// `advanceRange` bounds how far a unit walks **from the frontier**, and
+  /// the frontier moves forward as a side paints — so a card dropped on
+  /// ground its side has already taken starts deep and advances from there.
+  /// Measured: with `advanceRange` set to **2.0**, a leash so short a unit
+  /// should barely leave its own paint, units still reached y=3.6 and y=21.1
+  /// out of 24. Shrinking the number does not stop the walk, because depth
+  /// was never what the number controlled.
+  ///
+  /// This does, by naming the line instead of a distance. A unit that starts
+  /// on its own side holds at the middle: still painting, still swinging at
+  /// anything in reach, but it will not march into the other half. Taking
+  /// enemy ground becomes the job of the things that can reach across it —
+  /// spells, and the ranged cards and buildings that shell or burn past
+  /// their own feet.
+  ///
+  /// A unit **dropped** beyond the middle is exempt and uses the leash as
+  /// before. It got there because its side had already painted that far,
+  /// which is the deploy rule working; freezing it on the spot would make a
+  /// card played on hard-won ground do nothing at all.
+  ///
+  /// Setting this false in `cards.json` restores the old behaviour whole.
+  final bool holdAtMidline;
+
   factory UnitTuning.fromJson(Map<String, dynamic> json) {
     final aggro = json['aggroRange'] as Map<String, dynamic>? ?? const {};
     final splash = json['deathSplash'] as Map<String, dynamic>? ?? const {};
     return UnitTuning(
       advanceRange: (json['advanceRange'] as num?)?.toDouble() ?? 6.0,
+      holdAtMidline: json['holdAtMidline'] as bool? ?? false,
       speeds: {
         for (final e
             in (json['speeds'] as Map<String, dynamic>? ?? const {}).entries)

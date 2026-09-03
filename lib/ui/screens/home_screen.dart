@@ -143,7 +143,7 @@ class _PlayerPane extends ConsumerWidget {
             label: 'BATTLE',
             sublabel: nextLevel > data.campaign.levelCount
                 ? 'Campaign complete'
-                : 'Level $nextLevel  ·  ${data.campaign.levelAt(nextLevel).tier.opponentName}',
+                : 'Level $nextLevel  ·  ${data.campaign.levelAt(nextLevel).tier.rankName}',
             onPressed: () => startCampaignLevel(context, ref, nextLevel),
           ),
           // Debug builds only. These are development tools — a paint harness

@@ -6,18 +6,31 @@ import '../../game/match/match_controller.dart';
 import '../../game/match/match_result.dart';
 import '../../meta/campaign.dart';
 import 'coverage_bar.dart';
+import 'match_background.dart';
 
 /// The clock. Counts the countdown down to Splat, then normal time, then
 /// sudden death, and turns amber in the last ten seconds.
 class MatchTimer extends StatelessWidget {
-  const MatchTimer({super.key, required this.match});
+  const MatchTimer({
+    super.key,
+    required this.match,
+    this.ink = Palette.hudText,
+  });
 
   final MatchController? match;
+
+  /// The digits' colour when the clock is not urgent.
+  ///
+  /// The HUD's pill keeps a dark ground on a light screen — it is the readout
+  /// glanced at most, and it has to hold up over cloud as well as over sky —
+  /// so it passes white. The result overlay prints the same widget on a pale
+  /// card and takes the default.
+  final Color ink;
 
   @override
   Widget build(BuildContext context) {
     final match = this.match;
-    if (match == null) return const _TimerText(text: '--:--');
+    if (match == null) return _TimerText(text: '--:--', colour: ink);
 
     return ValueListenableBuilder<MatchPhase>(
       valueListenable: match.phase,
@@ -46,7 +59,7 @@ class MatchTimer extends StatelessWidget {
                     : _clock(seconds),
                 colour: urgent && phase != MatchPhase.countdown
                     ? Palette.accent
-                    : Palette.hudText,
+                    : ink,
               ),
             ],
           );
@@ -114,7 +127,9 @@ class CountdownOverlay extends StatelessWidget {
                     child: Text(
                       label,
                       style: TextStyle(
-                        color: number == 0 ? Palette.accent : Palette.hudText,
+                        color: number == 0
+                            ? Palette.accent
+                            : Palette.hudOnScrim,
                         fontSize: number == 0 ? 48 : 88,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 2,
@@ -193,70 +208,105 @@ class ResultOverlay extends StatelessWidget {
       MatchOutcome.draw => Palette.neutral,
     };
 
-    return ColoredBox(
-      color: Palette.hudBackground.withValues(alpha: 0.92),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                result.headline,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // The same sky the match was played under, opaque, so the board is
+        // hidden while the result is read. A dark scrim over a light theme
+        // was the one screen still lit from the old palette.
+        MatchBackground(playerTeam: result.playerTeam),
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              // A card, not text on sky.
+              //
+              // The headline is drawn in the winning side's colour, and a
+              // team colour printed straight onto a blue sky is exactly the
+              // case section 14 keeps the arena's bezel dark for: 34pt of
+              // #2D69D7 on #6FC4F0 has almost no contrast. On white it has
+              // all of it, and the panel gives the result somewhere to sit.
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                decoration: BoxDecoration(
+                  color: Palette.hudSurface,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Palette.hudOutline, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x59000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      result.headline,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      result.subtitle,
+                      style: const TextStyle(
+                        color: Palette.hudTextDim,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // The bar slides to the final split rather than snapping.
+                    _FinalCoverage(
+                      coverage: result.coverage,
+                      playerTeam: result.playerTeam,
+                    ),
+
+                    const SizedBox(height: 22),
+                    if (campaign case final level?)
+                      _StarsEarned(
+                        level: level,
+                        stars: level.starsFor(
+                          won: result.won,
+                          playerShare: result.playerShare,
+                        ),
+                        playerShare: result.playerShare,
+                      )
+                    else
+                      _TrophyChange(change: result.trophyChange),
+
+                    if (result.chestEarned) ...[
+                      const SizedBox(height: 14),
+                      _ChestEarned(kept: chestKept),
+                    ],
+
+                    const SizedBox(height: 26),
+                    _ResultButton(
+                      label: 'REMATCH',
+                      onPressed: onRematch,
+                      accent: accent,
+                    ),
+                    const SizedBox(height: 10),
+                    _ResultButton(
+                      label: 'HOME',
+                      onPressed: onHome,
+                      secondary: true,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                result.subtitle,
-                style: const TextStyle(
-                  color: Palette.hudTextDim,
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              // The bar slides to the final split rather than snapping.
-              _FinalCoverage(
-                coverage: result.coverage,
-                playerTeam: result.playerTeam,
-              ),
-
-              const SizedBox(height: 22),
-              if (campaign case final level?)
-                _StarsEarned(
-                  level: level,
-                  stars: level.starsFor(
-                    won: result.won,
-                    playerShare: result.playerShare,
-                  ),
-                  playerShare: result.playerShare,
-                )
-              else
-                _TrophyChange(change: result.trophyChange),
-
-              if (result.chestEarned) ...[
-                const SizedBox(height: 14),
-                _ChestEarned(kept: chestKept),
-              ],
-
-              const SizedBox(height: 26),
-              _ResultButton(
-                label: 'REMATCH',
-                onPressed: onRematch,
-                accent: accent,
-              ),
-              const SizedBox(height: 10),
-              _ResultButton(label: 'HOME', onPressed: onHome, secondary: true),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -424,7 +474,7 @@ class _ChestEarned extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Palette.hudSurface,
+        color: Palette.hudSurfaceLow,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.5)),
       ),
@@ -470,10 +520,16 @@ class _ResultButton extends StatelessWidget {
     child: FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: secondary ? Palette.hudSurface : accent,
-        foregroundColor: secondary ? Palette.hudTextDim : Colors.white,
+        backgroundColor: secondary ? Palette.hudSurfaceLow : accent,
+        foregroundColor: secondary ? Palette.hudText : Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: secondary ? Palette.hudOutline : Colors.transparent,
+            width: 2,
+          ),
+        ),
       ),
       child: Text(
         label,

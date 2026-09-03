@@ -301,7 +301,34 @@ class SplatfrontGame extends FlameGame {
     }
     if (!card.obeysDeployZone) return true;
     if (economy.deployAnywhere) return true;
+
+    // The other half of the midline rule.
+    //
+    // Holding units at the middle achieves nothing on its own, and this is
+    // the measurement that proved it: the deploy line follows the paint, so
+    // the moment a side painted past the middle it could drop the next card
+    // there, and that card advanced from *there*. Paint forward, deploy
+    // forward, walk forward — the loop marched to the far wall whatever the
+    // leash said, which is why units still reached y=0.4 out of 24 with the
+    // hold switched on.
+    //
+    // With bodies barred from the far half, ground beyond the middle is
+    // taken by the things that can reach across it: spells, and the ranged
+    // cards and buildings that shell or burn past their own feet.
+    if (registry.tuning.holdAtMidline && !_inOwnHalf(team, worldPosition.y)) {
+      return false;
+    }
     return arena.deployZone.canDeploy(worldPosition, team);
+  }
+
+  /// Whether [y] is on [team]'s own side of the halfway line.
+  ///
+  /// The player's side walks toward y=0, so the player's own half is the
+  /// bottom one. Keyed to the side rather than the colour, like everything
+  /// else that has to know which end of the board is whose.
+  bool _inOwnHalf(Team team, double y) {
+    const mid = ArenaSpec.worldHeight / 2;
+    return team == playerTeam ? y >= mid : y <= mid;
   }
 
   /// The live-building cap for one side, or a very large number when the

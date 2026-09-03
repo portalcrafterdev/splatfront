@@ -85,6 +85,37 @@ class CoverageBar extends StatelessWidget {
               ),
             ],
           ),
+
+          // A lit top edge and a shaded bottom, so the bar reads as a moulded
+          // meter rather than as two flat swatches butted together. Cheap:
+          // one gradient over the whole strip, no per-side work.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x24FFFFFF),
+                    Color(0x00FFFFFF),
+                    Color(0x1F000000),
+                  ],
+                  stops: [0.0, 0.45, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // The halfway mark.
+          //
+          // Without it this bar makes you *read* to find out who is winning:
+          // two percentages, subtract one from the other. With it the answer
+          // is a shape — the seam between the colours is left of the tick or
+          // right of it, and that is legible from the corner of the eye while
+          // you are looking at the arena. It is a tug-of-war rope, and a
+          // tug-of-war needs a centre line.
+          if (showLabels) const Center(child: _HalfwayTick()),
+
           if (showLabels)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -105,6 +136,39 @@ class CoverageBar extends StatelessWidget {
       fontSize: 13,
       fontWeight: FontWeight.w800,
       shadows: [Shadow(color: Color(0x99000000), blurRadius: 2)],
+    ),
+  );
+}
+
+/// The 50% line, drawn light with a dark hairline down each side.
+///
+/// It has to stay visible while sitting on either team colour — and on
+/// neutral grey between them — so it cannot be a single flat tone: a white
+/// line vanishes on pale neutral and a dark one vanishes on blue. The
+/// sandwich reads on all three.
+class _HalfwayTick extends StatelessWidget {
+  const _HalfwayTick();
+
+  @override
+  Widget build(BuildContext context) => const IgnorePointer(
+    child: SizedBox(
+      width: 4,
+      height: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Color(0x59000000),
+              Color(0xE6FFFFFF),
+              Color(0xE6FFFFFF),
+              Color(0x59000000),
+            ],
+            stops: [0.0, 0.25, 0.75, 1.0],
+          ),
+        ),
+      ),
     ),
   );
 }

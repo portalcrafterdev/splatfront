@@ -144,6 +144,7 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
   /// there. Measured from the frontier, [advanceRange] is what it says it is
   /// — how deep into contested ground one card pushes.
   bool get _hasAdvanced {
+    if (_atMidline) return true;
     final line = _startLine;
     if (line == null) {
       // No frontier to measure from: the column is entirely this side's, so
@@ -154,6 +155,41 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     final pushed = goalY < line ? line - position.y : position.y - line;
     return pushed >= game.registry.tuning.advanceRange;
   }
+
+  /// True once a unit that started on its own side has reached the middle.
+  ///
+  /// The halfway line rather than a distance, because a distance was never
+  /// what bounded depth — see [UnitTuning.holdAtMidline]. A unit dropped
+  /// beyond the middle already is exempt: its side painted its way there,
+  /// and a card played on that ground has to be allowed to do something.
+  bool get _atMidline {
+    if (!game.registry.tuning.holdAtMidline) return false;
+    if (_startedPastMid) return false;
+    const mid = ArenaSpec.worldHeight / 2;
+    return goalY < mid ? position.y <= mid : position.y >= mid;
+  }
+
+  /// Resolved on the first update, while the unit still stands where it was
+  /// dropped. Latched, so a unit cannot re-qualify by drifting.
+  ///
+  /// **Strictly past, with a cell of slack.** Standing *on* the line is not
+  /// being beyond it, and the difference is not academic: the frontier starts
+  /// exactly on the halfway row, so a card played at the very front of its
+  /// own half lands at y=12.0 — and an inclusive test read that as "already
+  /// deep, exempt from the rule". It let one side walk to the far wall while
+  /// the other held, which measured as an 87.7% board rather than a 50% one.
+  bool get _startedPastMid {
+    if (_pastMidResolved) return _startedPastMidValue;
+    _pastMidResolved = true;
+    const mid = ArenaSpec.worldHeight / 2;
+    const slack = 0.5;
+    return _startedPastMidValue = goalY < mid
+        ? position.y < mid - slack
+        : position.y > mid + slack;
+  }
+
+  bool _pastMidResolved = false;
+  bool _startedPastMidValue = false;
 
   /// The row the push is measured from, resolved once on the first update
   /// while the unit is still standing where it was dropped.
@@ -356,6 +392,16 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
         _attack(target, dt);
         return; // Standing still to swing.
       }
+      // Chasing is deliberately **not** leashed.
+      //
+      // It was, briefly, on the theory that a unit following a runner was
+      // how bodies ended up at the far wall. Two things killed it. It did not
+      // measure — with the leash on the chase, units still reached the same
+      // depth, because depth was never coming from chasing. And it made a
+      // unit at the end of its leash stand and watch an enemy walk up to it,
+      // which is a worse game than the one being fixed. The leash stops a
+      // unit *marching*; the midline stops it *advancing*; neither should
+      // stop it fighting.
       _desired
         ..setFrom(target.position)
         ..sub(position);

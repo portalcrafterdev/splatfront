@@ -17,6 +17,7 @@ import '../../meta/campaign.dart';
 import '../../meta/quests.dart';
 import '../../game/units/units_registry.dart';
 import '../widgets/card_tile.dart';
+import '../widgets/match_background.dart';
 import '../widgets/match_header.dart';
 import '../widgets/elixir_meter.dart';
 import '../widgets/frame_stats.dart';
@@ -207,29 +208,45 @@ class _BattleScreenState extends State<BattleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Palette.hudBackground,
+      backgroundColor: Palette.hudSkyLow,
       body: AnnotatedRegion<SystemUiOverlayStyle>(
-        // The one dark screen in the app, so the status bar icons have to
-        // flip to light or the clock disappears into the HUD behind it.
+        // Dark icons on open sky.
+        //
+        // A dark bar was tried behind the phone's strip and looked like a
+        // hole cut in the top of the screen — the sky has to run all the way
+        // up or the page has a lid on it. What makes that safe is keeping
+        // cloud out of the strip: see _Clouds. On bare sky a dark icon has
+        // all the contrast it needs.
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
-          systemNavigationBarColor: Palette.hudBackground,
-          systemNavigationBarIconBrightness: Brightness.light,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Palette.hudTrayLow,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              ResponsiveBuilder(
-                builder: (context, layout) => layout.handIsSideRail
-                    ? _wideLayout(layout)
-                    : _stackedLayout(layout),
+        child: Stack(
+          children: [
+            // Behind everything, outside the SafeArea so it runs under the
+            // status bar and the gesture bar rather than stopping in a hard
+            // line at each.
+            Positioned.fill(
+              child: MatchBackground(playerTeam: _game.playerTeam),
+            ),
+
+            SafeArea(
+              child: Stack(
+                children: [
+                  ResponsiveBuilder(
+                    builder: (context, layout) => layout.handIsSideRail
+                        ? _wideLayout(layout)
+                        : _stackedLayout(layout),
+                  ),
+                  // The end screen sits over the whole thing, arena included.
+                  Positioned.fill(child: _resultOverlay()),
+                ],
               ),
-              // The end screen sits over the whole thing, arena included.
-              Positioned.fill(child: _resultOverlay()),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -315,14 +332,49 @@ class _BattleScreenState extends State<BattleScreen> {
       children: [
         _header(),
         Expanded(child: Center(child: _arena())),
-        if (_game.hand != null) ...[
-          ElixirMeter(elixir: _game.elixir, height: layout.elixirBarHeight),
-          _Hand(game: _game, layout: layout, toWorld: _toWorld),
-        ],
+        if (_game.hand != null) _tray(layout),
         _sandboxControls(),
       ],
     );
   }
+
+  /// The elixir bar and the hand, on one raised deck at the foot of the
+  /// screen.
+  ///
+  /// They were two loose rows floating on the background. Everything a player
+  /// touches during a match is down here and none of it was grouped, so the
+  /// bottom third of the screen had no structure at all — the cards read as
+  /// stickers on the wallpaper. A single surface underneath makes it a
+  /// console: the arena is the world, this is the panel you drive it from.
+  ///
+  /// Rounded and lit along the top edge only. The bottom runs off the screen,
+  /// so a bottom edge would be a line the phone crops rather than a shape.
+  Widget _tray(LayoutClass layout) => Container(
+    padding: const EdgeInsets.only(top: 8),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Palette.hudTrayHigh, Palette.hudTrayLow],
+      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      border: Border(top: BorderSide(color: Palette.hudOutline, width: 2)),
+      boxShadow: [
+        BoxShadow(
+          color: Color(0x40000000),
+          blurRadius: 14,
+          offset: Offset(0, -4),
+        ),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ElixirMeter(elixir: _game.elixir, height: layout.elixirBarHeight),
+        _Hand(game: _game, layout: layout, toWorld: _toWorld),
+      ],
+    ),
+  );
 
   /// Wide: arena centred and letterboxed, hand on a right-side vertical rail
   /// with the elixir bar stood on its end beside it.
@@ -384,29 +436,59 @@ class _BattleScreenState extends State<BattleScreen> {
         aspectRatio: 2 / 3,
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            // A pale rim so the board reads as a table you are playing on
-            // rather than as a hole in the screen.
-            border: Border.all(
-              color: Palette.hudText.withValues(alpha: 0.85),
-              width: 3,
+            borderRadius: BorderRadius.circular(16),
+            // A bezel, not an outline.
+            //
+            // This was a 3px near-white rim, which made the brightest thing
+            // on a dark screen a *border* — the eye went to the edge of the
+            // board instead of to the board. A moulded surround does the same
+            // job better: the gradient puts a light source overhead, the
+            // hairline catches it along the top, and the board sits down
+            // inside the frame rather than being ringed by it.
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Palette.hudBezelHigh, Palette.hudBezelLow],
             ),
+            border: Border.all(color: const Color(0x33FFFFFF)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 14,
-                spreadRadius: 1,
+                color: Color(0x80000000),
+                blurRadius: 16,
+                offset: Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            // Inside the 3px rim, so the paint does not bleed over it.
-            borderRadius: BorderRadius.circular(11),
+            // Inside the bezel, so the paint does not bleed over it.
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               children: [
                 Positioned.fill(
                   child: GameWidget(key: _arenaKey, game: _game),
+                ),
+                // A shadow cast by the bezel onto the board along the top
+                // edge, which is what sells the board as recessed. Kept to
+                // the top only and very low: any more and it reads as dirt on
+                // the paint, and the paint is the score.
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 10,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x3D000000), Color(0x00000000)],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 if (match != null) ...[
                   Positioned.fill(child: WipeOverlay(match: match)),
@@ -486,11 +568,21 @@ class _Hand extends StatelessWidget {
                     );
 
                     return Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 6),
+                      padding: const EdgeInsets.only(top: 6, bottom: 10),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _nextPreview(cardWidth),
+                          // The preview is not a fifth slot, and at a glance
+                          // it looked like one: same art, same shape, sitting
+                          // in the same row. A rule between them says where
+                          // the hand starts.
+                          Container(
+                            width: 1,
+                            height: cardWidth * 0.9,
+                            margin: const EdgeInsets.only(right: 2),
+                            color: Palette.hudTextDim.withValues(alpha: 0.22),
+                          ),
                           Expanded(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,

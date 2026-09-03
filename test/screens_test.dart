@@ -202,9 +202,10 @@ void main() {
     expect(find.text('--:--'), findsNothing);
     expect(find.text('You'), findsOneWidget);
     // Home's battle button plays the campaign level you are up to, so a fresh
-    // profile lands on level 1 — which is in the Novice block. There is no
-    // difficulty picker any more; the level number is the difficulty.
-    expect(find.text('Novice Bot'), findsOneWidget);
+    // profile lands on level 1. There is no difficulty picker any more; the
+    // level number is the difficulty, and the plate names the side you are
+    // fighting rather than a rank or, worse, a person.
+    expect(find.text('Red Team'), findsOneWidget);
 
     await unmount(tester);
   });

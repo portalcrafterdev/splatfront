@@ -181,4 +181,43 @@ void main() {
     expect(Team.blue.opponent, Team.red);
     expect(Team.neutral.opponent, Team.neutral);
   });
+  test('the board is framed dark against a light match screen', () {
+    // Section 14 used to say the menus were light and the match stayed dark.
+    // The match is now a bright sky, on the owner's call, and what replaced
+    // the darkness rule is this: the **bezel** stays dark.
+    //
+    // That is not decoration. The sky is hue 201 and the blue side is 224 —
+    // 23 apart, closer than anything else in the app comes to a team colour.
+    // Lightness is what separates them, and the dark frame is what stops the
+    // board's blue half from bleeding into the sky behind it. Lighten the
+    // bezel and the arena stops having an edge.
+    for (final tone in [Palette.hudBezelHigh, Palette.hudBezelLow]) {
+      expect(
+        HSLColor.fromColor(tone).lightness,
+        lessThan(0.3),
+        reason: 'the bezel is the only edge the board has',
+      );
+    }
+
+    // And the sky has to stay well clear of the blue side in lightness,
+    // since it cannot be clear of it in hue.
+    final sky = HSLColor.fromColor(Palette.hudSkyHigh).lightness;
+    final blue = HSLColor.fromColor(Palette.blue).lightness;
+    expect(
+      sky - blue,
+      greaterThan(0.15),
+      reason: 'a sky this close to blue in hue must be far from it in tone',
+    );
+
+    // Lighter at the top, which is where every surface in the app puts its
+    // light source. Inverted, the screen reads as lit from the floor.
+    expect(
+      HSLColor.fromColor(Palette.hudBezelHigh).lightness,
+      greaterThan(HSLColor.fromColor(Palette.hudBezelLow).lightness),
+    );
+
+    // Match ink is now printed on paper, so it has to be dark enough to read.
+    expect(HSLColor.fromColor(Palette.hudText).lightness, lessThan(0.25));
+    expect(HSLColor.fromColor(Palette.hudSurface).lightness, greaterThan(0.9));
+  });
 }

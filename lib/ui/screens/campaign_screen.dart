@@ -76,7 +76,7 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
               title: 'Levels',
               profile: profile,
               subtitle:
-                  'Win to earn a star. Paint '
+                  'Single player. Win to earn a star, paint '
                   '${(campaign.twoStarCoverage * 100).round()}% for two and '
                   '${(campaign.threeStarCoverage * 100).round()}% for three.',
             ),
@@ -322,19 +322,16 @@ class _LevelTile extends StatelessWidget {
   /// What makes this level different from the last one. The bot's card level
   /// only appears once it has actually started climbing — saying "cards
   /// level 1" on the first hundred levels would be noise.
-  /// Names the opponent the way its own name plate will in the match, rather
-  /// than as "Easy bot" / "Hard bot".
   ///
-  /// Those three words belong to the picker on Home, which chooses the
-  /// difficulty of a *ladder* match and has no say over a campaign level at
-  /// all — a level sets its own opponent from its number. Printing them here
-  /// read as though the picker applied, or as though the tile were offering a
-  /// choice. "Rival Bot" is what the player will actually see at the top of
-  /// the arena, so it describes the fight without claiming to be a setting.
+  /// The opponent is described by how hard it plays, in the plainest word
+  /// there is, rather than by a rank name. "Novice Bot" was here and carried
+  /// two problems at once: "Novice" is ladder vocabulary that teaches a
+  /// player nothing, and the plate is where the opponent is named — a tile
+  /// listing a thousand levels is not.
   String get _subtitle {
     final parts = <String>[
       ?arenaName,
-      level.tier.opponentName,
+      level.tier.rankName,
     ];
     if (level.botCardLevel > 1) parts.add('cards level ${level.botCardLevel}');
     if (reward case final extra?) parts.add(extra);
