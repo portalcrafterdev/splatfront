@@ -479,13 +479,26 @@ class _QuestRow extends StatelessWidget {
           else
             FilledButton(
               onPressed: done ? onClaim : null,
+              // A quest you have not finished still has to show what it pays,
+              // and the unclaimable chip was filled with the page colour and
+              // labelled in Material's default disabled grey — which on a
+              // tinted quest tile left the number as a smudge. Filled and
+              // outlined instead, so it reads as a reward waiting rather
+              // than as a rendering fault.
               style: FilledButton.styleFrom(
                 backgroundColor: Palette.accent,
-                disabledBackgroundColor: Palette.uiBackground,
+                disabledBackgroundColor: Palette.uiSurfaceHigh,
+                disabledForegroundColor: Palette.uiTextDim,
+                side: done
+                    ? null
+                    : const BorderSide(color: Palette.outline, width: 1.5),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 visualDensity: VisualDensity.compact,
               ),
-              child: Text('${quest.coins}'),
+              child: Text(
+                '${quest.coins}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
         ],
       ),
