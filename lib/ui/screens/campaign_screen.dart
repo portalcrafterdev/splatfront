@@ -68,67 +68,70 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
 
     return Scaffold(
       backgroundColor: Palette.uiBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            MetaHeader(
-              title: 'Levels',
-              profile: profile,
-              subtitle:
-                  'Single player. Win to earn a star, paint '
-                  '${(campaign.twoStarCoverage * 100).round()}% for two and '
-                  '${(campaign.threeStarCoverage * 100).round()}% for three.',
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: SectionHeading(
-                'Level ${profile.campaignNextLevel}',
-                trailing:
-                    '${profile.campaignTotalStars} '
-                    'of ${campaign.levelCount * 3} stars',
+      body: MenuBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              MetaHeader(
+                title: 'Levels',
+                profile: profile,
+                subtitle:
+                    'Single player. Win to earn a star, paint '
+                    '${(campaign.twoStarCoverage * 100).round()}% for two and '
+                    '${(campaign.threeStarCoverage * 100).round()}% for three.',
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                // Its own storage bucket, so it can never be handed a scroll
-                // offset that belonged to a different tab.
-                key: const PageStorageKey<String>('campaign-levels'),
-                controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-                itemCount: campaign.levelCount,
-                itemExtent: _tileExtent,
-                itemBuilder: (context, index) {
-                  final number = index + 1;
-                  final level = campaign.levelAt(number);
-                  return _LevelTile(
-                    level: level,
-                    stars: profile.starsOnLevel(number),
-                    unlocked: profile.isLevelUnlocked(number),
-                    current: number == profile.campaignNextLevel,
-                    name: campaign.nameFor(number),
-                    // The board is named on the level it changes on and
-                    // nowhere else. It is the same arena for twenty-five
-                    // levels at a stretch, so printing it on every row was
-                    // the repetition, and the boundary is the only place it
-                    // is actually news.
-                    arenaName: campaign.arenaChangesAt(number)
-                        ? data.arenas[level.arenaIndex % data.arenas.length]
-                              .name
-                        : null,
-                    // What this level pays over and above its stars. Most
-                    // levels pay nothing extra and say nothing.
-                    //
-                    // A card unlock outranks the rest: it is the only reward
-                    // that changes what the player can do next, so it is the
-                    // one worth naming even on a level that also pays coins.
-                    reward: _rewardLabel(data, campaign, number),
-                    onPlay: () => _play(context, campaign, number),
-                  );
-                },
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: SectionHeading(
+                  'Level ${profile.campaignNextLevel}',
+                  trailing:
+                      '${profile.campaignTotalStars} '
+                      'of ${campaign.levelCount * 3} stars',
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                child: ListView.builder(
+                  // Its own storage bucket, so it can never be handed a scroll
+                  // offset that belonged to a different tab.
+                  key: const PageStorageKey<String>('campaign-levels'),
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                  itemCount: campaign.levelCount,
+                  itemExtent: _tileExtent,
+                  itemBuilder: (context, index) {
+                    final number = index + 1;
+                    final level = campaign.levelAt(number);
+                    return _LevelTile(
+                      level: level,
+                      stars: profile.starsOnLevel(number),
+                      unlocked: profile.isLevelUnlocked(number),
+                      current: number == profile.campaignNextLevel,
+                      name: campaign.nameFor(number),
+                      // The board is named on the level it changes on and
+                      // nowhere else. It is the same arena for twenty-five
+                      // levels at a stretch, so printing it on every row was
+                      // the repetition, and the boundary is the only place it
+                      // is actually news.
+                      arenaName: campaign.arenaChangesAt(number)
+                          ? data
+                                .arenas[level.arenaIndex % data.arenas.length]
+                                .name
+                          : null,
+                      // What this level pays over and above its stars. Most
+                      // levels pay nothing extra and say nothing.
+                      //
+                      // A card unlock outranks the rest: it is the only reward
+                      // that changes what the player can do next, so it is the
+                      // one worth naming even on a level that also pays coins.
+                      reward: _rewardLabel(data, campaign, number),
+                      onPlay: () => _play(context, campaign, number),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -329,10 +332,7 @@ class _LevelTile extends StatelessWidget {
   /// player nothing, and the plate is where the opponent is named — a tile
   /// listing a thousand levels is not.
   String get _subtitle {
-    final parts = <String>[
-      ?arenaName,
-      level.tier.rankName,
-    ];
+    final parts = <String>[?arenaName, level.tier.rankName];
     if (level.botCardLevel > 1) parts.add('cards level ${level.botCardLevel}');
     if (reward case final extra?) parts.add(extra);
     return parts.join(' · ');

@@ -53,106 +53,110 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final swapping = _swapping;
     return Scaffold(
       backgroundColor: Palette.uiBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            MetaHeader(
-              title: 'Collection',
-              profile: profile,
-              subtitle: swapping == null
-                  ? 'Tap a card in your deck to swap it out. Tap any other '
-                        'card to level it up.'
-                  : 'Now pick the card that replaces '
-                        '${data.cards[swapping].name}.',
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                children: [
-                  SectionHeading(
-                    swapping == null ? 'Your deck' : 'Swapping out',
-                    trailing: swapping == null ? '${deck.length} cards' : null,
-                  ),
-                  _grid(
-                    cards: [for (final id in deck) data.cards[id]],
-                    profile: profile,
-                    layout: layout,
-                    readyToUpgrade: controller.canUpgrade,
-                    copiesNeeded: (level) =>
-                        data.upgrades.stepFrom(level)?.copies,
-                    lockedUntil: (_) => null,
-                    highlight: _swapping,
-                    onTap: (card) => setState(
-                      () => _swapping = _swapping == card.id ? null : card.id,
+      body: MenuBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              MetaHeader(
+                title: 'Collection',
+                profile: profile,
+                subtitle: swapping == null
+                    ? 'Tap a card in your deck to swap it out. Tap any other '
+                          'card to level it up.'
+                    : 'Now pick the card that replaces '
+                          '${data.cards[swapping].name}.',
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    SectionHeading(
+                      swapping == null ? 'Your deck' : 'Swapping out',
+                      trailing: swapping == null
+                          ? '${deck.length} cards'
+                          : null,
                     ),
-                  ),
-
-                  const SizedBox(height: 22),
-                  SectionHeading(
-                    'Your cards',
-                    trailing:
-                        '${owned.length} of ${data.cards.playable.length}',
-                  ),
-                  // Until the campaign hands over a seventh card, everything
-                  // owned is already in the deck and this grid is a second
-                  // copy of the one above it. A line saying where more come
-                  // from is more use than the duplicate.
-                  if (owned.length <= deck.length)
-                    const _EmptyNote(
-                      'Every card you own is in your deck. Clear campaign '
-                      'levels to earn more.',
-                    )
-                  else
                     _grid(
-                      cards: owned,
+                      cards: [for (final id in deck) data.cards[id]],
                       profile: profile,
                       layout: layout,
                       readyToUpgrade: controller.canUpgrade,
                       copiesNeeded: (level) =>
                           data.upgrades.stepFrom(level)?.copies,
                       lockedUntil: (_) => null,
-                      dimmed: deck.toSet(),
-                      onTap: (card) {
-                        final swapping = _swapping;
-                        if (swapping == null) {
-                          _showUpgradeSheet(card);
-                          return;
-                        }
-                        if (deck.contains(card.id)) return;
-                        controller.swapCard(outId: swapping, inId: card.id);
-                        setState(() => _swapping = null);
-                      },
+                      highlight: _swapping,
+                      onTap: (card) => setState(
+                        () => _swapping = _swapping == card.id ? null : card.id,
+                      ),
                     ),
 
-                  if (locked.isNotEmpty) ...[
                     const SizedBox(height: 22),
-                    // Says what opens them, not just that they are shut. "Still to
-                    // come" plus the level on each tile is a plan; a row of
-                    // padlocks is a nag.
                     SectionHeading(
-                      'Still to come',
-                      trailing: 'from the campaign',
+                      'Your cards',
+                      trailing:
+                          '${owned.length} of ${data.cards.playable.length}',
                     ),
-                    _grid(
-                      cards: locked,
-                      profile: profile,
-                      layout: layout,
-                      readyToUpgrade: (_) => false,
-                      copiesNeeded: (_) => null,
-                      lockedUntil: (id) =>
-                          controller.campaign.unlockLevelFor(id),
-                      // Tapping one does nothing on purpose: there is no action to
-                      // offer. An upgrade sheet for a card you do not own would be
-                      // a dead end dressed up as a screen.
-                      onTap: (_) {},
-                    ),
+                    // Until the campaign hands over a seventh card, everything
+                    // owned is already in the deck and this grid is a second
+                    // copy of the one above it. A line saying where more come
+                    // from is more use than the duplicate.
+                    if (owned.length <= deck.length)
+                      const _EmptyNote(
+                        'Every card you own is in your deck. Clear campaign '
+                        'levels to earn more.',
+                      )
+                    else
+                      _grid(
+                        cards: owned,
+                        profile: profile,
+                        layout: layout,
+                        readyToUpgrade: controller.canUpgrade,
+                        copiesNeeded: (level) =>
+                            data.upgrades.stepFrom(level)?.copies,
+                        lockedUntil: (_) => null,
+                        dimmed: deck.toSet(),
+                        onTap: (card) {
+                          final swapping = _swapping;
+                          if (swapping == null) {
+                            _showUpgradeSheet(card);
+                            return;
+                          }
+                          if (deck.contains(card.id)) return;
+                          controller.swapCard(outId: swapping, inId: card.id);
+                          setState(() => _swapping = null);
+                        },
+                      ),
+
+                    if (locked.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      // Says what opens them, not just that they are shut. "Still to
+                      // come" plus the level on each tile is a plan; a row of
+                      // padlocks is a nag.
+                      SectionHeading(
+                        'Still to come',
+                        trailing: 'from the campaign',
+                      ),
+                      _grid(
+                        cards: locked,
+                        profile: profile,
+                        layout: layout,
+                        readyToUpgrade: (_) => false,
+                        copiesNeeded: (_) => null,
+                        lockedUntil: (id) =>
+                            controller.campaign.unlockLevelFor(id),
+                        // Tapping one does nothing on purpose: there is no action to
+                        // offer. An upgrade sheet for a card you do not own would be
+                        // a dead end dressed up as a screen.
+                        onTap: (_) {},
+                      ),
+                    ],
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

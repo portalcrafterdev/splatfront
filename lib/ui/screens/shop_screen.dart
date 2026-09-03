@@ -29,42 +29,44 @@ class ShopScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Palette.uiBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // The standing explanation belongs here, next to the title, and
-            // not as a paragraph after the last row where it read as a
-            // disclaimer nobody reaches.
-            MetaHeader(
-              title: 'Shop',
-              profile: profile,
-              subtitle:
-                  'Four card deals, new every day. Coins come from '
-                  'chests and quests — nothing here costs real money.',
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                children: [
-                  for (final offer in offers)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _OfferRow(
-                        card: data.cards[offer.cardId],
-                        copies: offer.copies,
-                        cost: offer.copies * data.shopCoinsPerCopy,
-                        short:
-                            (offer.copies * data.shopCoinsPerCopy) -
-                            profile.coins,
-                        onBuy: () =>
-                            controller.buyCopies(offer.cardId, offer.copies),
-                      ),
-                    ),
-                ],
+      body: MenuBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // The standing explanation belongs here, next to the title, and
+              // not as a paragraph after the last row where it read as a
+              // disclaimer nobody reaches.
+              MetaHeader(
+                title: 'Shop',
+                profile: profile,
+                subtitle:
+                    'Four card deals, new every day. Coins come from '
+                    'chests and quests — nothing here costs real money.',
               ),
-            ),
-          ],
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  children: [
+                    for (final offer in offers)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _OfferRow(
+                          card: data.cards[offer.cardId],
+                          copies: offer.copies,
+                          cost: offer.copies * data.shopCoinsPerCopy,
+                          short:
+                              (offer.copies * data.shopCoinsPerCopy) -
+                              profile.coins,
+                          onBuy: () =>
+                              controller.buyCopies(offer.cardId, offer.copies),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

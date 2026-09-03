@@ -10,6 +10,7 @@ import '../../meta/chests.dart';
 import '../../meta/profile_controller.dart';
 import '../widgets/chest_opening.dart';
 import '../widgets/meta_widgets.dart';
+import '../widgets/motion.dart';
 
 /// Chest slots: start one unlocking, wait it out, open it.
 ///
@@ -50,44 +51,46 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
 
     return Scaffold(
       backgroundColor: Palette.uiBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Said as a sentence rather than as fragments joined with a
-            // middle dot, which is filing-system voice, not a person's.
-            MetaHeader(
-              title: 'Chests',
-              profile: profile,
-              subtitle: slots > data.chests.initialSlots
-                  ? 'You have $slots slots. One unlocks at a time.'
-                  : 'You have $slots slots, and '
-                        '${data.chests.unlockedSlots} once you reach '
-                        '${data.chests.unlockAtTrophies} trophies.',
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                children: [
-                  for (var i = 0; i < slots; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _slotAt(i, profile, data, controller),
-                    ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Win a match to earn a chest. With every slot full, a win '
-                    'earns nothing — so keep one free.',
-                    style: TextStyle(
-                      color: Palette.uiTextDim,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+      body: MenuBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // Said as a sentence rather than as fragments joined with a
+              // middle dot, which is filing-system voice, not a person's.
+              MetaHeader(
+                title: 'Chests',
+                profile: profile,
+                subtitle: slots > data.chests.initialSlots
+                    ? 'You have $slots slots. One unlocks at a time.'
+                    : 'You have $slots slots, and '
+                          '${data.chests.unlockedSlots} once you reach '
+                          '${data.chests.unlockAtTrophies} trophies.',
               ),
-            ),
-          ],
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  children: [
+                    for (var i = 0; i < slots; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _slotAt(i, profile, data, controller),
+                      ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Win a match to earn a chest. With every slot full, a win '
+                      'earns nothing — so keep one free.',
+                      style: TextStyle(
+                        color: Palette.uiTextDim,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
