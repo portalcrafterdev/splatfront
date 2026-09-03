@@ -210,6 +210,41 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('pause stops the clock, and resuming starts it again', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+
+    // Past the countdown, or there is no clock yet to hold — the header
+    // reads 'GET READY' for the first three seconds.
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.textContaining(':'), findsWidgets, reason: 'the clock is up');
+
+    // Flame's own pauseEngine is what does the work, and the clock, the
+    // elixir bar, the hand cooldowns and the bot's timer all run off update —
+    // so if the loop is stopped, the clock reading cannot move. That is the
+    // property worth testing, rather than the flag.
+    await tester.tap(find.bySemanticsLabel('Pause'));
+    await tester.pump();
+    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.text('RESUME'), findsOneWidget);
+
+    final held = tester.widget<Text>(find.textContaining(':').first).data;
+    await tester.pump(const Duration(seconds: 2));
+    expect(
+      tester.widget<Text>(find.textContaining(':').first).data,
+      held,
+      reason: 'the clock moved while the match was paused',
+    );
+
+    await tester.tap(find.text('RESUME'));
+    await tester.pump();
+    expect(find.text('PAUSED'), findsNothing);
+
+    await unmount(tester);
+  });
+
   testWidgets('the unit sandbox has its spawn controls, a match does not', (
     tester,
   ) async {

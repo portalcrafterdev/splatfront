@@ -113,6 +113,11 @@ class _BattleScreenState extends State<BattleScreen> {
     sandbox: widget.sandbox,
   );
 
+  /// Whether the match is held. A notifier rather than setState, because
+  /// everything else on this screen is driven the same way and a rebuild of
+  /// the whole battle screen would rebuild the GameWidget with it.
+  final ValueNotifier<bool> _paused = ValueNotifier(false);
+
   @override
   void initState() {
     super.initState();
@@ -142,6 +147,7 @@ class _BattleScreenState extends State<BattleScreen> {
     // off before the game does.
     _game.arena.coverage.removeListener(_watchLead);
     if (widget.sandbox == SandboxMode.off) Audio.playMusic(Track.menu);
+    _paused.dispose();
     super.dispose();
   }
 
@@ -241,7 +247,22 @@ class _BattleScreenState extends State<BattleScreen> {
                         ? _wideLayout(layout)
                         : _stackedLayout(layout),
                   ),
-                  // The end screen sits over the whole thing, arena included.
+                  // Both of these sit over the whole thing, arena included.
+                  // Pause goes under the result: if the whistle somehow lands
+                  // in the same frame, the match is over and that is the
+                  // screen that matters.
+                  Positioned.fill(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _paused,
+                      builder: (context, paused, _) => paused
+                          ? PauseOverlay(
+                              playerTeam: widget.playerTeam,
+                              onResume: _resume,
+                              onQuit: () => Navigator.of(context).pop(),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
                   Positioned.fill(child: _resultOverlay()),
                 ],
               ),
@@ -324,7 +345,33 @@ class _BattleScreenState extends State<BattleScreen> {
     playerTeam: widget.playerTeam,
     botTier: widget.botTier,
     showPlates: widget.sandbox == SandboxMode.off,
+    // The sandboxes have no clock to stop.
+    onPause: widget.sandbox == SandboxMode.off ? _pause : null,
   );
+
+  /// Holds the match.
+  ///
+  /// Flame's own [pauseEngine] rather than a flag the components check: the
+  /// clock, the elixir bar, the hand cooldowns, the bot's decision timer and
+  /// every unit's step all run off `update`, so stopping the loop stops all
+  /// of them at once and none of them can be forgotten. A flag would have to
+  /// be honoured in five places and would be wrong in the sixth.
+  void _pause() {
+    if (_paused.value) return;
+    _game.cancelDeploy();
+    _game.pauseEngine();
+    // Whatever was mid-swing down there goes quiet, the same as it does at
+    // the whistle and on the way out. The interface still speaks.
+    Audio.gameplayMuted = true;
+    _paused.value = true;
+  }
+
+  void _resume() {
+    if (!_paused.value) return;
+    Audio.gameplayMuted = false;
+    _game.resumeEngine();
+    _paused.value = false;
+  }
 
   /// Phone and tablet portrait: header, arena, elixir, hand.
   Widget _stackedLayout(LayoutClass layout) {

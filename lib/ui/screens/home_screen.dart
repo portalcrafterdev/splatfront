@@ -332,13 +332,17 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
     height: 78,
     margin: const EdgeInsets.symmetric(horizontal: 4),
     decoration: BoxDecoration(
-      // Gold rather than white: this is the rewards corner of the screen, and
-      // a row of white rectangles gave it no identity of its own.
+      // A breath of gold rather than a wash of it: this is the rewards
+      // corner and a row of plain white rectangles gave it no identity, but
+      // at 0.3 the blend came out tan — a pair of beige boxes in a column
+      // that is otherwise teal and white, and beige is not one of the app's
+      // colours. At 0.10 it reads as warm paper and the gold on the icon and
+      // the timer is left to do the actual signalling.
       color: border == Palette.uiTextDim.withValues(alpha: 0.2)
           ? Palette.uiSurface
           : Color.alphaBlend(
-              Palette.gold.withValues(alpha: 0.3),
-              Palette.uiSurface,
+              Palette.gold.withValues(alpha: 0.10),
+              Palette.uiSurfaceHigh,
             ),
       borderRadius: BorderRadius.circular(16),
       // The caller's colour only decides how strong the edge is; the edge
@@ -374,6 +378,7 @@ class _QuestPane extends ConsumerWidget {
     final done = quests
         .where((q) => controller.progressFor(q.id).progress >= q.target)
         .length;
+    final slotsAt = ref.watch(gameDataProvider).chests.unlockAtTrophies;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -406,9 +411,21 @@ class _QuestPane extends ConsumerWidget {
                   style: TextStyle(color: Palette.uiTextDim, fontSize: 12),
                 ),
               const SizedBox(height: 12),
+              // What trophies actually buy.
+              //
+              // This used to promise that the trophy road unlocked Arenas 2,
+              // 3 and 4 — and it does not, not any more. The campaign cycles
+              // through all four arenas inside its first hundred levels
+              // whatever your trophy count is, so that line was describing a
+              // reward the player had already been given. Chest slots are the
+              // one thing still gated on trophies, so that is what it says.
               Text(
-                'Trophy road unlocks Arena 2 at 400, Arena 3 at 900 and '
-                'Arena 4 at 1500. You have ${profile.trophies}.',
+                profile.trophies >= slotsAt
+                    ? 'All four chest slots are open. Trophies now just '
+                          'track how far you have come.'
+                    : 'Chest slots go from two to four at '
+                          '$slotsAt trophies. You have '
+                          '${profile.trophies}.',
                 style: const TextStyle(
                   color: Palette.uiTextDim,
                   fontSize: 11,

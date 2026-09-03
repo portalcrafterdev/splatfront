@@ -538,3 +538,104 @@ class _ResultButton extends StatelessWidget {
     ),
   );
 }
+
+/// The match, held.
+///
+/// Deliberately the same object as the end screen: sky behind, one card in
+/// the middle, the same two buttons in the same places. A pause is not a
+/// different room, and a player who has just learned where RESUME sits should
+/// find HOME in the place DEFEAT put it.
+///
+/// It covers the arena rather than dimming it. A frozen board under a
+/// half-transparent sheet looks like the game has hung; a board that is
+/// simply not there reads as deliberate.
+class PauseOverlay extends StatelessWidget {
+  const PauseOverlay({
+    super.key,
+    required this.playerTeam,
+    required this.onResume,
+    required this.onQuit,
+  });
+
+  final Team playerTeam;
+  final VoidCallback onResume;
+  final VoidCallback onQuit;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      MatchBackground(playerTeam: playerTeam),
+      Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              decoration: BoxDecoration(
+                color: Palette.hudSurface,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Palette.hudOutline, width: 2.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x59000000),
+                    blurRadius: 18,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.pause_circle_filled_rounded,
+                    size: 46,
+                    color: Palette.accent,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'PAUSED',
+                    style: TextStyle(
+                      color: Palette.hudText,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Says the thing a player actually wants confirmed before
+                  // they dare leave the screen.
+                  const Text(
+                    'The clock is stopped',
+                    style: TextStyle(
+                      color: Palette.hudTextDim,
+                      fontSize: 12,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  _ResultButton(label: 'RESUME', onPressed: onResume),
+                  const SizedBox(height: 10),
+                  // No trophies, no stars, no chest: quitting a match part
+                  // way through is a forfeit, and saying so here is cheaper
+                  // than a player finding out afterwards.
+                  const Text(
+                    'Leaving forfeits the match.',
+                    style: TextStyle(color: Palette.hudTextDim, fontSize: 11),
+                  ),
+                  const SizedBox(height: 8),
+                  _ResultButton(
+                    label: 'HOME',
+                    onPressed: onQuit,
+                    secondary: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}

@@ -35,7 +35,7 @@ class MatchBackground extends StatelessWidget {
             ),
           ),
         ),
-        const CustomPaint(painter: _Clouds()),
+        const CustomPaint(painter: CloudPainter()),
 
         // A breath of each side's colour at the end of the screen that side
         // is fighting from — the opponent's above, yours below.
@@ -87,8 +87,13 @@ class _Bloom extends StatelessWidget {
 /// at launch, and it is a handful of blurred circles. Positions are a fixed
 /// table, not a random seed — a background that came out different on every
 /// launch would be a bug nobody could reproduce.
-class _Clouds extends CustomPainter {
-  const _Clouds();
+class CloudPainter extends CustomPainter {
+  const CloudPainter({this.opacity = 1.0});
+
+  /// How solid the clouds are. The menus want them fainter than the match
+  /// does: there is text over most of that page, and a background is not
+  /// allowed to compete with it.
+  final double opacity;
 
   /// x, y and scale as fractions of the screen.
   ///
@@ -127,12 +132,12 @@ class _Clouds extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final unit = size.width * 0.17;
     final soft = Paint()
-      ..color = const Color(0xF2FFFFFF)
+      ..color = const Color(0xF2FFFFFF).withValues(alpha: 0.95 * opacity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
     // A second, wider and fainter pass under the first, so a cloud has a
     // halo rather than an edge. Two cheap passes beat one expensive shader.
     final haze = Paint()
-      ..color = const Color(0x4DFFFFFF)
+      ..color = const Color(0x4DFFFFFF).withValues(alpha: 0.30 * opacity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
 
     for (final (fx, fy, scale) in _clouds) {
@@ -147,5 +152,6 @@ class _Clouds extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_Clouds oldDelegate) => false;
+  bool shouldRepaint(CloudPainter oldDelegate) =>
+      oldDelegate.opacity != opacity;
 }

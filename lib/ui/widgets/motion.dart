@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/palette.dart';
+import 'match_background.dart';
 
 /// The menu's motion and surface kit.
 ///
@@ -240,146 +241,95 @@ class MenuBackground extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        // Lit slightly from the top, like the panels. Kept as a literal
-        // pair rather than a token, but it must be re-picked by hand every
-        // time the ground changes — a hardcoded cream here is what left every
-        // tile floating on a pale wash the first time the palette moved.
-        colors: [Color(0xFFF7FAF8), Palette.uiBackground],
+  Widget build(BuildContext context) => Stack(
+    children: [
+      // Fills the viewport rather than the content.
+      //
+      // This used to paint as the *parent* of the page, which meant it sized
+      // to whatever the page happened to be — and a page shorter than the
+      // screen left a band of flat colour above the bottom bar. A gradient
+      // hid that; a sky does not.
+      Positioned.fill(
+        // Painted once and cached: the layout above it rebuilds constantly,
+        // and there is no reason to re-rasterise a static texture with it.
+        child: RepaintBoundary(
+          child: CustomPaint(
+            painter: const _MenuSkyPainter(),
+            isComplex: true,
+            willChange: false,
+          ),
+        ),
       ),
-    ),
-    // Painted once and cached: the layout above it rebuilds constantly, and
-    // there is no reason to re-rasterise a static texture with it.
-    child: RepaintBoundary(
-      child: CustomPaint(
-        painter: const _SplatterPainter(),
-        isComplex: true,
-        willChange: false,
-        child: child,
-      ),
-    ),
+      child,
+    ],
   );
 }
 
-/// The page, painted the way the arena is.
+/// The menus stand under the same sky the match is played under.
 ///
-/// This is the one place the menus are allowed to touch the team colours,
-/// and it is what makes the app look like *this* game rather than a generic
-/// dark mobile skin. Section 14 keeps red and blue out of chrome — buttons,
-/// chips, states — because chrome pointing at a side makes the menus look
-/// like they belong to one player. The ground underneath is not chrome. It
-/// is the board, and the board is what the whole game is about.
+/// Home used to have a ground of its own — the arena seen from above, red
+/// holding the top and blue the bottom along a ragged frontier. The argument
+/// for it still holds and is section 14's: the board is the thing the whole
+/// game is about, and without it a menu is a generic mobile skin. What
+/// changed is that the match screen became a bright day, and two different
+/// worlds either side of the Battle button is worse than one.
 ///
-/// Red holds the top, blue the bottom, and they meet along a ragged frontier
-/// about a third of the way down — the shape a real match leaves behind
-/// rather than the ruler-straight 50/50 the whistle starts on. Everything is
-/// laid out from a fixed table rather than a random seed, so the pattern is
-/// identical on every launch and on every device. A background that
-/// reshuffles itself each time the app opens reads as a glitch.
-class _SplatterPainter extends CustomPainter {
-  const _SplatterPainter();
+/// So the board did not go, it moved outdoors. The sky is the match's, paler,
+/// and each side's colour still holds its own end of the page — the opponent
+/// above, the player below — only now as weather rather than as paint.
+class _MenuSkyPainter extends CustomPainter {
+  const _MenuSkyPainter();
 
-  /// How strongly the two grounds tint the page.
+  /// Paler than the match sky, and it has to be: there is text over almost
+  /// all of this page, and the arena screen's own sky is mostly hidden behind
+  /// the board. Here it is the whole page.
+  static const Color _high = Color(0xFFAEDFF4);
+  static const Color _low = Color(0xFFE6F4F1);
+
+  /// How strongly the two sides tint their ends.
   ///
-  /// Very low, and lower for red than blue: red is the more luminous of the
-  /// pair, so matching numbers would put the opponent's half forward. This
-  /// has to survive text laid over it at every size, so it is texture you
-  /// notice only when you look for it.
-  ///
-  /// Re-tuned for the light page. The same alpha does not mean the same
-  /// thing on a different ground: over near-black these washes were barely
-  /// there, and over a pale page they come out as pastel pink and lavender
-  /// at once, which is far louder. Both are cut roughly by half.
-  static const double _blueWash = 0.07;
-  static const double _redWash = 0.05;
-
-  /// The frontier, as fractions of width and height. Deliberately uneven:
-  /// a smooth curve reads as a graphic device, and this should read as the
-  /// edge of somebody's push.
-  static const List<(double, double)> _front = [
-    (0.00, 0.30),
-    (0.14, 0.335),
-    (0.26, 0.30),
-    (0.31, 0.365),
-    (0.46, 0.345),
-    (0.58, 0.395),
-    (0.67, 0.35),
-    (0.79, 0.375),
-    (0.88, 0.325),
-    (1.00, 0.355),
-  ];
-
-  /// Splats over the top, in the colour of whoever owns that ground.
-  /// x, y and radius as fractions, so it scales to any screen.
-  static const List<(double, double, double)> _blobs = [
-    (0.86, 0.06, 0.26),
-    (0.10, 0.20, 0.19),
-    (0.72, 0.34, 0.13),
-    (-0.04, 0.52, 0.22),
-    (0.94, 0.62, 0.20),
-    (0.30, 0.78, 0.16),
-    (0.78, 0.92, 0.24),
-    (0.16, 1.02, 0.18),
-  ];
-
-  Path _territory(Size size, {required bool above}) {
-    final path = Path();
-    path.moveTo(0, above ? 0 : size.height);
-    for (final (fx, fy) in _front) {
-      path.lineTo(fx * size.width, fy * size.height);
-    }
-    path.lineTo(size.width, above ? 0 : size.height);
-    path.close();
-    return path;
-  }
+  /// Lower for red than blue: red is the more luminous of the pair, so
+  /// matching numbers would push the opponent's half forward. Both are far
+  /// below the old splatter's, because that sat on a flat page and this sits
+  /// on a sky that already has a colour of its own.
+  static const double _blueWash = 0.05;
+  static const double _redWash = 0.035;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final ground = Paint()..isAntiAlias = true;
+    final rect = Offset.zero & size;
 
-    ground.color = Palette.red.withValues(alpha: _redWash);
-    canvas.drawPath(_territory(size, above: true), ground);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_high, _low],
+        ).createShader(rect),
+    );
 
-    ground.color = Palette.blue.withValues(alpha: _blueWash);
-    canvas.drawPath(_territory(size, above: false), ground);
-
-    final brush = Paint()..isAntiAlias = true;
-    final span = size.width;
-
-    for (var i = 0; i < _blobs.length; i++) {
-      final (fx, fy, fr) = _blobs[i];
-      final centre = Offset(fx * size.width, fy * size.height);
-      final radius = fr * span;
-
-      // Painted in whichever side owns the ground it lands on, so a splat
-      // near the frontier reads as a push rather than as confetti. Slightly
-      // stronger than the wash beneath it, or it disappears into its own
-      // half.
-      final onBlue = fy > 0.35;
-      brush.color = (onBlue ? Palette.blue : Palette.red).withValues(
-        alpha: onBlue ? 0.06 : 0.045,
-      );
-
-      // A splat is a blob with satellites, not a circle. Three overlapping
-      // discs is enough to lose the outline of a perfect circle.
-      canvas.drawCircle(centre, radius, brush);
-      canvas.drawCircle(
-        centre + Offset(radius * 0.72, -radius * 0.48),
-        radius * 0.42,
-        brush,
-      );
-      canvas.drawCircle(
-        centre + Offset(-radius * 0.55, radius * 0.66),
-        radius * 0.3,
-        brush,
+    for (final (colour, wash, from) in [
+      (Palette.red, _redWash, const Alignment(0, -1)),
+      (Palette.blue, _blueWash, const Alignment(0, 1)),
+    ]) {
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = RadialGradient(
+            center: from,
+            radius: 1.15,
+            colors: [
+              colour.withValues(alpha: wash),
+              colour.withValues(alpha: 0),
+            ],
+          ).createShader(rect),
       );
     }
+
+    const CloudPainter(opacity: 0.55).paint(canvas, size);
   }
 
   @override
-  bool shouldRepaint(_SplatterPainter oldDelegate) => false;
+  bool shouldRepaint(_MenuSkyPainter oldDelegate) => false;
 }

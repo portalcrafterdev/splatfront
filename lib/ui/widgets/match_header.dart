@@ -22,6 +22,7 @@ class MatchHeader extends StatelessWidget {
     required this.playerTeam,
     required this.botTier,
     this.showPlates = true,
+    this.onPause,
   });
 
   final ValueListenable<Coverage> coverage;
@@ -31,6 +32,9 @@ class MatchHeader extends StatelessWidget {
 
   /// The debug sandboxes have no opponent, so they skip the plates.
   final bool showPlates;
+
+  /// Stops the clock. Null in the sandboxes, which have no match to pause.
+  final VoidCallback? onPause;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -59,7 +63,17 @@ class MatchHeader extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 5),
-      _TimerPill(match: match),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (onPause != null) const SizedBox(width: 42),
+          _TimerPill(match: match),
+          if (onPause case final pause?) ...[
+            const SizedBox(width: 8),
+            _PauseButton(onPressed: pause),
+          ],
+        ],
+      ),
       const SizedBox(height: 5),
     ],
   );
@@ -179,6 +193,47 @@ class _TimerPill extends StatelessWidget {
         const SizedBox(width: 6),
         MatchTimer(match: match, ink: Colors.white),
       ],
+    ),
+  );
+}
+
+/// Stops the clock.
+///
+/// Sized and grounded like the clock beside it rather than as a bare icon:
+/// it sits over sky and cloud, and an unfilled glyph on that ground is
+/// invisible half the time. The blank of the same width on the other side of
+/// the pill is what keeps the clock centred on the screen, which is where the
+/// eye goes for it.
+class _PauseButton extends StatelessWidget {
+  const _PauseButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Pause',
+    child: GestureDetector(
+      onTap: onPressed,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 34,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Palette.hudBezelLow,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Palette.hudOutline, width: 2),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x38000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.pause_rounded, size: 18, color: Colors.white),
+      ),
     ),
   );
 }
