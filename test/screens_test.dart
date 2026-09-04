@@ -353,6 +353,76 @@ void main() {
     }
   });
 
+  testWidgets('a card can be levelled up from the starting collection', (
+    tester,
+  ) async {
+    // The reported question was "how does the player upgrade a card", and the
+    // answer on a fresh save was that they could not. The upgrade sheet only
+    // opened from the "Your cards" grid, and that grid is hidden while every
+    // card owned is already in the deck — which is every save until the
+    // campaign hands over a seventh card. Tapping a deck card armed a swap
+    // that had no possible target instead.
+    await pumpApp(tester);
+    await openRoute(tester, find.text('Cards'));
+
+    // Six cards, all of them in the deck: the state the hole existed in.
+    expect(find.text('6 cards'), findsOneWidget);
+
+    await tester.tap(find.text('Roller'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      find.text('UPGRADE TO 2'),
+      findsOneWidget,
+      reason: 'tapping a card in the deck opens its upgrade sheet',
+    );
+    // And the sheet says what it will cost, which is the thing that makes it
+    // worth opening rather than a dead end with a greyed-out button. Only the
+    // coin row is checked by name: "Cards" is also the bottom-bar tab, so
+    // matching it proves nothing about the sheet.
+    expect(find.text('Coins'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('every menu fits a real phone without overflowing', (
+    tester,
+  ) async {
+    // The default test viewport is 800x600 in landscape, which is not a
+    // shape this app ever runs in — it is wider and shorter than any phone,
+    // so a column that is one pixel too tall on a real device has room to
+    // spare here. The Levels list overflowed on every one of a thousand rows
+    // and the whole suite stayed green.
+    //
+    // 360x800 is the device this is developed against: 1080x2400 at density
+    // 3.0. An overflow throws a FlutterError, which fails the test on its
+    // own; `takeException` is here so the failure names the screen.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    // Far enough in to have chests, stars and quest progress, so the tiles
+    // are carrying their real content rather than their empty state.
+    await pumpApp(
+      tester,
+      profile: PlayerProfile(
+        trophies: 620,
+        coins: 4200,
+        campaignStars: {for (var i = 1; i <= 24; i++) i: 3},
+      ),
+    );
+
+    for (final tab in ['Home', 'Levels', 'Cards', 'Shop', 'Settings']) {
+      await openRoute(tester, find.text(tab));
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: '$tab overflows at 360x800',
+      );
+    }
+    await unmount(tester);
+  });
+
   test('breakpoints match the three specified layouts', () {
     expect(Breakpoints.forWidth(390), LayoutClass.phone);
     expect(Breakpoints.forWidth(599), LayoutClass.phone);

@@ -113,14 +113,16 @@ class _PlayerPane extends ConsumerWidget {
     // Trophies pick the arena, exactly as section 10 lays out.
     final arena = data.arenaFor(profile.trophies);
 
+    final done = nextLevel > data.campaign.levelCount;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Entrance(
-            child: _HeaderBand(
+            child: _TopBar(
               profile: profile,
               arenaNumber: data.arenas.indexOf(arena) + 1,
               arenaName: arena.name,
@@ -128,25 +130,31 @@ class _PlayerPane extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Entrance(
-            index: 2,
-            child: _ChestRow(profile: profile, slots: controller.chestSlots),
-          ),
-          const SizedBox(height: 16),
+          // The hero, and the only loud thing on the page.
+          //
           // Battle plays the level you are up to. There is no difficulty
           // picker any more: with one progression, the level number *is* the
           // difficulty, and a free-play match that fed nothing was the odd
           // one out — it paid trophies and chests without ever advancing the
           // thing the rest of the app is about.
-          _BigButton(
-            label: 'BATTLE',
-            sublabel: nextLevel > data.campaign.levelCount
-                ? 'Campaign complete'
-                // The level's own name, not a difficulty word. The tiers are
-                // gone, and "Easy" beside a level number told the player
-                // nothing the number did not already.
-                : 'Level $nextLevel  ·  ${data.campaign.nameFor(nextLevel)}',
-            onPressed: () => startCampaignLevel(context, ref, nextLevel),
+          Entrance(
+            index: 1,
+            child: _NextLevelCard(
+              level: done ? data.campaign.levelCount : nextLevel,
+              // The level's own name, not a difficulty word. The tiers are
+              // gone, and "Easy" beside a level number told the player
+              // nothing the number did not already.
+              name: data.campaign.nameFor(
+                done ? data.campaign.levelCount : nextLevel,
+              ),
+              complete: done,
+              onPressed: () => startCampaignLevel(context, ref, nextLevel),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Entrance(
+            index: 2,
+            child: _ChestRow(profile: profile, slots: controller.chestSlots),
           ),
           // Debug builds only. These are development tools — a paint harness
           // and a unit spawner — and they have no business on a home screen
@@ -401,17 +409,51 @@ class _QuestPane extends ConsumerWidget {
           _QuestList(
             fillsHeight: fillsHeight,
             children: [
-              for (final quest in quests)
-                _QuestRow(
-                  quest: quest,
-                  progress: controller.progressFor(quest.id),
-                  onClaim: () => controller.claimQuest(quest.id),
+              // One tile holding all three rather than three tiles.
+              //
+              // Each quest used to be its own outlined block with its own
+              // hard shadow and a 16dp gap to clear it, which spent well over
+              // a third of the page on three short lines of text. They are
+              // one group — the heading above already says so — and a tile is
+              // what does grouping in this app.
+              Entrance(
+                index: 3,
+                child: Panel(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 3,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final (i, quest) in quests.indexed) ...[
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Palette.uiTextDim.withValues(alpha: 0.16),
+                          ),
+                        _QuestRow(
+                          quest: quest,
+                          progress: controller.progressFor(quest.id),
+                          onClaim: () => controller.claimQuest(quest.id),
+                        ),
+                      ],
+                      if (quests.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Text(
+                            'No quests today.',
+                            style: TextStyle(
+                              color: Palette.uiTextDim,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              if (quests.isEmpty)
-                const Text(
-                  'No quests today.',
-                  style: TextStyle(color: Palette.uiTextDim, fontSize: 12),
-                ),
+              ),
               const SizedBox(height: 12),
               // What trophies actually buy.
               //
@@ -593,49 +635,67 @@ class _QuestRow extends StatelessWidget {
     final done = progress.progress >= quest.target;
     final fraction = (progress.progress / quest.target).clamp(0.0, 1.0);
 
-    return Container(
-      // Sixteen, not eight: the tile drops a hard [Panel.lift] shadow, so a
-      // gap has to clear that before any of it is visible. At 8 the shadow
-      // ate half of it and three quests read as one block with lines through
-      // it rather than three separate things to do.
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          (done ? Palette.success : Palette.info).withValues(alpha: 0.18),
-          Palette.uiSurface,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Palette.outline, width: Panel.stroke),
-        boxShadow: const [
-          BoxShadow(
-            color: Palette.outlineShadow,
-            offset: Offset(0, Panel.lift),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         children: [
+          // The state, as a stripe rather than as a wash over the whole tile.
+          //
+          // These were three lavender blocks — `info` at 18% on white — and
+          // between them they were the loudest thing on the page, on a screen
+          // whose loudest thing should be the Battle card. Lavender is also
+          // nowhere else in the app, so the bottom half of Home read as a
+          // different product from the top half. A 4dp stripe says the same
+          // thing in the space it deserves.
+          Container(
+            width: 4,
+            height: 34,
+            decoration: BoxDecoration(
+              color: done ? Palette.success : Palette.info,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  quest.text,
-                  style: TextStyle(
-                    // Struck through is already the signal that it is done;
-                    // dimming it as well left the text unreadable against the
-                    // green tint, and a quest you cannot read is a quest you
-                    // cannot check.
-                    color: progress.claimed
-                        ? Palette.uiText.withValues(alpha: 0.72)
-                        : Palette.uiText,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    decoration: progress.claimed
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        quest.text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          // Struck through is already the signal that it is
+                          // done; dimming it as well left the text hard to
+                          // read, and a quest you cannot read is a quest you
+                          // cannot check.
+                          color: progress.claimed
+                              ? Palette.uiText.withValues(alpha: 0.72)
+                              : Palette.uiText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          decoration: progress.claimed
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // The count sits on the same line as the objective now.
+                    // Under the bar it was a third line of type per quest,
+                    // and three quests were paying nine lines for six facts.
+                    Text(
+                      '${progress.progress} / ${quest.target}',
+                      style: const TextStyle(
+                        color: Palette.uiTextDim,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
@@ -652,47 +712,78 @@ class _QuestRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  '${progress.progress} / ${quest.target}',
-                  style: const TextStyle(
-                    color: Palette.uiTextDim,
-                    fontSize: 11,
-                  ),
-                ),
               ],
             ),
           ),
           const SizedBox(width: 10),
           if (progress.claimed)
-            const Icon(Icons.check, color: Palette.success, size: 18)
+            const SizedBox(
+              width: 44,
+              child: Icon(Icons.check, color: Palette.success, size: 18),
+            )
           else
-            FilledButton(
-              onPressed: done ? onClaim : null,
-              // A quest you have not finished still has to show what it pays,
-              // and the unclaimable chip was filled with the page colour and
-              // labelled in Material's default disabled grey — which on a
-              // tinted quest tile left the number as a smudge. Filled and
-              // outlined instead, so it reads as a reward waiting rather
-              // than as a rendering fault.
-              style: FilledButton.styleFrom(
-                backgroundColor: Palette.accent,
-                disabledBackgroundColor: Palette.uiSurfaceHigh,
-                disabledForegroundColor: Palette.uiTextDim,
-                side: done
-                    ? null
-                    : const BorderSide(color: Palette.outline, width: 1.5),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                visualDensity: VisualDensity.compact,
-              ),
-              child: Text(
-                '${quest.coins}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+            SizedBox(
+              width: 44,
+              child: _ClaimChip(
+                coins: quest.coins,
+                ready: done,
+                onClaim: onClaim,
               ),
             ),
         ],
       ),
     );
+  }
+}
+
+/// What a quest pays, and the button it becomes once you have earned it.
+///
+/// A quest you have not finished still has to show what it is worth, so this
+/// is never blank — it just stops looking pressable. Material's disabled grey
+/// on a pale tile left the number as a smudge, so the unearned state is drawn
+/// rather than dimmed: the page colour, the standard outline, dim ink.
+class _ClaimChip extends StatelessWidget {
+  const _ClaimChip({
+    required this.coins,
+    required this.ready,
+    required this.onClaim,
+  });
+
+  final int coins;
+  final bool ready;
+  final VoidCallback onClaim;
+
+  @override
+  Widget build(BuildContext context) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ready ? Palette.accent : Palette.uiBackground,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: ready
+              ? Palette.outline
+              : Palette.uiTextDim.withValues(alpha: 0.35),
+          width: ready ? 2 : 1.5,
+        ),
+        boxShadow: ready
+            ? const [
+                BoxShadow(color: Palette.accentShade, offset: Offset(0, 2.5)),
+              ]
+            : null,
+      ),
+      child: Text(
+        '$coins',
+        style: TextStyle(
+          color: ready ? Colors.white : Palette.uiTextDim,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+
+    return ready ? PressScale(onTap: onClaim, child: chip) : chip;
   }
 }
 
@@ -740,76 +831,239 @@ class _SandboxLinks extends StatelessWidget {
   );
 }
 
-class _BigButton extends StatelessWidget {
-  const _BigButton({
-    required this.label,
+/// The screen's one loud object: the board you are about to fight over, the
+/// level number that is now the whole difficulty curve, and the button.
+///
+/// It replaced a flat teal bar that said BATTLE. The bar worked, but it sat
+/// under an identical teal band carrying the title, so the page led with two
+/// slabs of the same colour and weight and neither won. More to the point, a
+/// screen for a game about painting ground had no ground on it anywhere: the
+/// page could have belonged to a fitness tracker.
+///
+/// So the board came onto the page. The preview is the real start state from
+/// section 3 — a straight 50/50 split, the opponent holding the top and the
+/// player the bottom, meeting along the middle row — drawn in whole cells,
+/// because that is how the paint layer actually stamps. It is the one place
+/// team colour is allowed outside the arena, and section 14 names the reason:
+/// without the board a menu is a generic mobile skin.
+class _NextLevelCard extends StatelessWidget {
+  const _NextLevelCard({
+    required this.level,
+    required this.name,
+    required this.complete,
     required this.onPressed,
-    this.sublabel,
   });
 
-  final String label;
+  final int level;
+  final String name;
 
-  /// What the button will actually do, when that is not obvious from one
-  /// word. "BATTLE" alone no longer says which fight you are walking into,
-  /// and the level number is the thing a player is keeping track of.
-  final String? sublabel;
+  /// Every level cleared. The card still shows a board and still plays, but
+  /// it stops promising a level that is not there.
+  final bool complete;
 
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => PressScale(
     onTap: onPressed,
-    // Deeper than a tile: this is the button the whole screen is built
+    // Deeper than a tile: this is the one control the whole screen is built
     // around, and it should feel like it takes a real push.
     scale: 0.97,
     child: Semantics(
       button: true,
-      label: label,
+      label: 'BATTLE',
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 17),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Palette.accent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Palette.outline, width: 3),
           boxShadow: const [
-            // Deeper than a tile: this is the one control the whole screen
-            // is built around, and it should look like it stands off the page.
             BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 6)),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.5,
+        // The border draws on the outside edge, so the board has to be
+        // clipped to the inner radius or its corners square off over it.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(17),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 132,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // CustomPaint does not clip, and the frontier steps run to
+                    // the full width. The ClipRRect above is what holds it in.
+                    CustomPaint(
+                      painter: _BoardPreviewPainter(seed: level),
+                      isComplex: true,
+                      willChange: false,
+                    ),
+                    // The board is mid-tone red and blue, and white text on
+                    // either is thin. A dark gradient rising from the bottom
+                    // gives the two lines a ground of their own without
+                    // dimming the paint they sit on.
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [Color(0xB80B1512), Color(0x000B1512)],
+                          stops: [0, 0.55],
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 11),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              complete ? 'CAMPAIGN CLEARED' : 'LEVEL $level',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                                height: 1.05,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.82),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (sublabel case final sub?) ...[
-              const SizedBox(height: 3),
-              Text(
-                sub,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              // The footer is the button. Separated from the board by the same
+              // heavy line every other edge in the app uses, so the card reads
+              // as one object with a control on it rather than two stacked
+              // rectangles.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Palette.accent,
+                  border: Border(
+                    top: BorderSide(color: Palette.outline, width: 3),
+                  ),
+                ),
+                child: const Text(
+                  'BATTLE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     ),
   );
 }
 
-/// Easy / Normal / Hard. The same brain runs all three; only the numbers in
-/// `bot_decks.json` differ.
+/// The arena at kick-off, in miniature.
+///
+/// Cell-stepped rather than smooth, and that is the honest shape: the paint
+/// layer claims whole grid cells edge to edge with no blur, so a soft wave
+/// here would be a picture of a game we are not shipping. The frontier is
+/// dead level — section 3's straight 50/50 split — with a cell of jitter
+/// either way so it reads as painted rather than as a ruled line.
+///
+/// Deterministic from the level number: the same level always draws the same
+/// board, so this never repaints and never flickers under a rebuild.
+class _BoardPreviewPainter extends CustomPainter {
+  const _BoardPreviewPainter({required this.seed});
+
+  final int seed;
+
+  /// Columns across the board. The real grid is 64 wide, which at this size
+  /// would be hairlines; this keeps a cell big enough to read as a tile.
+  ///
+  /// Raised from 18 because a step is a whole cell, so a wide cell is a tall
+  /// step: at 18 columns a single cell was a seventh of the board's height and
+  /// the frontier came out as a row of towers rather than as an edge.
+  static const int _columns = 24;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cell = size.width / _columns;
+    final rows = (size.height / cell).ceil();
+    final mid = rows / 2;
+
+    final paint = Paint();
+    canvas.drawRect(Offset.zero & size, paint..color = Palette.arenaFloor);
+
+    // One deterministic step per column, from a cheap integer hash. No
+    // Random: this has to give the same board on every repaint.
+    for (var c = 0; c < _columns; c++) {
+      final h = (seed * 73856093) ^ (c * 19349663);
+      // Weighted toward no step at all: three columns in five sit exactly on
+      // the middle row and the rest take a single cell either way. An even
+      // three-way roll put a step on two columns out of every three, which is
+      // not a frontier — it is noise, and it read as a bar chart. Kick-off is
+      // a straight 50/50 split, so the line wants to be level with a few
+      // bites out of it.
+      final roll = (h.abs() >> 3) % 5;
+      final step = roll == 0
+          ? -1
+          : roll == 4
+          ? 1
+          : 0;
+      final split = (mid + step) * cell;
+      final x = c * cell;
+
+      canvas
+        ..drawRect(Rect.fromLTWH(x, 0, cell + 0.5, split), paint
+          ..color = Palette.red)
+        ..drawRect(
+          Rect.fromLTWH(x, split, cell + 0.5, size.height - split),
+          paint..color = Palette.blue,
+        );
+    }
+
+    // The grid the board is scored on, faint over the top, so the paint reads
+    // as tiles claimed rather than as two flat blocks of colour.
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x14000000);
+    for (var c = 1; c < _columns; c++) {
+      canvas.drawLine(
+        Offset(c * cell, 0),
+        Offset(c * cell, size.height),
+        line,
+      );
+    }
+    for (var r = 1; r < rows; r++) {
+      canvas.drawLine(Offset(0, r * cell), Offset(size.width, r * cell), line);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BoardPreviewPainter oldDelegate) =>
+      oldDelegate.seed != seed;
+}
+
 class _AnimatedBar extends StatelessWidget {
   const _AnimatedBar({
     required this.value,
@@ -837,14 +1091,17 @@ class _AnimatedBar extends StatelessWidget {
   );
 }
 
-/// The orange block at the top: who you are and how far along you are.
+/// The strip at the top: who you are, what you hold, and which arena the
+/// trophies have opened.
 ///
-/// The title, the two counters and the arena progress used to be three
-/// separate lines of text floating on the page. A page of white tiles on
-/// cream has no anchor and reads as washed out however tidy it is; a solid
-/// block of colour at the top gives the screen somewhere to start.
-class _HeaderBand extends StatelessWidget {
-  const _HeaderBand({
+/// **It used to be a filled teal band and it should not have been.** The
+/// argument for the fill was real — a page of white tiles has no anchor and
+/// reads as washed out — but the Battle button is teal too, and side by side
+/// they were two slabs of one colour at one weight, so the page led with a
+/// tie. There is only one thing on Home worth shouting, and a title is not
+/// it. Unfilled, the shouting is all spent on the card below.
+class _TopBar extends StatelessWidget {
+  const _TopBar({
     required this.profile,
     required this.arenaNumber,
     required this.arenaName,
@@ -863,111 +1120,122 @@ class _HeaderBand extends StatelessWidget {
         ? 1.0
         : (profile.trophies / target).clamp(0.0, 1.0);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: Palette.accent,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.outline, width: 3),
-        boxShadow: const [
-          BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 5)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'SPLATFRONT',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const Spacer(),
-              _BandChip(
-                icon: Icons.emoji_events,
-                value: profile.trophies,
-                colour: Palette.info,
-              ),
-              const SizedBox(width: 6),
-              _BandChip(
-                icon: Icons.monetization_on,
-                value: profile.coins,
-                colour: Palette.gold,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                'ARENA $arenaNumber',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // Gives way to the counters rather than shoving them off the
+            // screen. A fixed-size wordmark next to a `Spacer` reads fine
+            // until somebody has five digits of coins on a 360dp phone, and
+            // then the row overflows by whatever the numbers grew by — the
+            // title is the one thing here that can afford to lose a point.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  arenaName,
-                  overflow: TextOverflow.ellipsis,
+                  'SPLATFRONT',
+                  maxLines: 1,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    color: Palette.uiText,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
-              Text(
-                target == null ? 'MAX' : '${profile.trophies} / $target',
+            ),
+            const Spacer(),
+            _BandChip(
+              icon: Icons.emoji_events,
+              value: profile.trophies,
+              colour: Palette.info,
+            ),
+            const SizedBox(width: 6),
+            _BandChip(
+              icon: Icons.monetization_on,
+              value: profile.coins,
+              colour: Palette.gold,
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Row(
+          children: [
+            Text(
+              'ARENA $arenaNumber',
+              style: const TextStyle(
+                color: Palette.uiText,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                arenaName,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  color: Palette.uiTextDim,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: 10,
-            decoration: BoxDecoration(
-              color: Palette.outline.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Palette.outline, width: 2),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+            // Trophies buy the third and fourth chest slot and nothing else
+            // now, so the bar is a footnote rather than a headline: thin, no
+            // outline of its own, and no number shouted beside it.
+            Text(
+              target == null ? 'MAX' : '${profile.trophies} / $target',
+              style: const TextStyle(
+                color: Palette.uiTextDim,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: SizedBox(
+            height: 5,
+            child: ColoredBox(
+              // An empty bar used to be a black pill, because the track was a
+              // dark outline wash on teal. At zero trophies — which is where
+              // every player starts — that read as a broken widget rather
+              // than as a bar with nothing in it yet.
+              color: Palette.uiTextDim.withValues(alpha: 0.22),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: fraction),
-                  duration: const Duration(milliseconds: 700),
+                  duration: Motion.of(
+                    context,
+                    const Duration(milliseconds: 700),
+                  ),
                   curve: Curves.easeOutCubic,
                   builder: (context, t, _) => FractionallySizedBox(
                     widthFactor: t.clamp(0.0, 1.0),
+                    // A ColoredBox with no child is zero-sized, so the fill
+                    // needs to be told to take the full height.
                     heightFactor: 1,
-                    child: const ColoredBox(color: Colors.white),
+                    child: const ColoredBox(color: Palette.accent),
                   ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// A counter on the orange band. White so it reads against it, outlined like
-/// everything else.
+/// A counter in the top strip: the page colour behind it, outlined like
+/// everything else on the page.
 class _BandChip extends StatelessWidget {
   const _BandChip({
     required this.icon,

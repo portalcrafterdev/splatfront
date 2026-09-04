@@ -117,22 +117,37 @@ class SectionHeading extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(
-            text,
-            style: const TextStyle(
-              color: Palette.uiText,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
+          // Both halves give way rather than pushing the row off the screen.
+          //
+          // Two plain Texts in a Row have no give at all, and the counts here
+          // grow with the save: "Level 250" beside "738 of 3000 stars" is
+          // wider than a 360dp phone once the campaign is a few hundred
+          // levels in. The heading truncates first, because the count is the
+          // half that changes and the half worth reading.
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Palette.uiText,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           if (count != null) ...[
             const SizedBox(width: 7),
-            Text(
-              count,
-              style: const TextStyle(
-                color: Palette.uiTextDim,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                count,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Palette.uiTextDim,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

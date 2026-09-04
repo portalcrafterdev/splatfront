@@ -25,10 +25,9 @@ class CampaignScreen extends ConsumerStatefulWidget {
 }
 
 class _CampaignScreenState extends ConsumerState<CampaignScreen> {
-  /// Roughly one tile plus its gap. Used to open the list on the level the
-  /// player is actually up to instead of at level 1, which after a hundred
-  /// levels is a long way from anything they can play.
-  static const double _tileExtent = 72;
+  /// The list's own padding, needed in two places: on the list, and in the
+  /// arithmetic that reads a row's height back out of it.
+  static const EdgeInsets _listPadding = EdgeInsets.fromLTRB(12, 4, 12, 16);
 
   final ScrollController _scroll = ScrollController();
 
@@ -42,6 +41,26 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
     // handing this list an offset belonging to a different screen and
     // opening it hundreds of levels from anything playable.
     WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToCurrent());
+  }
+
+  /// The height one row was actually given, read back out of the list.
+  ///
+  /// This used to be a `static const 72` that the list was also *told* to use
+  /// as its `itemExtent`, and the number was a guess at how tall the tile
+  /// comes out. It was one pixel short on a real device — every row in the
+  /// list drew Flutter's yellow overflow stripes — and it could not have been
+  /// anything else, because a tile's height depends on the font the device
+  /// happens to have and a constant in Dart cannot know that. The list now
+  /// measures a real tile instead (see `prototypeItem`), so this only has to
+  /// recover the number it landed on.
+  double get _tileExtent {
+    final position = _scroll.position;
+    final content =
+        position.maxScrollExtent +
+        position.viewportDimension -
+        _listPadding.vertical;
+    final count = ref.read(gameDataProvider).campaign.levelCount;
+    return count <= 0 ? 0 : content / count;
   }
 
   void _jumpToCurrent() {
@@ -95,9 +114,32 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
                   // offset that belonged to a different tab.
                   key: const PageStorageKey<String>('campaign-levels'),
                   controller: _scroll,
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                  padding: _listPadding,
                   itemCount: campaign.levelCount,
-                  itemExtent: _tileExtent,
+                  // Measured, not guessed.
+                  //
+                  // Every row is the same shape, so the list still gets one
+                  // fixed extent and stays O(1) to scroll through a thousand
+                  // levels — but the extent comes from laying out a real tile
+                  // at the device's real font rather than from a constant
+                  // somebody typed. The constant was 72 against a tile that
+                  // wanted 73, and a one-pixel shortfall on a fixed extent is
+                  // an overflow banner on every row.
+                  //
+                  // The prototype is deliberately a fully loaded tile — stars
+                  // showing, a subtitle with a reward on it — because it sets
+                  // the height for every row, and a prototype shorter than the
+                  // busiest real row puts the overflow straight back.
+                  prototypeItem: _LevelTile(
+                    level: campaign.levelAt(1),
+                    stars: 3,
+                    unlocked: true,
+                    current: false,
+                    name: campaign.nameFor(1),
+                    arenaName: data.arenas.first.name,
+                    reward: _rewardLabel(data, campaign, 1) ?? 'unlocks a card',
+                    onPlay: () {},
+                  ),
                   itemBuilder: (context, index) {
                     final number = index + 1;
                     final level = campaign.levelAt(number);
@@ -247,18 +289,39 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = unlocked ? Palette.uiText : Palette.uiTextDim;
 
+    // Three states, drawn rather than faded.
+    //
+    // A locked row used to be this same near-white tile wrapped in
+    // `Opacity(0.55)`, and on a pale page that is very close to not being
+    // there at all: seven of the eight rows on screen read as empty outlines,
+    // and the level names — the only thing that makes scrolling a thousand
+    // rows worth anything — went translucent with them. Opacity fades a whole
+    // subtree indiscriminately, which is exactly the wrong tool for "this is
+    // not available yet". A locked row now has its own solid fill and its own
+    // ink, so it sits back without vanishing.
     final tile = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
       decoration: BoxDecoration(
-        color: current ? Palette.accent : Palette.uiSurface,
+        color: current
+            ? Palette.accent
+            : unlocked
+            ? Palette.uiSurface
+            // A shade off the page rather than the same white as a playable
+            // row. It reads as a row that is there but shut.
+            : Color.alphaBlend(
+                Palette.uiTextDim.withValues(alpha: 0.07),
+                Palette.uiBackground,
+              ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: unlocked
               ? Palette.outline
-              : Palette.outline.withValues(alpha: 0.35),
+              : Palette.outline.withValues(alpha: 0.3),
           width: Panel.stroke,
         ),
+        // Only rows you can actually press stand off the page. The shadow is
+        // the affordance, so a locked row not having one is information.
         boxShadow: unlocked
             ? const [
                 BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 4)),
@@ -305,20 +368,38 @@ class _LevelTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (unlocked)
-            _Stars(stars: stars, onAccent: current)
-          else
+          if (!unlocked)
             Icon(
               Icons.lock_rounded,
-              size: 20,
-              color: Palette.uiTextDim.withValues(alpha: 0.6),
-            ),
+              size: 19,
+              color: Palette.uiTextDim.withValues(alpha: 0.55),
+            )
+          else ...[
+            _Stars(stars: stars, onAccent: current),
+            // The one row on the whole ladder you can press right now says so.
+            //
+            // Every unlocked row is tappable, but only this one is the level
+            // the campaign is actually offering, and colour alone was carrying
+            // that — which is nothing to a colourblind player and not much to
+            // anyone scrolling fast. A glyph is the cheapest way to say
+            // "here", and it costs the row no height.
+            if (current) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.play_arrow_rounded,
+                size: 24,
+                color: Colors.white,
+              ),
+            ],
+          ],
         ],
       ),
     );
 
-    if (!unlocked) return Opacity(opacity: 0.55, child: tile);
-    return PressScale(onTap: onPlay, child: tile);
+    // A locked row is not pressable, so it gets no press animation either —
+    // a tile that squashes under a finger and then does nothing is a worse
+    // answer than one that does not move.
+    return unlocked ? PressScale(onTap: onPlay, child: tile) : tile;
   }
 
   /// What makes this level different from the last one. The bot's card level

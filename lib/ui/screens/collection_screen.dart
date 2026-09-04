@@ -50,6 +50,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             ),
           );
 
+    // A swap needs somewhere to swap *from*. Until the campaign hands over a
+    // seventh card, everything owned is already in the deck and there is no
+    // card outside it to bring in.
+    final canSwap = owned.length > deck.length;
+
     final swapping = _swapping;
     return Scaffold(
       backgroundColor: Palette.uiBackground,
@@ -61,11 +66,22 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               MetaHeader(
                 title: 'Collection',
                 profile: profile,
-                subtitle: swapping == null
+                // Says what tapping actually does *now*, which changes with
+                // how many cards you own.
+                //
+                // It used to promise "tap any other card to level it up" on a
+                // screen where there was no other card — every card owned was
+                // in the deck, so the only grid on the page was the deck, and
+                // tapping there armed a swap. There was no route to the
+                // upgrade sheet at all from a starting collection.
+                subtitle: swapping != null
+                    ? 'Now pick the card that replaces '
+                          '${data.cards[swapping].name}.'
+                    : canSwap
                     ? 'Tap a card in your deck to swap it out. Tap any other '
                           'card to level it up.'
-                    : 'Now pick the card that replaces '
-                          '${data.cards[swapping].name}.',
+                    : 'Tap a card to level it up. Swapping opens once you own '
+                          'a card outside your deck.',
               ),
               Expanded(
                 child: ListView(
@@ -86,27 +102,43 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                           data.upgrades.stepFrom(level)?.copies,
                       lockedUntil: (_) => null,
                       highlight: _swapping,
-                      onTap: (card) => setState(
-                        () => _swapping = _swapping == card.id ? null : card.id,
-                      ),
+                      onTap: (card) {
+                        // With nothing outside the deck to bring in, arming a
+                        // swap is a dead end dressed up as a selection: the
+                        // header would ask you to pick a replacement and there
+                        // would be nothing on the page to pick. Levelling up
+                        // is the one thing you can actually do to a card you
+                        // already own, so that is what a tap does.
+                        if (!canSwap) {
+                          _showUpgradeSheet(card);
+                          return;
+                        }
+                        setState(
+                          () => _swapping = _swapping == card.id
+                              ? null
+                              : card.id,
+                        );
+                      },
                     ),
 
-                    const SizedBox(height: 22),
-                    SectionHeading(
-                      'Your cards',
-                      trailing:
-                          '${owned.length} of ${data.cards.playable.length}',
-                    ),
                     // Until the campaign hands over a seventh card, everything
-                    // owned is already in the deck and this grid is a second
-                    // copy of the one above it. A line saying where more come
-                    // from is more use than the duplicate.
-                    if (owned.length <= deck.length)
-                      const _EmptyNote(
-                        'Every card you own is in your deck. Clear campaign '
-                        'levels to earn more.',
-                      )
-                    else
+                    // owned is already in the deck and this grid would be a
+                    // second copy of the one above it.
+                    //
+                    // It used to collapse to a heading plus a sentence saying
+                    // so, which is the worst of both: a section heading with
+                    // no section under it, wearing 22dp of air at each end, so
+                    // the middle of the page was a hundred and fifty pixels of
+                    // nothing between two grids. The whole block goes now, and
+                    // the count it was carrying moves onto the heading below,
+                    // which is about the same subject anyway.
+                    if (owned.length > deck.length) ...[
+                      const SizedBox(height: 18),
+                      SectionHeading(
+                        'Your cards',
+                        trailing:
+                            '${owned.length} of ${data.cards.playable.length}',
+                      ),
                       _grid(
                         cards: owned,
                         profile: profile,
@@ -127,15 +159,22 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                           setState(() => _swapping = null);
                         },
                       ),
+                    ],
 
                     if (locked.isNotEmpty) ...[
-                      const SizedBox(height: 22),
-                      // Says what opens them, not just that they are shut. "Still to
-                      // come" plus the level on each tile is a plan; a row of
-                      // padlocks is a nag.
+                      const SizedBox(height: 18),
+                      // Says what opens them, not just that they are shut.
+                      // "Still to come" plus the level on each tile is a plan;
+                      // a row of padlocks is a nag.
+                      //
+                      // The trailing count says how far along the collection
+                      // is rather than where the cards come from, which the
+                      // level printed on every tile below already answers.
                       SectionHeading(
                         'Still to come',
-                        trailing: 'from the campaign',
+                        trailing:
+                            '${owned.length} of '
+                            '${data.cards.playable.length} collected',
                       ),
                       _grid(
                         cards: locked,
@@ -179,7 +218,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
-      childAspectRatio: 0.62,
+      // Sized to what a cell actually holds, which is a card mount of
+      // width x 1.25 plus about 41dp of frame, gap and footer. At 0.62 every
+      // row carried roughly 23dp of slack under its labels — two rows of deck
+      // and a row of locked cards put nearly 70dp of nothing down the middle
+      // of the page, which is what made the gap under the deck read as a
+      // missing section rather than as spacing.
+      childAspectRatio: 0.66,
       children: [
         for (final card in cards)
           _CollectionCard(
@@ -351,26 +396,6 @@ Widget _maybeLocked(Widget tile, {required bool locked}) {
       ),
       const Icon(Icons.lock_rounded, size: 26, color: Colors.white),
     ],
-  );
-}
-
-/// A line where a grid would otherwise repeat itself.
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: Palette.uiTextDim,
-        fontSize: 13,
-        height: 1.35,
-      ),
-    ),
   );
 }
 
@@ -603,9 +628,14 @@ class _Progress extends StatelessWidget {
               ),
           ],
         ),
-        // Only while there is still ground to cover. A bar that is always
-        // full is furniture.
-        if (!ready && !maxed) ...[
+        // Only while there is ground covered *and* ground still to cover.
+        //
+        // A bar that is always full is furniture, and so is one that is always
+        // empty: on a fresh save every card sits at level 1 with no copies, so
+        // twenty-one identical empty tracks were the last thing on every tile
+        // and they said exactly what the "0/2" beside them already said. The
+        // count carries it until there is something to draw.
+        if (!ready && !maxed && copies > 0) ...[
           const SizedBox(height: 3),
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
