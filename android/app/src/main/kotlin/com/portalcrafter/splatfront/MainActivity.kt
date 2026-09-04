@@ -1,4 +1,4 @@
-package com.example.splatfront
+package com.portalcrafter.splatfront
 
 import io.flutter.embedding.android.FlutterActivity
 

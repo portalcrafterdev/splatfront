@@ -7,6 +7,7 @@ import 'core/audio.dart';
 import 'core/game_data.dart';
 import 'core/save/hive_boxes.dart';
 import 'core/save/player_profile.dart';
+import 'game/units/rive_units.dart';
 import 'meta/profile_controller.dart';
 
 Future<void> main() async {
@@ -30,6 +31,13 @@ Future<void> main() async {
 
   await HiveBoxes.init();
   final data = await GameData.load();
+
+  // Whatever unit art has landed in `assets/rive/`. Awaited so the first
+  // Roller of the first match is not the one that stutters while its artboard
+  // decodes, and, like the audio below, it cannot throw: a card with no `.riv`
+  // — or a device that cannot start the native runtime at all — keeps the
+  // hand-drawn vector character it has always had.
+  await RiveUnitLibrary.load();
   final saved = HiveBoxes.read();
   final profile = saved == null
       ? const PlayerProfile()

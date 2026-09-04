@@ -8,6 +8,7 @@ import '../../core/audio.dart';
 import '../../core/constants.dart';
 import '../../core/palette.dart';
 import '../splatfront_game.dart';
+import 'rive_units.dart';
 import 'unit_ai.dart';
 import 'unit_art.dart';
 import 'unit_stats.dart';
@@ -111,6 +112,22 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
   static const double _artScale = 1.15;
 
   late final UnitArt _art = artFor(stats.id);
+
+  /// This unit's Rive artboard, or null when its card has no `.riv` yet.
+  ///
+  /// Resolved on first use rather than in `onLoad`, so [onRemove] can tell a
+  /// unit that never drew a frame from one holding an artboard to release —
+  /// a `late final` would build one just to throw it away.
+  RiveUnitAnimation? _rive;
+  bool _riveResolved = false;
+
+  RiveUnitAnimation? get _riveArt {
+    if (!_riveResolved) {
+      _riveResolved = true;
+      _rive = RiveUnitLibrary.create(stats.id);
+    }
+    return _rive;
+  }
 
   /// One pose, shared by every unit. Rendering is sequential on one thread,
   /// so forty units can take turns with it instead of allocating forty.
@@ -250,6 +267,11 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
   @override
   void onRemove() {
     _leaveRoster();
+    // Native memory, which Dart's collector does not account for: forty
+    // artboards a match leak silently if this is missed.
+    _rive?.dispose();
+    _rive = null;
+    _riveResolved = true;
     super.onRemove();
   }
 
@@ -322,6 +344,9 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     // flash white on the frame it dies.
     if (_flash > 0) _flash = math.max(0, _flash - dt / _flashTime);
     _breath = (_breath + dt * 2.2) % (math.pi * 2);
+    // Above the dying guard as well: a unit has `Timings.deathFadeOut` left
+    // to play its die state, and it does not get it if the clock stops here.
+    _riveArt?.advance(dt);
 
     if (_dying) {
       _deathTimer += dt;
@@ -476,6 +501,7 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     if (_attackTimer > 0) return;
     _attackTimer = stats.attackInterval;
     _attackAnim = 1;
+    _riveArt?.attack();
     onAttack(target);
     dealDamage(target);
   }
@@ -552,6 +578,7 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     _dying = true;
     _deathTimer = 0;
     _target = null;
+    _riveArt?.die();
 
     // A death leaves a splash in the unit's colour, so trades still move the
     // score. Its size is balance data, not a magic number.
@@ -630,7 +657,11 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
       ..attack = _attackAnim
       ..facingX = _faceX
       ..facingY = _faceY
-      ..moving = _walking;
+      ..moving = _walking
+      // Set here rather than only on the vector flash pass, because Rive art
+      // reads it as a state machine input on the ordinary one. Harmless to
+      // the painters: they only look at it while [UnitPose.flashPass] is on.
+      ..flash = _flash;
 
     canvas.save();
     // Into art space: origin at the unit's centre, 1.0 == its radius. Drawn
@@ -638,6 +669,23 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
     // collision circle reads as a dot at phone scale.
     canvas.translate(centre.dx, centre.dy);
     canvas.scale(stats.radius * _artScale);
+
+    final rive = _riveArt;
+    if (rive != null) {
+      // A Rive artboard owns its own lunge, squash and hit flash — that is
+      // what the state machine is for — so none of the framing below applies
+      // to it. The fade is the one thing kept, as a backstop against art with
+      // no die state leaving a solid body on the floor.
+      rive
+        ..apply(_pose)
+        ..draw(canvas, alpha: _pose.alpha);
+      canvas.restore();
+      if (isStunned && !_dying) {
+        canvas.drawCircle(centre, stats.radius * 1.35, _frost);
+      }
+      if (!_dying && hp < stats.hp) _renderHealthBar(canvas);
+      return;
+    }
 
     if (_dying) {
       // Collapses onto its own feet rather than shrinking toward its middle.
