@@ -34,7 +34,7 @@ class BattleScreen extends StatefulWidget {
     this.deck,
     this.botDeck,
     this.botDifficulty,
-    this.botTier = BotTier.normal,
+    this.botStrength = 0,
     this.trophyRules,
     this.levels = const CardLevels(),
     this.botLevels = const CardLevels(),
@@ -55,7 +55,11 @@ class BattleScreen extends StatefulWidget {
   /// The opponent. Null means an empty arena with no one to fight.
   final Deck? botDeck;
   final BotDifficulty? botDifficulty;
-  final BotTier botTier;
+  /// How far up the campaign ramp the opponent sits, 0 to 1.
+  ///
+  /// Only the trophy maths reads it — how hard the bot actually plays is
+  /// [botDifficulty], which the campaign builds from the same ramp.
+  final double botStrength;
 
   /// Trophy maths. Null runs the arena with no clock, which is what the
   /// debug sandboxes want.
@@ -103,7 +107,7 @@ class _BattleScreenState extends State<BattleScreen> {
     deck: widget.deck,
     botDeck: widget.botDeck,
     botDifficulty: widget.botDifficulty,
-    botTier: widget.botTier,
+    botStrength: widget.botStrength,
     trophyRules: widget.trophyRules,
     levels: widget.levels,
     botLevels: widget.botLevels,
@@ -319,7 +323,7 @@ class _BattleScreenState extends State<BattleScreen> {
                 deck: widget.deck,
                 botDeck: widget.botDeck,
                 botDifficulty: widget.botDifficulty,
-                botTier: widget.botTier,
+                botStrength: widget.botStrength,
                 trophyRules: widget.trophyRules,
                 levels: widget.levels,
                 botLevels: widget.botLevels,
@@ -343,7 +347,6 @@ class _BattleScreenState extends State<BattleScreen> {
     coverage: _game.arena.coverage,
     match: _game.match,
     playerTeam: widget.playerTeam,
-    botTier: widget.botTier,
     showPlates: widget.sandbox == SandboxMode.off,
     // The sandboxes have no clock to stop.
     onPause: widget.sandbox == SandboxMode.off ? _pause : null,

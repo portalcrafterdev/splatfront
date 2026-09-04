@@ -11,10 +11,12 @@ import 'package:splatfront/game/cards/card_registry.dart';
 import 'package:splatfront/game/match/match_controller.dart';
 import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
+import 'package:splatfront/meta/campaign.dart';
 
 void main() {
   late CardRegistry cards;
   late BotConfig botConfig;
+  late CampaignConfig campaign;
   late TrophyRules trophies;
   late Deck deck;
 
@@ -22,6 +24,7 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     cards = await CardRegistry.load();
     botConfig = await BotConfig.load();
+    campaign = await CampaignConfig.load();
     trophies = await TrophyRules.load();
     deck = (await Deck.loadStarterDecks()).first;
   });
@@ -37,7 +40,7 @@ void main() {
         cards: cards,
         deck: deck,
         botDeck: withBot ? botConfig.deckFor('arena_1') : null,
-        botDifficulty: withBot ? botConfig[BotTier.normal] : null,
+        botDifficulty: withBot ? campaign.levelAt(500).difficulty : null,
         trophyRules: trophies,
         playerTeam: Team.red,
       );
@@ -365,18 +368,18 @@ void main() {
       expect(absurdLoss, lessThan(0), reason: 'a loss always costs');
     });
 
-    test('a harder bot counts as a stronger opponent', () {
-      final easy = trophies.trophiesForBot(500, BotTier.easy);
-      final normal = trophies.trophiesForBot(500, BotTier.normal);
-      final hard = trophies.trophiesForBot(500, BotTier.hard);
+    test('a later level counts as a stronger opponent', () {
+      // The offset used to be three buckets keyed by difficulty tier. It is a
+      // range now, read off the same 0-to-1 ramp everything else uses, so the
+      // opponent's notional rating rises with every level instead of jumping
+      // 150 points between two adjacent ones.
+      final opener = trophies.trophiesForBot(500, 0);
+      final middle = trophies.trophiesForBot(500, 0.5);
+      final finale = trophies.trophiesForBot(500, 1);
 
-      expect(easy, lessThan(normal));
-      expect(normal, lessThan(hard));
-      expect(
-        trophies.trophiesForBot(0, BotTier.easy),
-        0,
-        reason: 'never negative',
-      );
+      expect(opener, lessThan(middle));
+      expect(middle, lessThan(finale));
+      expect(trophies.trophiesForBot(0, 0), 0, reason: 'never negative');
     });
 
     gameTest('a drawn match pays out nothing', (game, tester) async {

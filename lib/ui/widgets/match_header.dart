@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/palette.dart';
 import '../../game/arena/paint_sampler.dart';
-import '../../game/bot/bot_difficulty.dart';
 import '../../game/match/match_controller.dart';
 import 'coverage_bar.dart';
 import 'match_overlays.dart';
@@ -20,7 +19,6 @@ class MatchHeader extends StatelessWidget {
     required this.coverage,
     required this.match,
     required this.playerTeam,
-    required this.botTier,
     this.showPlates = true,
     this.onPause,
   });
@@ -28,7 +26,6 @@ class MatchHeader extends StatelessWidget {
   final ValueListenable<Coverage> coverage;
   final MatchController? match;
   final Team playerTeam;
-  final BotTier botTier;
 
   /// The debug sandboxes have no opponent, so they skip the plates.
   final bool showPlates;
@@ -49,7 +46,7 @@ class MatchHeader extends StatelessWidget {
               const Spacer(),
               _NamePlate(
                 team: playerTeam.opponent,
-                name: botTier.opponentName,
+                name: opponentName,
                 alignEnd: true,
               ),
             ],
@@ -238,34 +235,22 @@ class _PauseButton extends StatelessWidget {
   );
 }
 
-extension BotTierPlate on BotTier {
-  /// What the opponent is called on their name plate.
-  ///
-  /// These used to read "Novice Bot", "Rival Bot", "Veteran Bot", on the
-  /// section 17 rule 6 argument that v1 has to say plainly it is single
-  /// player. **The word was dropped on the owner's call**, and the rule it
-  /// was serving still holds: what the reference game's reviews punish is
-  /// implying an opponent who is not there, not the absence of multiplayer.
-  ///
-  /// "Red Team" is the side you are actually fighting. It is true, it is a
-  /// phrase everybody knows, and it cannot be mistaken for somebody's handle
-  /// — which is the only part of this that would be a lie. The plain
-  /// statement moved to the Levels page and the store listing, which is where
-  /// a promise to a player is actually made. What must never come back is a
-  /// *personal* name on that plate; `roster_rules_test.dart` is what stops it.
-  ///
-  /// The tier no longer changes it. The level number is the difficulty, so
-  /// three near-identical plates were three ways of saying red.
-  String get opponentName => 'Red Team';
-
-  /// How hard this tier plays, in the plainest words there are.
-  ///
-  /// "Novice" and "Veteran" were doing this job and doing it badly: they are
-  /// the vocabulary of a ladder rank rather than a description, and a player
-  /// who does not know the word learns nothing at all from the tile.
-  String get rankName => switch (this) {
-    BotTier.easy => 'Easy',
-    BotTier.normal => 'Medium',
-    BotTier.hard => 'Hard',
-  };
-}
+/// What the opponent is called on their name plate.
+///
+/// These used to read "Novice Bot", "Rival Bot", "Veteran Bot", on the
+/// section 17 rule 6 argument that v1 has to say plainly it is single
+/// player. **The word was dropped on the owner's call**, and the rule it
+/// was serving still holds: what the reference game's reviews punish is
+/// implying an opponent who is not there, not the absence of multiplayer.
+///
+/// "Red Team" is the side you are actually fighting. It is true, it is a
+/// phrase everybody knows, and it cannot be mistaken for somebody's handle
+/// — which is the only part of this that would be a lie. The plain
+/// statement moved to the Levels page and the store listing, which is where
+/// a promise to a player is actually made. What must never come back is a
+/// *personal* name on that plate; `roster_rules_test.dart` is what stops it.
+///
+/// It does not vary by level, and there is nothing left for it to vary by:
+/// difficulty tiers are gone, so the only opponent the game has is the side
+/// itself. Three near-identical plates were three ways of saying red.
+const String opponentName = 'Red Team';

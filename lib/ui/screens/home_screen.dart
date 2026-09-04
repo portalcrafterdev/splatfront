@@ -13,7 +13,6 @@ import '../../game/splatfront_game.dart';
 import '../../meta/profile_controller.dart';
 import '../../meta/quests.dart';
 import '../widgets/card_tile.dart';
-import '../widgets/match_header.dart';
 import '../widgets/meta_widgets.dart';
 import '../widgets/motion.dart';
 import '../widgets/responsive.dart';
@@ -143,7 +142,10 @@ class _PlayerPane extends ConsumerWidget {
             label: 'BATTLE',
             sublabel: nextLevel > data.campaign.levelCount
                 ? 'Campaign complete'
-                : 'Level $nextLevel  ·  ${data.campaign.levelAt(nextLevel).tier.rankName}',
+                // The level's own name, not a difficulty word. The tiers are
+                // gone, and "Easy" beside a level number told the player
+                // nothing the number did not already.
+                : 'Level $nextLevel  ·  ${data.campaign.nameFor(nextLevel)}',
             onPressed: () => startCampaignLevel(context, ref, nextLevel),
           ),
           // Debug builds only. These are development tools — a paint harness

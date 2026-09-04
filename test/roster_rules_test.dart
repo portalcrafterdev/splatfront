@@ -293,22 +293,15 @@ void main() {
       // like somebody's handle. "Red Team" is the side, not a person, so it
       // cannot do that. A personal name here would be the lie, and this is
       // what stops one arriving.
-      for (final tier in BotTier.values) {
-        expect(
-          tier.opponentName,
-          'Red Team',
-          reason: 'the ${tier.name} plate names the side, never a person',
-        );
-      }
+      // One plate, because there is one opponent. The tiers that used to
+      // give it three variants are gone.
+      expect(
+        opponentName,
+        'Red Team',
+        reason: 'the plate names the side, never a person',
+      );
     });
 
-    test('the difficulty is described in words a player already knows', () {
-      // "Novice" and "Veteran" are ladder vocabulary. They were carrying the
-      // difficulty on every campaign tile and teaching nobody anything.
-      expect(BotTier.easy.rankName, 'Easy');
-      expect(BotTier.normal.rankName, 'Medium');
-      expect(BotTier.hard.rankName, 'Hard');
-    });
   });
 
   group('rules 4 and 5: format and deploy', () {

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/core/game_data.dart';
 import 'package:splatfront/core/save/player_profile.dart';
-import 'package:splatfront/game/bot/bot_difficulty.dart';
+import 'package:splatfront/ui/widgets/match_header.dart';
 import 'package:splatfront/meta/campaign.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/meta/quests.dart';
@@ -151,7 +151,6 @@ void main() {
       expect(first.difficulty.lanePrecision, 0);
       expect(first.difficulty.cardPrecision, 0);
       expect(first.botCardLevel, 1);
-      expect(first.tier, BotTier.easy);
     });
 
     test('the last level plays as well as the brain can', () {
@@ -161,17 +160,34 @@ void main() {
       expect(last.difficulty.lanePrecision, closeTo(1.0, 1e-9));
       expect(last.difficulty.cardPrecision, closeTo(1.0, 1e-9));
       expect(last.botCardLevel, 9);
-      expect(last.tier, BotTier.hard);
     });
 
-    // Easing is what keeps the first couple of dozen levels gentle. A
-    // straight line would put level 20 nearly a tenth of the way up the ramp,
-    // which is far too steep while somebody is still learning the cards.
-    test('the ramp eases in rather than running straight', () {
-      final linear = (20 - 1) / (campaign.rampLevels - 1);
-      expect(campaign.rampAt(20), lessThan(linear));
+    // Every level is the same amount harder than the one before it — 0.1%,
+    // or 1/999 of the climb. This replaced an eased ramp, which spent so
+    // little early that the brain was only 8% up by level 100 and the first
+    // hundred levels played the same. Owner's call; see `campaign.json`.
+    test('the ramp climbs by an equal step every level', () {
       expect(campaign.rampAt(1), 0);
       expect(campaign.rampAt(campaign.rampLevels), closeTo(1.0, 1e-9));
+
+      final step = 1 / (campaign.rampLevels - 1);
+      expect(step, closeTo(0.001, 5e-5), reason: '0.1% per level');
+      for (final level in const [2, 20, 100, 500, 900, 1000]) {
+        expect(
+          campaign.rampAt(level) - campaign.rampAt(level - 1),
+          closeTo(step, 1e-9),
+          reason: 'level $level is not one even step past ${level - 1}',
+        );
+      }
+    });
+
+    // The whole point of straightening it: the opening stretch has to move.
+    test('the first hundred levels are a real climb', () {
+      expect(campaign.rampAt(100), greaterThan(0.09));
+      final opener = campaign.levelAt(1).difficulty;
+      final hundred = campaign.levelAt(100).difficulty;
+      expect(hundred.reactionDelay, lessThan(opener.reactionDelay - 0.4));
+      expect(hundred.cardPrecision, greaterThan(0.09));
     });
 
     test('the arena changes as the ladder climbs', () {
@@ -183,62 +199,44 @@ void main() {
     });
   });
 
-  group('opponent names', () {
-    test('the three names split the campaign into three blocks', () {
-      expect(campaign.tierAt(1), BotTier.easy);
-      expect(campaign.tierAt(300), BotTier.easy);
-      expect(campaign.tierAt(301), BotTier.normal);
-      expect(campaign.tierAt(600), BotTier.normal);
-      expect(campaign.tierAt(601), BotTier.hard);
-      expect(campaign.tierAt(1000), BotTier.hard);
-    });
-
-    test('every level wears exactly one name, in order', () {
-      var seen = BotTier.easy;
-      for (var n = 1; n <= campaign.levelCount; n++) {
-        final tier = campaign.tierAt(n);
+  // There are no difficulty tiers. Easy / Medium / Hard existed twice — as a
+  // control the player picked, then as a badge on every level tile — and both
+  // were removed on the owner's call. The level number is the whole of the
+  // difficulty. What is left to guard is that nothing can quietly grow a
+  // bucket back, because a label covering three hundred levels goes stale the
+  // moment the curve moves and nothing would fail.
+  group('the ladder has no tiers', () {
+    test('the ramp is one unbroken climb with no plateaus in it', () {
+      // A tier is a plateau by another name: three hundred levels that play
+      // identically. Sampling every level and demanding each be strictly
+      // sharper than the last is what makes that impossible to reintroduce
+      // without this failing.
+      for (var n = 2; n <= campaign.levelCount; n++) {
         expect(
-          tier.index,
-          greaterThanOrEqualTo(seen.index),
-          reason: 'level $n went backwards to ${tier.name}',
+          campaign.rampAt(n),
+          greaterThan(campaign.rampAt(n - 1)),
+          reason: 'level $n plays exactly like level ${n - 1}',
         );
-        seen = tier;
       }
-      expect(seen, BotTier.hard);
     });
 
-    // The name has to describe the fight. If the brain finished improving
-    // before the last Novice level, a "Novice Bot" near the end of its block
-    // would be playing at full strength and the label would be a lie.
-    test('the brain is still improving for as long as the names say', () {
+    test('the brain is still improving on the very last level', () {
+      // The old rule was that the brain had to keep improving for as long as
+      // a tier name claimed it did. With no names, the stronger version holds:
+      // it improves right up to the end, so no level is the last interesting
+      // one.
+      expect(campaign.rampLevels, campaign.levelCount);
       expect(
-        campaign.rampLevels,
-        greaterThanOrEqualTo(campaign.veteranFrom),
-        reason:
-            'the brain maxes out at level ${campaign.rampLevels}, before '
-            'Veteran begins at ${campaign.veteranFrom}',
+        campaign.rampAt(campaign.levelCount - 1),
+        lessThan(campaign.rampAt(campaign.levelCount)),
       );
     });
 
-    // Same argument for the stats: the whole Novice block should be a fight
-    // against level 1 cards, or "Novice" covers an opponent already scaling.
-    test('the bot only starts levelling its cards once Novice is over', () {
-      expect(campaign.botCardLevelAt(campaign.rivalFrom - 1), 1);
-      expect(
-        campaign.botCardLevelFrom,
-        greaterThanOrEqualTo(campaign.rivalFrom),
-      );
-    });
-
-    test('each block is a real stretch of the difficulty curve', () {
-      // Novice should not be over before it starts, and Veteran should not be
-      // the only block with any difficulty in it.
-      final atNoviceEnd = campaign.rampAt(campaign.rivalFrom - 1);
-      final atRivalEnd = campaign.rampAt(campaign.veteranFrom - 1);
-
-      expect(atNoviceEnd, greaterThan(0.1));
-      expect(atNoviceEnd, lessThan(atRivalEnd));
-      expect(atRivalEnd, lessThan(1.0));
+    test('the opponent is named after its side, never after a rank', () {
+      // "Novice Bot" and "Veteran Bot" were both here once. A rank name reads
+      // like a person, which section 17 rule 6 rules out, and it also has to
+      // be kept in step with a curve — two reasons it is gone.
+      expect(opponentName, 'Red Team');
     });
   });
 

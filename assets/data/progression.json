@@ -19,12 +19,8 @@
     "_gapComment": "The base is adjusted by how far apart the two sides are. One point of adjustment per this many trophies of gap, capped either way.",
     "trophiesPerAdjustment": 25,
     "maxAdjustment": 10,
-    "_botComment": "The bot is treated as this far above or below the player, by difficulty, so beating Hard is worth more than beating Easy.",
-    "botTrophyOffset": {
-      "easy": -150,
-      "normal": 0,
-      "hard": 150
-    }
+    "_botComment": "The bot is treated as this far above or below the player, interpolated across the campaign ramp: the level 1 opponent counts as 150 below, the level 1000 opponent as 150 above, and everything between slides smoothly. It was three values keyed by difficulty tier; the tiers are gone, and a ladder that jumps 150 points between two adjacent levels was never the intent.",
+    "botTrophyOffset": [-150, 150]
   },
   "buildings": {
     "_comment": "Live buildings allowed on the board per side. The reference game studied in the design notes had no cap and its reviews are dominated by turret spam: the AI stacked guns at the back of the map with almost no counterplay. The lifetime timer on each building is the other half of the answer, not a substitute — a timer limits how long one stands, a cap limits how many. A deploy over the cap is rejected before it costs elixir.",

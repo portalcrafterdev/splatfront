@@ -36,9 +36,6 @@ class CampaignLevel {
   /// Which arena to fight in, as an index into the loaded arena list.
   final int arenaIndex;
 
-  /// The tier badge shown on the level tile. Cosmetic — the numbers above
-  /// are what actually plays — but it gives the list a readable shape.
-  BotTier get tier => difficulty.tier;
 }
 
 /// Everything in `assets/data/campaign.json`.
@@ -47,8 +44,6 @@ class CampaignConfig {
     required this.levelCount,
     required this.twoStarCoverage,
     required this.threeStarCoverage,
-    required this.rivalFrom,
-    required this.veteranFrom,
     required this.rampLevels,
     required this.exponent,
     required this.reactionDelay,
@@ -82,18 +77,21 @@ class CampaignConfig {
   final double twoStarCoverage;
   final double threeStarCoverage;
 
-  /// The first level of the Rival Bot block, and of the Veteran Bot block.
-  /// Everything below [rivalFrom] is Novice.
-  final int rivalFrom;
-  final int veteranFrom;
 
   /// How many levels the brain takes to go from blunt to its best, and the
   /// curve it follows getting there.
   ///
-  /// The exponent is above 1 on purpose: a straight line makes level 20
-  /// meaningfully harder than level 10, which is far too steep while
-  /// somebody is still learning what the cards do. Easing keeps the first
-  /// couple of dozen levels gentle and spends the difficulty later.
+  /// **The curve is a straight line across the whole campaign**: exponent 1.0
+  /// and 1000 levels, so every level is exactly 1/999 — 0.1% — stronger than
+  /// the one before it. Owner's call.
+  ///
+  /// It was eased (exponent 1.4, finishing at 601) on the argument that a
+  /// straight line makes level 20 too much harder than level 10 while
+  /// somebody is still learning the cards. What that argument missed is how
+  /// little easing spends early: it left the brain **8% up by level 100**, so
+  /// the first hundred levels were near-identical and the ladder leaned
+  /// entirely on card unlocks to feel like it was going anywhere. Raise the
+  /// exponent above 1 to get the easing back.
   final int rampLevels;
   final double exponent;
 
@@ -180,22 +178,6 @@ class CampaignConfig {
   static double _lerp(List<double> pair, double t) =>
       pair.first + (pair.last - pair.first) * t;
 
-  /// Which opponent name [level] fights.
-  ///
-  /// Split by level number, not by where the level sits on the difficulty
-  /// curve. Those are not the same thing and the difference is visible: an
-  /// eased curve packs most of its change into the early levels, so slicing
-  /// it into thirds put Veteran Bot at level 188 and left it there for eight
-  /// hundred levels. Counting levels instead gives the three names three
-  /// equal blocks, which is what a player reading a level list expects.
-  ///
-  /// [rampLevels] is set to [veteranFrom] so the two agree — see the note in
-  /// `campaign.json`.
-  BotTier tierAt(int level) {
-    if (level >= veteranFrom) return BotTier.hard;
-    if (level >= rivalFrom) return BotTier.normal;
-    return BotTier.easy;
-  }
 
   int botCardLevelAt(int level) {
     if (level < botCardLevelFrom) return 1;
@@ -215,7 +197,6 @@ class CampaignConfig {
     return CampaignLevel(
       number: n,
       difficulty: BotDifficulty(
-        tier: tierAt(n),
         reactionDelay: _lerp(reactionDelay, t),
         elixirWasteRate: _lerp(elixirWasteRate, t),
         countersThreats: n >= countersThreatsFrom,
@@ -266,7 +247,6 @@ class CampaignConfig {
     final names = json['levelNames'] as Map<String, dynamic>;
     final stars = json['stars'] as Map<String, dynamic>;
     final brain = json['brain'] as Map<String, dynamic>;
-    final tiers = json['tiers'] as Map<String, dynamic>;
     final botCards = json['botCardLevel'] as Map<String, dynamic>;
     final rewards = json['rewards'] as Map<String, dynamic>;
 
@@ -278,8 +258,6 @@ class CampaignConfig {
       levelCount: (json['levelCount'] as num).toInt(),
       twoStarCoverage: (stars['twoStarCoverage'] as num).toDouble(),
       threeStarCoverage: (stars['threeStarCoverage'] as num).toDouble(),
-      rivalFrom: (tiers['rivalFrom'] as num).toInt(),
-      veteranFrom: (tiers['veteranFrom'] as num).toInt(),
       rampLevels: (brain['rampLevels'] as num).toInt(),
       exponent: (brain['exponent'] as num?)?.toDouble() ?? 1.0,
       reactionDelay: pair('reactionDelay'),

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import '../../core/audio.dart';
 import '../../core/constants.dart';
 import '../../core/palette.dart';
-import '../bot/bot_difficulty.dart';
 import '../splatfront_game.dart';
 import 'match_result.dart';
 
@@ -34,10 +33,12 @@ extension MatchPhaseX on MatchPhase {
 /// Everything it publishes is a [ValueNotifier], so the HUD updates without a
 /// single `setState` anywhere near the arena.
 class MatchController extends Component with HasGameReference<SplatfrontGame> {
-  MatchController({required this.trophyRules, required this.botTier});
+  MatchController({required this.trophyRules, required this.botStrength});
 
   final TrophyRules trophyRules;
-  final BotTier botTier;
+  /// How far up the campaign ramp this match's opponent sits, 0 to 1.
+  /// Feeds the notional rating the trophy maths compares against.
+  final double botStrength;
 
   /// Player trophies at the start of the match. Real persistence is Phase 7.
   int playerTrophies = 0;
@@ -185,7 +186,7 @@ class MatchController extends Component with HasGameReference<SplatfrontGame> {
       trophyChange: trophyRules.change(
         outcome: partial.outcome,
         playerTrophies: playerTrophies,
-        opponentTrophies: trophyRules.trophiesForBot(playerTrophies, botTier),
+        opponentTrophies: trophyRules.trophiesForBot(playerTrophies, botStrength),
       ),
     );
 

@@ -10,6 +10,7 @@ import 'package:splatfront/game/bot/bot_difficulty.dart';
 import 'package:splatfront/game/cards/card_registry.dart';
 import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
+import 'package:splatfront/meta/campaign.dart';
 
 /// Rolls a flat half and always takes the last option.
 ///
@@ -41,6 +42,7 @@ class _NeverWastes implements math.Random {
 void main() {
   late CardRegistry cards;
   late BotConfig config;
+  late CampaignConfig campaign;
   late Deck playerDeck;
   late MatchRules rules;
 
@@ -48,14 +50,22 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     cards = await CardRegistry.load();
     config = await BotConfig.load();
+    campaign = await CampaignConfig.load();
     playerDeck = (await Deck.loadStarterDecks()).first;
     rules = await MatchRules.load();
   });
 
+  /// The opponent campaign level [n] fields.
+  ///
+  /// There are no difficulty tiers to index any more — a difficulty is a
+  /// point on the campaign ramp, so a test names the level it means. Level 1
+  /// is the blunt end and 1000 the sharp one.
+  BotDifficulty atLevel(int n) => campaign.levelAt(n).difficulty;
+
   void gameTest(
     String description,
     Future<void> Function(SplatfrontGame game, WidgetTester tester) body, {
-    BotTier tier = BotTier.hard,
+    int level = 1000,
   }) {
     testWidgets(description, (tester) async {
       final game = SplatfrontGame(
@@ -63,7 +73,7 @@ void main() {
         cards: cards,
         deck: playerDeck,
         botDeck: config.deckFor('arena_1'),
-        botDifficulty: config[tier],
+        botDifficulty: atLevel(level),
         playerTeam: Team.red,
       );
       await tester.pumpWidget(GameWidget(game: game));
@@ -93,71 +103,43 @@ void main() {
   }
 
   group('difficulty data', () {
-    test('the three tiers match the section 8 table', () {
-      // Blunted again on the owner's call, and measured rather than guessed:
-      // test/duel_harness.dart runs a fixed stand-in for a person — reacts in
-      // 1.5s, wastes a third of its turns, half-precise — twelve times
-      // against each tier. It now takes 12/12 off Easy, 9/12 off Normal and
-      // 3/12 off Hard, which is a ladder a person can climb.
-      expect(config[BotTier.easy].reactionDelay, 4.0);
-      expect(config[BotTier.easy].elixirWasteRate, 0.85);
-      expect(config[BotTier.easy].countersThreats, isFalse);
-      expect(config[BotTier.easy].playsSpells, isFalse);
-
-      expect(config[BotTier.normal].reactionDelay, 2.0);
-      expect(config[BotTier.normal].elixirWasteRate, 0.45);
-      expect(config[BotTier.normal].countersThreats, isTrue);
-
-      expect(config[BotTier.hard].reactionDelay, 0.9);
-      expect(config[BotTier.hard].elixirWasteRate, 0.15);
-      expect(config[BotTier.hard].playsSpells, isTrue);
-    });
-
-    test('precision is what actually separates the tiers', () {
+    // There is no tier table left to match. `bot_decks.json` used to carry
+    // three hand-tuned difficulties; they went with the tiers, because every
+    // opponent now comes off the campaign ramp and a second set of numbers
+    // here would be a second source of truth that nothing read. What the ramp
+    // itself is worth is pinned in `campaign_test.dart`; what is checked here
+    // is that a difficulty read off it still behaves like one.
+    test('precision is what actually decides a match', () {
       // Reaction delay and waste rate only change how *busy* a side looks.
       // Measured over twenty ninety-second bot-versus-bot duels per pairing,
-      // with every tier playing the weakest lane and the best card, Easy beat
-      // Hard as often as it lost: 11/20 in one seating and 9/20 in the other.
-      // Coverage is decided by where the paint lands and what lands there, so
-      // these two are the difficulty. With them in, Hard beats Easy 39/40.
-      for (final tier in BotTier.values) {
-        for (final precision in [
-          config[tier].lanePrecision,
-          config[tier].cardPrecision,
-        ]) {
-          expect(precision, inInclusiveRange(0.0, 1.0));
-        }
+      // with both sides playing the weakest lane and the best card, the blunt
+      // side beat the sharp one as often as it lost: 11/20 in one seating and
+      // 9/20 in the other. Coverage is decided by where the paint lands and
+      // what lands there, so these two are the difficulty.
+      for (final level in const [1, 250, 500, 750, 1000]) {
+        expect(atLevel(level).lanePrecision, inInclusiveRange(0.0, 1.0));
+        expect(atLevel(level).cardPrecision, inInclusiveRange(0.0, 1.0));
       }
 
       expect(
-        config[BotTier.easy].lanePrecision,
+        atLevel(1).lanePrecision,
         0.0,
-        reason: 'an easy bot picks its lane without looking at the board',
+        reason: 'the first level picks its lane without looking at the board',
       );
-      // Hard is no longer perfect. At 1.0 the stand-in person took 0 of 12
-      // off it, which is a wall rather than a tier; at 0.9 it takes 3.
-      expect(config[BotTier.hard].lanePrecision, 0.9);
-      expect(config[BotTier.hard].cardPrecision, 0.9);
-
-      final tiers = BotTier.values.map((t) => config[t]).toList();
-      for (var i = 1; i < tiers.length; i++) {
-        expect(
-          tiers[i].lanePrecision,
-          greaterThan(tiers[i - 1].lanePrecision),
-          reason: 'the ladder has to be monotonic to be a ladder',
-        );
-        expect(tiers[i].cardPrecision, greaterThan(tiers[i - 1].cardPrecision));
-      }
+      expect(atLevel(1000).lanePrecision, closeTo(1.0, 1e-9));
+      expect(atLevel(1000).cardPrecision, closeTo(1.0, 1e-9));
     });
 
-    test('reaction gets faster and waste gets rarer as it gets harder', () {
-      final tiers = BotTier.values.map((t) => config[t]).toList();
-      for (var i = 1; i < tiers.length; i++) {
-        expect(tiers[i].reactionDelay, lessThan(tiers[i - 1].reactionDelay));
-        expect(
-          tiers[i].elixirWasteRate,
-          lessThan(tiers[i - 1].elixirWasteRate),
-        );
+    test('every level is sharper than the one before it', () {
+      // The ramp is a straight line at 0.1% a level, so this holds between
+      // *any* two adjacent levels, not just at a few sampled points.
+      for (final level in const [2, 100, 437, 800, 1000]) {
+        final prev = atLevel(level - 1);
+        final here = atLevel(level);
+        expect(here.reactionDelay, lessThan(prev.reactionDelay));
+        expect(here.elixirWasteRate, lessThan(prev.elixirWasteRate));
+        expect(here.lanePrecision, greaterThan(prev.lanePrecision));
+        expect(here.cardPrecision, greaterThan(prev.cardPrecision));
       }
     });
 
@@ -185,7 +167,6 @@ void main() {
     late final scripted = _Scripted();
 
     BotDifficulty noWaste(BotDifficulty d) => BotDifficulty(
-      tier: d.tier,
       reactionDelay: d.reactionDelay,
       elixirWasteRate: 0,
       countersThreats: d.countersThreats,
@@ -194,7 +175,7 @@ void main() {
       cardPrecision: d.cardPrecision,
     );
 
-    Future<double?> firstDropX(WidgetTester tester, BotTier tier) async {
+    Future<double?> firstDropX(WidgetTester tester, int level) async {
       final game = SplatfrontGame(
         layout: ArenaLayout.fallback,
         cards: cards,
@@ -203,7 +184,7 @@ void main() {
         // The waste roll and the precision roll come off the same random, so
         // this drops the waste rate to zero: the test is about which lane it
         // picks, not about whether it takes its turn at all.
-        botDifficulty: noWaste(config[tier]),
+        botDifficulty: noWaste(atLevel(level)),
         botRandom: scripted,
         economy: const MatchRules(
           territorySpread: 0,
@@ -223,7 +204,7 @@ void main() {
       // run out — section 8 adds up to another whole delay on top. Derived
       // from the tier rather than fixed, because Easy's delay has been raised
       // twice now and a fixed six seconds silently stopped covering it.
-      final window = config[tier].reactionDelay * 2 + 3.0;
+      final window = atLevel(level).reactionDelay * 2 + 3.0;
       for (var t = 0.0; t < window && x == null; t += step) {
         game.updateTree(step);
         for (final unit in game.units) {
@@ -240,7 +221,7 @@ void main() {
     }
 
     testWidgets('a hard bot plays the lane it is losing', (tester) async {
-      final x = await firstDropX(tester, BotTier.hard);
+      final x = await firstDropX(tester, 1000);
       expect(x, isNotNull, reason: 'it has to play something');
       expect(
         x!,
@@ -250,7 +231,7 @@ void main() {
     });
 
     testWidgets('an easy bot does not', (tester) async {
-      final x = await firstDropX(tester, BotTier.easy);
+      final x = await firstDropX(tester, 1);
       expect(x, isNotNull);
       expect(
         x!,
@@ -308,7 +289,7 @@ void main() {
         cards: cards,
         deck: playerDeck,
         botDeck: config.deckFor('arena_1'),
-        botDifficulty: config[BotTier.normal],
+        botDifficulty: atLevel(500),
         botRandom: _NeverWastes(),
         economy: const MatchRules(territorySpread: 0.25, cardRefillSeconds: 10),
         playerTeam: Team.red,
@@ -423,13 +404,13 @@ void main() {
       // of them, and cards, because a careless bot picks at random and cheap
       // cards buy more plays per elixir — on that count Easy came out *ahead*
       // of Hard, 26 to 24.
-      Future<int> elixirSpentBy(BotTier tier, int seed) async {
+      Future<int> elixirSpentBy(int level, int seed) async {
         final game = SplatfrontGame(
           layout: ArenaLayout.fallback,
           cards: cards,
           deck: playerDeck,
           botDeck: config.deckFor('arena_1'),
-          botDifficulty: config[tier],
+          botDifficulty: atLevel(level),
           botRandom: math.Random(seed),
           // The shipped rules, lockout included: without one the bot is
           // elixir-limited rather than turn-limited and this measures a
@@ -474,8 +455,8 @@ void main() {
       var easy = 0;
       var hard = 0;
       for (final seed in seeds) {
-        easy += await elixirSpentBy(BotTier.easy, seed);
-        hard += await elixirSpentBy(BotTier.hard, seed);
+        easy += await elixirSpentBy(1, seed);
+        hard += await elixirSpentBy(1000, seed);
       }
 
       expect(
@@ -548,7 +529,7 @@ void main() {
   test('a bot with no waste roll still respects its rules', () {
     final never = _NeverWastes();
     expect(never.nextDouble(), 1.0);
-    expect(config[BotTier.hard].elixirWasteRate, lessThan(1.0));
+    expect(atLevel(1000).elixirWasteRate, lessThan(1.0));
   });
 }
 

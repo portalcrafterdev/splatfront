@@ -7,7 +7,6 @@ import '../../core/palette.dart';
 import '../../game/cards/card_registry.dart';
 import '../../meta/campaign.dart';
 import '../../meta/profile_controller.dart';
-import '../widgets/match_header.dart';
 import '../widgets/meta_widgets.dart';
 import '../widgets/motion.dart';
 import 'battle_screen.dart';
@@ -184,7 +183,7 @@ void startCampaignLevel(BuildContext context, WidgetRef ref, int number) {
         levels: profile.levels,
         botDeck: data.bot.deckFor(arena.id),
         botDifficulty: level.difficulty,
-        botTier: level.tier,
+        botStrength: campaign.rampAt(number),
         botLevels: CardLevels.uniform(level.botCardLevel),
         campaign: CampaignBattle(level: number, config: campaign),
         // The clock and sudden death come from these rules; the trophy
@@ -326,13 +325,17 @@ class _LevelTile extends StatelessWidget {
   /// only appears once it has actually started climbing — saying "cards
   /// level 1" on the first hundred levels would be noise.
   ///
-  /// The opponent is described by how hard it plays, in the plainest word
-  /// there is, rather than by a rank name. "Novice Bot" was here and carried
-  /// two problems at once: "Novice" is ladder vocabulary that teaches a
-  /// player nothing, and the plate is where the opponent is named — a tile
-  /// listing a thousand levels is not.
+  /// The opponent carries no difficulty word at all any more.
+  ///
+  /// This said "Novice Bot", then "Easy" — first ladder vocabulary that
+  /// teaches a player nothing, then a plain word that was at least honest.
+  /// Both are gone with the tiers: **the level number is the difficulty**, it
+  /// is already the largest thing on the tile, and a label repeated across
+  /// three hundred rows said less than the number beside it. What is left
+  /// here is what actually varies — the board, the opponent's card level once
+  /// it starts climbing, and what the level still owes you.
   String get _subtitle {
-    final parts = <String>[?arenaName, level.tier.rankName];
+    final parts = <String>[?arenaName];
     if (level.botCardLevel > 1) parts.add('cards level ${level.botCardLevel}');
     if (reward case final extra?) parts.add(extra);
     return parts.join(' · ');

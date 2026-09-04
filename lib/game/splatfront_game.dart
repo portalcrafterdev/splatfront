@@ -55,7 +55,7 @@ class SplatfrontGame extends FlameGame {
     this.botDifficulty,
     this.botRandom,
     this.trophyRules,
-    this.botTier = BotTier.normal,
+    this.botStrength = 0,
     this.startingTrophies = 0,
     this.levels = const CardLevels(),
     this.botLevels = const CardLevels(),
@@ -86,7 +86,8 @@ class SplatfrontGame extends FlameGame {
   /// Trophy maths for the end screen. Null runs the arena with no clock at
   /// all, which is what the debug sandboxes want.
   final TrophyRules? trophyRules;
-  final BotTier botTier;
+  /// How far up the campaign ramp the opponent sits, 0 to 1.
+  final double botStrength;
 
   /// Trophies the player brought in, which the result is scored against.
   final int startingTrophies;
@@ -222,7 +223,7 @@ class SplatfrontGame extends FlameGame {
   late final MatchController? _match = switch (trophyRules) {
     final rules? => MatchController(
       trophyRules: rules,
-      botTier: botTier,
+      botStrength: botStrength,
     )..playerTrophies = startingTrophies,
     null => null,
   };

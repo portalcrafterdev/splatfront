@@ -5,7 +5,6 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../../core/palette.dart';
 import '../arena/paint_sampler.dart';
-import '../bot/bot_difficulty.dart';
 
 /// Why the match stopped.
 enum EndReason {
@@ -36,11 +35,24 @@ class TrophyRules {
   final int trophiesPerAdjustment;
   final int maxAdjustment;
 
-  /// How far above or below the player the bot counts as, by difficulty.
-  final Map<BotTier, int> botTrophyOffset;
+  /// How far above or below the player the bot counts as, as `[weakest,
+  /// strongest]` — the two ends of the campaign ramp.
+  ///
+  /// This was three buckets keyed by difficulty tier. The tiers are gone, and
+  /// a continuous ramp wants a continuous rating: an opponent 0.1% stronger
+  /// than the last one should be worth 0.1% more, not sit in the same bucket
+  /// for three hundred levels and then jump 150 points in one.
+  final List<int> botTrophyOffset;
 
-  int trophiesForBot(int playerTrophies, BotTier tier) =>
-      math.max(0, playerTrophies + (botTrophyOffset[tier] ?? 0));
+  /// The bot's notional rating for an opponent [strength] of the way up the
+  /// campaign ramp, 0 at level 1 and 1 at the last level.
+  int trophiesForBot(int playerTrophies, double strength) {
+    final t = strength.clamp(0.0, 1.0);
+    final offset =
+        botTrophyOffset.first +
+        (botTrophyOffset.last - botTrophyOffset.first) * t;
+    return math.max(0, playerTrophies + offset.round());
+  }
 
   /// Base change, adjusted by the gap between the two sides.
   ///
@@ -69,18 +81,14 @@ class TrophyRules {
   }
 
   factory TrophyRules.fromJson(Map<String, dynamic> json) {
-    final offsets =
-        json['botTrophyOffset'] as Map<String, dynamic>? ?? const {};
+    final offsets = json['botTrophyOffset'] as List<dynamic>? ?? const [0, 0];
     return TrophyRules(
       win: (json['win'] as num).toInt(),
       loss: (json['loss'] as num).toInt(),
       trophiesPerAdjustment:
           (json['trophiesPerAdjustment'] as num?)?.toInt() ?? 25,
       maxAdjustment: (json['maxAdjustment'] as num?)?.toInt() ?? 10,
-      botTrophyOffset: {
-        for (final tier in BotTier.values)
-          tier: (offsets[tier.name] as num?)?.toInt() ?? 0,
-      },
+      botTrophyOffset: [for (final v in offsets) (v as num).toInt()],
     );
   }
 

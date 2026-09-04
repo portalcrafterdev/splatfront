@@ -10,14 +10,15 @@ import 'package:splatfront/game/bot/bot_difficulty.dart';
 import 'package:splatfront/game/cards/card_registry.dart';
 import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
+import 'package:splatfront/meta/campaign.dart';
 
-/// A fixed stand-in for a person, so tuning a tier never moves the yardstick.
+/// A fixed stand-in for a person, so retuning the ramp never moves the
+/// yardstick.
 ///
 /// Reacts in about a second and a half, wastes a third of its turns, answers
 /// pushes, plays spells, and picks the right lane and card about half the
-/// time. Deliberately mediocre: this is who the tiers are for.
+/// time. Deliberately mediocre: this is who the campaign is for.
 const _casual = BotDifficulty(
-  tier: BotTier.normal,
   reactionDelay: 1.5,
   elixirWasteRate: 0.35,
   countersThreats: true,
@@ -29,6 +30,7 @@ const _casual = BotDifficulty(
 void main() {
   late CardRegistry cards;
   late BotConfig config;
+  late CampaignConfig campaign;
   late Deck playerDeck;
   late MatchRules rules;
 
@@ -36,6 +38,7 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     cards = await CardRegistry.load();
     config = await BotConfig.load();
+    campaign = await CampaignConfig.load();
     playerDeck = (await Deck.loadStarterDecks()).first;
     rules = await MatchRules.load();
   });
@@ -84,8 +87,11 @@ void main() {
     return share;
   }
 
-  for (final tier in BotTier.values) {
-    testWidgets('casual person vs ${tier.name}', (tester) async {
+  // Sampled up the ramp rather than across three tiers, because there are no
+  // tiers. These are the levels worth knowing the answer for: the opening, the
+  // quarters, and the finale.
+  for (final level in const [1, 250, 500, 750, 1000]) {
+    testWidgets('casual person vs level $level', (tester) async {
       var wins = 0;
       var total = 0.0;
       const runs = 12;
@@ -93,7 +99,7 @@ void main() {
         final share = await duel(
           tester,
           player: _casual,
-          bot: config[tier],
+          bot: campaign.levelAt(level).difficulty,
           seed: 1000 + i * 13,
         );
         total += share;
@@ -101,7 +107,7 @@ void main() {
       }
       // ignore: avoid_print
       print(
-        'RESULT vs=${tier.name} wins=$wins/$runs '
+        'RESULT level=$level wins=$wins/$runs '
         'coverage=${(total / runs * 100).toStringAsFixed(1)}%',
       );
     });
