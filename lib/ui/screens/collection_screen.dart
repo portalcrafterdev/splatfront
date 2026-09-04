@@ -318,21 +318,18 @@ class _CollectionCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Palette.uiSurfaceHigh,
                     borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: Palette.outline,
-                      width: Panel.stroke,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Palette.outlineShadow,
-                        offset: Offset(0, Panel.lift),
-                      ),
-                    ],
+                    border: Border.all(color: Panel.softEdge, width: 1),
+                    boxShadow: Panel.softShadow,
                   ),
+                  // The width has to come off the *actual* border, not a
+                  // constant that used to match it: the mount is 3dp of
+                  // padding plus its edge on each side, and leaving the old
+                  // 2.5dp stroke in this sum after softening the edge to 1
+                  // would size every card in the grid three pixels wide.
                   child: _maybeLocked(
                     CardTile(
                       card: card,
-                      width: constraints.maxWidth - 6 - Panel.stroke * 2,
+                      width: constraints.maxWidth - 6 - 2,
                     ),
                     locked: lockedUntil != null,
                   ),

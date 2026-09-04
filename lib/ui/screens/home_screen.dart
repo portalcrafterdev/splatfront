@@ -355,17 +355,16 @@ class _ChestRowState extends ConsumerState<_ChestRow> {
               Palette.uiSurfaceHigh,
             ),
       borderRadius: BorderRadius.circular(16),
-      // The caller's colour only decides how strong the edge is; the edge
-      // itself is always the dark outline, or the tile loses its shape.
+      // Soft, like everything else on this page now. The caller's colour still
+      // decides how present the edge is — a ready chest reads a shade firmer
+      // than an empty slot — it is just no longer a black line doing it.
       border: Border.all(
         color: border == Palette.uiTextDim.withValues(alpha: 0.2)
-            ? Palette.outline.withValues(alpha: 0.35)
-            : Palette.outline,
-        width: Panel.stroke,
+            ? Panel.softEdge
+            : Palette.accent.withValues(alpha: 0.45),
+        width: 1,
       ),
-      boxShadow: const [
-        BoxShadow(color: Palette.outlineShadow, offset: Offset(0, Panel.lift)),
-      ],
+      boxShadow: Panel.softShadow,
     ),
     child: child,
   );
@@ -528,13 +527,8 @@ class _NextCard extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Palette.uiSurfaceHigh,
               borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: Palette.outline, width: Panel.stroke),
-              boxShadow: const [
-                BoxShadow(
-                  color: Palette.outlineShadow,
-                  offset: Offset(0, Panel.lift),
-                ),
-              ],
+              border: Border.all(color: Panel.softEdge, width: 1),
+              boxShadow: Panel.softShadow,
             ),
             child: CardTile(card: card, width: 62),
           ),
@@ -763,13 +757,16 @@ class _ClaimChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: ready
-              ? Palette.outline
-              : Palette.uiTextDim.withValues(alpha: 0.35),
-          width: ready ? 2 : 1.5,
+              ? Palette.accentShade
+              : Palette.uiTextDim.withValues(alpha: 0.3),
+          width: 1,
         ),
+        // A claimable chip keeps its tonal shade, which is not the black
+        // outline — it is the same teal catching less light, and it is what
+        // makes the chip look pressable without a line round it.
         boxShadow: ready
             ? const [
-                BoxShadow(color: Palette.accentShade, offset: Offset(0, 2.5)),
+                BoxShadow(color: Palette.accentShade, offset: Offset(0, 2)),
               ]
             : null,
       ),
@@ -875,15 +872,13 @@ class _NextLevelCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Palette.outline, width: 3),
-          boxShadow: const [
-            BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 6)),
-          ],
+          // Soft, on the owner's call. The heavy dark line is the house style
+          // everywhere else; here the board's own colour is doing the work of
+          // an edge, so the card holds its shape without one.
+          boxShadow: Panel.softShadow,
         ),
-        // The border draws on the outside edge, so the board has to be
-        // clipped to the inner radius or its corners square off over it.
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -949,20 +944,15 @@ class _NextLevelCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // The footer is the button. Separated from the board by the same
-              // heavy line every other edge in the app uses, so the card reads
-              // as one object with a control on it rather than two stacked
-              // rectangles.
+              // The footer is the button. It used to be cut off from the board
+              // by the same heavy dark line as every other edge; with the
+              // outline gone that rule would have been the only black left on
+              // the card, so the colour change carries the join on its own.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Palette.accent,
-                  border: Border(
-                    top: BorderSide(color: Palette.outline, width: 3),
-                  ),
-                ),
+                decoration: const BoxDecoration(color: Palette.accent),
                 child: const Text(
                   'BATTLE',
                   style: TextStyle(
@@ -1249,11 +1239,15 @@ class _BandChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
     decoration: BoxDecoration(
-      color: Palette.uiSurface,
+      color: Palette.uiSurfaceHigh,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: Palette.outline, width: 2),
+      // Tinted by what it counts rather than ringed in black. The icon inside
+      // is already the colour; a matching hairline is enough to make the pill
+      // read as a container without a 2px line doing it.
+      border: Border.all(color: colour.withValues(alpha: 0.4), width: 1),
+      boxShadow: Panel.softShadow,
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,

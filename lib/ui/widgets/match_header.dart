@@ -174,7 +174,10 @@ class _TimerPill extends StatelessWidget {
     decoration: BoxDecoration(
       color: urgent ? Palette.accent : Palette.hudBezelLow,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Palette.hudOutline, width: 2),
+      border: Border.all(
+        color: Palette.hudOutline.withValues(alpha: 0.28),
+        width: 1,
+      ),
       boxShadow: const [
         BoxShadow(
           color: Color(0x38000000),
@@ -220,7 +223,10 @@ class _PauseButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.hudBezelLow,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Palette.hudOutline, width: 2),
+          border: Border.all(
+        color: Palette.hudOutline.withValues(alpha: 0.28),
+        width: 1,
+      ),
           boxShadow: const [
             BoxShadow(
               color: Color(0x38000000),

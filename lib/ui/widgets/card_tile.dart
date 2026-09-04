@@ -80,14 +80,21 @@ class CardTile extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
-            // A heavy dark line, the way a menu tile gets one. On a busy
-            // sky a card with a soft edge stops being an object and starts
-            // being a smudge; the outline is what holds it together.
+            // Softened with the menus, on the owner's call.
+            //
+            // This was a heavy dark line, matching the one every menu tile
+            // used to wear, and the argument for it was about the *arena*
+            // rather than the collection: on a busy sky a card with a faint
+            // edge stops being an object and starts being a smudge. That risk
+            // is real and this is the line to thicken if the hand ever gets
+            // hard to pick out mid-match. What holds a card together now is
+            // the shadow below and the fact that it is the lightest thing on
+            // the screen, both of which survive a sky behind them.
             border: Border.all(
               color: affordable
-                  ? Palette.hudOutline
-                  : Palette.hudOutline.withValues(alpha: 0.35),
-              width: affordable ? 2 : 1.5,
+                  ? Palette.hudOutline.withValues(alpha: 0.22)
+                  : Palette.hudOutline.withValues(alpha: 0.12),
+              width: 1,
             ),
             // Lighter at the top, so the light source overhead is the same
             // one the arena bezel and every menu surface assume. The tint is
@@ -106,12 +113,22 @@ class CardTile extends StatelessWidget {
             // card you can pay for is lifted; one you cannot is flat on the
             // floor, which is a second, wordless reading of the same fact
             // the dimming already gives.
+            //
+            // Carrying more of the load now that the edge is a hairline: a
+            // tight contact shadow plus a wider ambient one, which is what
+            // gives a borderless card its shape against both a pale page and
+            // a sky.
             boxShadow: affordable && !dragging
                 ? [
                     BoxShadow(
-                      color: Palette.hudOutline.withValues(alpha: 0.55),
-                      blurRadius: 5 * scale,
-                      offset: Offset(0, 3 * scale),
+                      color: Palette.hudOutline.withValues(alpha: 0.18),
+                      blurRadius: 2 * scale,
+                      offset: Offset(0, 1 * scale),
+                    ),
+                    BoxShadow(
+                      color: Palette.hudOutline.withValues(alpha: 0.28),
+                      blurRadius: 8 * scale,
+                      offset: Offset(0, 4 * scale),
                     ),
                   ]
                 : null,

@@ -38,12 +38,14 @@ class MetaHeader extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
       decoration: BoxDecoration(
-        color: Palette.uiSurface,
+        color: Palette.uiSurfaceHigh,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.outline, width: 3),
-        boxShadow: const [
-          BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 5)),
-        ],
+        // Soft, like every other surface in the app now. This block used to
+        // wear the heaviest edge of the lot — a 3dp near-black line — because
+        // it is the first thing on every page; the shadow carries that on its
+        // own.
+        border: Border.all(color: Panel.softEdge, width: 1),
+        boxShadow: Panel.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

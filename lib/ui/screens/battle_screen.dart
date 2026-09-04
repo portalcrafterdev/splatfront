@@ -431,7 +431,11 @@ class _BattleScreenState extends State<BattleScreen> {
         colors: [Palette.hudTrayHigh, Palette.hudTrayLow],
       ),
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      border: Border(top: BorderSide(color: Palette.hudOutline, width: 2)),
+      // A hairline, not a rule. `withValues` is a method call and this
+      // decoration is const, so the alpha is baked into the literal.
+      border: Border(
+        top: BorderSide(color: Color(0x331B2A26), width: 1),
+      ),
       boxShadow: [
         BoxShadow(
           color: Color(0x40000000),

@@ -315,18 +315,19 @@ class _LevelTile extends StatelessWidget {
               ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: unlocked
-              ? Palette.outline
-              : Palette.outline.withValues(alpha: 0.3),
-          width: Panel.stroke,
+          color: current
+              ? Palette.accentShade
+              : unlocked
+              ? Panel.softEdge
+              : Palette.uiTextDim.withValues(alpha: 0.14),
+          width: 1,
         ),
         // Only rows you can actually press stand off the page. The shadow is
-        // the affordance, so a locked row not having one is information.
-        boxShadow: unlocked
-            ? const [
-                BoxShadow(color: Palette.outlineShadow, offset: Offset(0, 4)),
-              ]
-            : null,
+        // the affordance, so a locked row not having one is information — and
+        // with the outline gone it is now the *only* thing separating the two
+        // states apart from the fill, which is why the locked fill had to be a
+        // real shade off the page rather than a faded white.
+        boxShadow: unlocked ? Panel.softShadow : null,
       ),
       child: Row(
         children: [
@@ -444,9 +445,9 @@ class _NumberChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: locked
-            ? Palette.outline.withValues(alpha: 0.35)
-            : Palette.outline,
-        width: 2,
+            ? Palette.uiTextDim.withValues(alpha: 0.2)
+            : Panel.softEdge,
+        width: 1,
       ),
     ),
     child: Text(

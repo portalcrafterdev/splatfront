@@ -195,15 +195,28 @@ class Palette {
   static const Color uiText = Color(0xFF15201C);
   static const Color uiTextDim = Color(0xFF5F6E68);
 
-  /// The heavy dark line around a menu tile.
+  /// The heavy dark line that used to go around every menu tile.
   ///
-  /// This is what makes the style, and it only works on a light ground: a
-  /// thick near-black outline on every shape. (The dark build had to drop it
-  /// for a lit top edge, because a dark line on a dark page is nothing.)
+  /// **Retired on the owner's call.** It was the house style — a thick
+  /// near-black outline on every shape, with [outlineShadow] hard-offset under
+  /// it — and the menus now use `Panel.softEdge` and `Panel.softShadow`
+  /// instead: a hairline for the edge, a blurred drop for the lift. Nothing
+  /// reaches for these two any more except `Panel(outlined: true)`, which
+  /// nothing passes.
+  ///
+  /// Both are kept, and so is that flag, because the argument for the outline
+  /// was real and is worth knowing before anyone puts a light tile on a light
+  /// page again: without *some* edge a panel dissolves into the ground and
+  /// every boundary has to be found rather than seen. The soft pair is a
+  /// quieter answer to that problem, not an abandonment of it. (The brief dark
+  /// build had to drop the line too, for the opposite reason — a dark line on
+  /// a dark page is nothing at all.)
   static const Color outline = Color(0xFF15201C);
 
-  /// The flat drop shadow under an outlined tile. Solid and offset rather
-  /// than blurred — a soft shadow under a hard outline looks like a mistake.
+  /// The flat drop shadow that went under an outlined tile. Solid and offset
+  /// rather than blurred, because a soft shadow under a hard outline looks
+  /// like a mistake — and, the other way round, this one under a *borderless*
+  /// tile reads as a black bar. The two only ever worked as a pair.
   static const Color outlineShadow = Color(0xFF0B1512);
 
   // --- In-match chrome ----------------------------------------------------

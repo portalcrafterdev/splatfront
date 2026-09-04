@@ -172,6 +172,7 @@ class Panel extends StatelessWidget {
     this.accent,
     this.radius = 16,
     this.raised = true,
+    this.outlined = false,
   });
 
   final Widget child;
@@ -182,6 +183,26 @@ class Panel extends StatelessWidget {
   final Color? accent;
   final double radius;
   final bool raised;
+
+  /// The heavy dark line, and the hard shadow that goes with it.
+  ///
+  /// **Off by default, on the owner's call.** Every menu tile in the app used
+  /// to be ringed in a near-black 2.5dp line with a hard offset shadow under
+  /// it, and that was the house style — the thing that made a tile read as a
+  /// chunky physical object rather than as a pale rectangle on a pale page.
+  /// It went from Home first and then from everywhere.
+  ///
+  /// The two halves have to move together. Dropping the line while keeping the
+  /// hard offset leaves a black bar under a borderless tile, which reads as a
+  /// rendering fault rather than as a style; so soft means both a light
+  /// hairline for the edge *and* a blurred shadow for the lift. Without some
+  /// edge the tile dissolves into the page, which is the failure the outline
+  /// existed to prevent and is still worth avoiding.
+  ///
+  /// True restores the old look for one tile, and nothing in the app passes it
+  /// now. It is kept because the argument for the outline was a real one and
+  /// this is the seam to walk it back through.
+  final bool outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -204,15 +225,19 @@ class Panel extends StatelessWidget {
                 ],
         ),
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: Palette.outline, width: Panel.stroke),
-        boxShadow: raised
+        border: outlined
+            ? Border.all(color: Palette.outline, width: Panel.stroke)
+            : Border.all(color: Panel.softEdge, width: 1),
+        boxShadow: !raised
+            ? null
+            : outlined
             ? const [
                 BoxShadow(
                   color: Palette.outlineShadow,
                   offset: Offset(0, Panel.lift),
                 ),
               ]
-            : null,
+            : Panel.softShadow,
       ),
       child: Padding(padding: padding, child: child),
     );
@@ -224,6 +249,30 @@ class Panel extends StatelessWidget {
 
   /// How far the flat shadow sits below its tile.
   static const double lift = 4;
+
+  /// The hairline that replaces the outline on a soft tile.
+  ///
+  /// Not nothing: a white tile on a pale sky with no edge at all dissolves
+  /// into the page, and the shadow alone only defines the bottom of it.
+  static const Color softEdge = Color(0x1A15201C);
+
+  /// The lift a soft tile gets instead of the hard offset.
+  ///
+  /// Two shadows rather than one: a tight dark one for the contact edge and a
+  /// wide faint one for the ambient drop. A single blurred shadow big enough
+  /// to be visible on a light page is also big enough to look like fog.
+  static const List<BoxShadow> softShadow = [
+    BoxShadow(
+      color: Color(0x14151F1C),
+      blurRadius: 3,
+      offset: Offset(0, 1),
+    ),
+    BoxShadow(
+      color: Color(0x1F151F1C),
+      blurRadius: 14,
+      offset: Offset(0, 6),
+    ),
+  ];
 }
 
 /// The page background: cream, with paint spattered across it.

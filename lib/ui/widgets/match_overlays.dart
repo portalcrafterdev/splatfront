@@ -232,7 +232,10 @@ class ResultOverlay extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Palette.hudSurface,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Palette.hudOutline, width: 2.5),
+                  border: Border.all(
+                  color: Palette.hudOutline.withValues(alpha: 0.14),
+                  width: 1,
+                ),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x59000000),
@@ -526,8 +529,10 @@ class _ResultButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: secondary ? Palette.hudOutline : Colors.transparent,
-            width: 2,
+            color: secondary
+                ? Palette.hudOutline.withValues(alpha: 0.3)
+                : Colors.transparent,
+            width: 1.5,
           ),
         ),
       ),
@@ -576,7 +581,10 @@ class PauseOverlay extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.hudSurface,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Palette.hudOutline, width: 2.5),
+                border: Border.all(
+                  color: Palette.hudOutline.withValues(alpha: 0.14),
+                  width: 1,
+                ),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x59000000),
