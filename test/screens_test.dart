@@ -1,3 +1,4 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:splatfront/app.dart';
 import 'package:splatfront/core/game_data.dart';
 import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/game/arena/arena_layout.dart';
+import 'package:splatfront/game/splatfront_game.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/ui/screens/battle_screen.dart';
 import 'package:splatfront/ui/widgets/responsive.dart';
@@ -206,6 +208,54 @@ void main() {
     // level number is the difficulty, and the plate names the side you are
     // fighting rather than a rank or, worse, a person.
     expect(find.text('Red Team'), findsOneWidget);
+
+    await unmount(tester);
+  });
+
+  // Banking a match writes trophies, a chest and quest progress through a
+  // Riverpod notifier. Doing that from inside a widget build throws "Tried to
+  // modify a provider while the widget tree was building" and puts a
+  // full-screen red error over the arena — which is exactly what shipped,
+  // because the result overlay's builder called it. Nothing caught it: every
+  // other test either stops before the whistle or drives the arena without a
+  // profile behind it, so the write had nothing to break.
+  testWidgets('a match can be played to the whistle and banked', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+
+    final game = tester
+        .widget<GameWidget<SplatfrontGame>>(
+          find.byType(GameWidget<SplatfrontGame>),
+        )
+        .game!;
+    final match = game.match!;
+
+    // Run the clock out. Normal time plus sudden death plus slack, and the
+    // paint is resampled along the way so the score is real rather than a
+    // frozen 50/50.
+    const step = 1 / 60;
+    for (var t = 0.0; t < 140 && match.result.value == null; t += step) {
+      game.updateTree(step);
+      if ((t * 60).round() % 30 == 0) {
+        await tester.runAsync(() => game.arena.resampleNow());
+      }
+    }
+
+    expect(
+      match.result.value,
+      isNotNull,
+      reason: 'the match never finished, so nothing was banked',
+    );
+    await tester.pump();
+
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'banking the result threw — most likely a provider write '
+          'during build',
+    );
 
     await unmount(tester);
   });

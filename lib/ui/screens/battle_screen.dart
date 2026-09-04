@@ -134,6 +134,13 @@ class _BattleScreenState extends State<BattleScreen> {
       Audio.playMusic(Track.match);
       _game.match?.timeRemaining.addListener(_watchClock);
       _game.match?.phase.addListener(_watchPhase);
+      // Registered here, and deliberately before the first build, for two
+      // reasons. Banking writes to a Riverpod provider, and doing that from
+      // inside a build throws — which is what used to happen, because the
+      // result overlay's builder called it. And registering first means this
+      // listener runs before the overlay's own, so [_chestKept] is already
+      // true or false by the time the end screen is built from it.
+      _game.match?.result.addListener(_bankFromResult);
       _game.arena.coverage.addListener(_watchLead);
     }
   }
@@ -147,6 +154,7 @@ class _BattleScreenState extends State<BattleScreen> {
     Audio.gameplayMuted = true;
     _game.match?.timeRemaining.removeListener(_watchClock);
     _game.match?.phase.removeListener(_watchPhase);
+    _game.match?.result.removeListener(_bankFromResult);
     // The arena disposes its own notifier on teardown, so this has to come
     // off before the game does.
     _game.arena.coverage.removeListener(_watchLead);
@@ -285,6 +293,19 @@ class _BattleScreenState extends State<BattleScreen> {
   /// banked, read by the end screen in the same build.
   bool _chestKept = false;
 
+  /// Banks the match the moment [MatchController.result] lands.
+  ///
+  /// Driven by a listener rather than by the overlay's builder. The builder
+  /// ran during a widget build, and `onFinished` writes to the player profile
+  /// through a Riverpod notifier — which throws "Tried to modify a provider
+  /// while the widget tree was building" and puts a red error over the arena.
+  /// The result notifier is set from the game loop, so a listener on it fires
+  /// outside build and is free to write.
+  void _bankFromResult() {
+    final result = _game.match?.result.value;
+    if (result != null) _bankResult(result);
+  }
+
   /// Trophies, the chest a win earns, and quest progress — all in one call,
   /// the moment the match ends.
   void _bankResult(MatchResult result) {
@@ -310,7 +331,9 @@ class _BattleScreenState extends State<BattleScreen> {
       valueListenable: match.result,
       builder: (context, result, _) {
         if (result == null) return const SizedBox.shrink();
-        _bankResult(result);
+        // Deliberately no banking here. This is a build, and writing to the
+        // profile from one throws — see [_bankFromResult], which does it from
+        // a listener that has already run by the time this rebuilds.
         return ResultOverlay(
           result: result,
           chestKept: _chestKept,
