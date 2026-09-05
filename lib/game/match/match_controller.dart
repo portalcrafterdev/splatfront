@@ -124,7 +124,15 @@ class MatchController extends Component with HasGameReference<SplatfrontGame> {
     return (coverage.red - coverage.blue).abs() <= Timings.suddenDeathThreshold;
   }
 
+  /// Whether overtime happened, which outlives the phase it happened in.
+  ///
+  /// `phase` moves on to `finished` and the end reason records how the match
+  /// *ended*, so neither can answer "did this go to sudden death?" once it is
+  /// over. A win on the instant-win rule during overtime reports `instantWin`.
+  bool wentToSuddenDeath = false;
+
   void _enterSuddenDeath() {
+    wentToSuddenDeath = true;
     phase.value = MatchPhase.suddenDeath;
     timeRemaining.value = Timings.suddenDeathTime;
     // Double elixir, and nothing else changes.

@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/core/game_data.dart';
+import 'package:splatfront/core/games/game_services.dart';
 import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/game/cards/card_registry.dart';
+import 'package:splatfront/meta/achievements.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/meta/quests.dart';
 
@@ -14,6 +16,22 @@ class _TestProfile extends ProfileController {
     : super(random: math.Random(1));
 
   Map<String, dynamic>? lastSaved;
+
+  /// What was last handed to the platform, and how often.
+  ///
+  /// Intercepted rather than let through: the real call reaches Play Games,
+  /// and a test suite must never touch a network. It also makes the seam
+  /// observable, which is the point — reporting hangs off `_save` precisely
+  /// so no individual action can forget it, and that only holds if something
+  /// checks.
+  int reports = 0;
+  AchievementProgress? lastReported;
+
+  @override
+  void reportAchievements() {
+    reports++;
+    lastReported = achievementProgress;
+  }
 
   @override
   void saveToDisk(PlayerProfile profile) => lastSaved = profile.toJson();
@@ -257,6 +275,23 @@ void main() {
 
       // And nothing off the end of the list.
       expect(controller.speedUpChest(9, const Duration(hours: 4)), isFalse);
+    });
+
+    test('opening a chest is counted', () {
+      // The counter exists because nothing else in the save records it: a
+      // chest that has been opened has been *removed*, so an emptying slot
+      // list is indistinguishable from one that was never filled.
+      final controller = fresh(
+        PlayerProfile(chests: [const ChestSlot(typeId: 'wood')]),
+      );
+      expect(controller.achievementProgress.chestsOpened, 0);
+
+      final started = DateTime(2026, 9, 5, 12);
+      controller.startUnlocking(0, now: started);
+      controller.openChest(0, now: started.add(const Duration(hours: 1)));
+
+      expect(controller.achievementProgress.chestsOpened, 1);
+      expect(controller.state.chests, isEmpty);
     });
 
     test('two slots to start, four from Arena 2', () {
@@ -661,6 +696,149 @@ void main() {
       expect(controller.state.coins, 0);
       expect(controller.state.levelOf('brusher'), 1);
       expect(controller.lastSaved, isNotNull, reason: 'the wipe is saved too');
+    });
+  });
+
+  group('achievement progress', () {
+    MatchTally tally({
+      bool won = true,
+      int share = 60,
+      bool suddenDeath = false,
+      int pastMidline = 0,
+    }) => MatchTally(
+      won: won,
+      cardsPlayed: 8,
+      spellsPlayed: 1,
+      paintSharePercent: share,
+      suddenDeath: suddenDeath,
+      deploysPastMidline: pastMidline,
+    );
+
+    test('every change to the profile reports, without being asked to', () {
+      // The seam that makes this feature hard to get wrong. Achievements are
+      // reported from the one place every mutation already goes through, so
+      // a new action added later cannot forget to report — rather than each
+      // of a dozen call sites remembering.
+      final controller = fresh();
+      expect(controller.reports, 0);
+
+      controller.updateSettings(const Settings(musicVolume: 0.1));
+      expect(controller.reports, 1, reason: 'even a settings change');
+
+      controller.applyCampaignLevel(level: 1, stars: 3, tally: tally());
+      expect(controller.reports, 2);
+      expect(controller.lastReported!.levelsCleared, 1);
+    });
+
+    test('connecting mid-session reports everything already earned', () {
+      // The gap this closes: reporting otherwise only happens when the
+      // profile changes, so a player who signs in and immediately opens the
+      // achievements list is shown an empty one. Absolute values rather than
+      // deltas is what makes a single catch-up report enough.
+      final controller = fresh(
+        const PlayerProfile(campaignStars: {1: 3, 2: 3, 3: 1}),
+      );
+      final before = controller.reports;
+
+      GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+      addTearDown(GameServices.reset);
+
+      expect(controller.reports, before + 1);
+      expect(controller.lastReported!.levelsCleared, 3);
+
+      // Signing out is not a reason to report; there is nowhere to report to.
+      GameServices.debugSignedIn(signedIn: false);
+      expect(controller.reports, before + 1);
+    });
+
+    test('most of it is read off the save, not counted separately', () {
+      // The reason there are only four stored counters. Anything the profile
+      // already answers is derived, so a hand-edited save cannot end up
+      // holding two different truths about how many levels are cleared.
+      final controller = fresh(
+        const PlayerProfile(
+          campaignStars: {1: 3, 2: 2, 3: 3},
+          cardLevels: {'brusher': 4, 'roller': 7},
+        ),
+      );
+      final progress = controller.achievementProgress;
+
+      expect(progress.levelsCleared, 3);
+      expect(progress.threeStarLevels, 2);
+      expect(progress.highestCardLevel, 7);
+      expect(progress.cardsOwned, controller.unlockedCards.length);
+    });
+
+    test('a win in overtime counts; losing one does not', () {
+      final controller = fresh();
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 1,
+        tally: tally(won: false, suddenDeath: true),
+      );
+      expect(controller.achievementProgress.suddenDeathWins, 0);
+
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 2,
+        tally: tally(suddenDeath: true),
+      );
+      expect(controller.achievementProgress.suddenDeathWins, 1);
+    });
+
+    test('best coverage only ever rises, and only on a win', () {
+      final controller = fresh();
+      controller.applyCampaignLevel(level: 1, stars: 3, tally: tally(share: 96));
+      expect(controller.achievementProgress.bestCoveragePercent, 96);
+
+      // A later, worse match must not take the achievement away — which is
+      // the whole reason this is a high-water mark rather than "the last
+      // match".
+      controller.applyCampaignLevel(level: 2, stars: 1, tally: tally(share: 51));
+      expect(controller.achievementProgress.bestCoveragePercent, 96);
+
+      // And a blowout you lost is not a whitewash.
+      final loser = fresh();
+      loser.applyCampaignLevel(
+        level: 1,
+        stars: 0,
+        tally: tally(won: false, share: 99),
+      );
+      expect(loser.achievementProgress.bestCoveragePercent, 0);
+    });
+
+    test('deploys in the opponent half accumulate across matches', () {
+      // Counted whether the match was won or lost: it happened either way,
+      // and the achievement is for getting up there at all.
+      final controller = fresh();
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 1,
+        tally: tally(won: false, pastMidline: 2),
+      );
+      controller.applyCampaignLevel(level: 1, stars: 3, tally: tally(pastMidline: 3));
+      expect(controller.achievementProgress.deployedPastMidline, 5);
+    });
+
+    test('the counters survive a save and reload', () {
+      // They are new in the save format, so this is the check that they are
+      // actually written rather than only held in memory — and that a profile
+      // saved by an older build, with no `stats` at all, reads back as zeros
+      // rather than throwing.
+      final controller = fresh();
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 3,
+        tally: tally(share: 97, suddenDeath: true, pastMidline: 4),
+      );
+      final reloaded = PlayerProfile.fromJson(controller.lastSaved!);
+      expect(reloaded.stat('bestCoveragePercent'), 97);
+      expect(reloaded.stat('suddenDeathWins'), 1);
+      expect(reloaded.stat('deployedPastMidline'), 4);
+
+      final old = PlayerProfile.fromJson(const {'trophies': 10});
+      expect(old.stats, isEmpty);
+      expect(old.stat('chestsOpened'), 0);
     });
   });
 }

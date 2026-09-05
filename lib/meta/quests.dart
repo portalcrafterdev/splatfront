@@ -60,6 +60,8 @@ class MatchTally {
     required this.cardsPlayed,
     required this.spellsPlayed,
     required this.paintSharePercent,
+    this.suddenDeath = false,
+    this.deploysPastMidline = 0,
   });
 
   final bool won;
@@ -68,6 +70,22 @@ class MatchTally {
 
   /// The player's final coverage, 0..100.
   final int paintSharePercent;
+
+  /// Whether the match went to overtime at all.
+  ///
+  /// Not `reason == suddenDeath`, which is only how it *ended*: a match that
+  /// went to sudden death and was then won on the 95% instant win reports
+  /// `instantWin`, and refusing that the achievement would be wrong about
+  /// the one match most worth having it for.
+  ///
+  /// Optional with a default because these last two are for achievements, and
+  /// the quests that every other field feeds have no use for them — a caller
+  /// building a tally for quest progress alone should not have to answer
+  /// questions it does not care about.
+  final bool suddenDeath;
+
+  /// How many cards the player dropped in the opponent's half.
+  final int deploysPastMidline;
 
   /// How much this match adds to a quest of [type].
   int contributionTo(QuestType type) => switch (type) {

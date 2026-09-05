@@ -8,6 +8,7 @@ import '../game/bot/bot_difficulty.dart';
 import '../game/cards/card_registry.dart';
 import '../game/match/match_result.dart';
 import '../game/units/units_registry.dart';
+import '../meta/achievements.dart';
 import '../meta/campaign.dart';
 import '../meta/chests.dart';
 import '../meta/quests.dart';
@@ -61,6 +62,7 @@ class GameData {
     required this.quests,
     required this.shop,
     required this.campaign,
+    required this.achievements,
   });
 
   final List<ArenaLayout> arenas;
@@ -86,6 +88,14 @@ class GameData {
 
   /// The 1000-level campaign: a curve and a few rules, not a level list.
   final CampaignConfig campaign;
+
+  /// What Play Games and Game Center have to hand out.
+  ///
+  /// Loaded with everything else rather than on demand so the set is a plain
+  /// field the profile can be measured against — reporting has to be cheap
+  /// enough to do after any change, and an await in that path would make it
+  /// something a caller could forget.
+  final AchievementSet achievements;
 
   UnitsRegistry get units => cards.units;
 
@@ -120,6 +130,7 @@ class GameData {
     final quests = await QuestConfig.load();
     final shop = await ShopConfig.load();
     final campaign = await CampaignConfig.load();
+    final achievements = await AchievementSet.load();
 
     // Fail at startup, not mid-match, if any deck names something that
     // cannot be played.
@@ -139,6 +150,7 @@ class GameData {
       quests: quests,
       shop: shop,
       campaign: campaign,
+      achievements: achievements,
     );
   }
 }

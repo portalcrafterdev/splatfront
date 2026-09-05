@@ -142,6 +142,30 @@ class AchievementSet {
   );
 }
 
+/// The [PlayerProfile.stats] keys, which are also trigger names.
+///
+/// Deliberately the same strings in both places. A stat exists only because
+/// an achievement asks for a number the save does not otherwise keep, so
+/// giving the counter and the trigger different names would be two names for
+/// one thing — and the failure mode is silent: the achievement simply never
+/// fires and looks unearned. `achievements_test.dart` pins that every trigger
+/// naming a stat matches a key here.
+abstract final class Stats {
+  const Stats._();
+
+  static const String chestsOpened = 'chestsOpened';
+  static const String suddenDeathWins = 'suddenDeathWins';
+  static const String deployedPastMidline = 'deployedPastMidline';
+  static const String bestCoveragePercent = 'bestCoveragePercent';
+
+  static const List<String> all = [
+    chestsOpened,
+    suddenDeathWins,
+    deployedPastMidline,
+    bestCoveragePercent,
+  ];
+}
+
 /// Every number an achievement can be measured against, in one place.
 ///
 /// Assembled from the profile and from the last match rather than tracked

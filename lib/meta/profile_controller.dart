@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/game_data.dart';
+import '../core/games/game_services.dart';
 import '../core/save/hive_boxes.dart';
 import '../core/save/player_profile.dart';
 import '../game/cards/card_model.dart';
 import '../game/cards/card_registry.dart';
+import 'achievements.dart';
 import 'campaign.dart';
 import 'chests.dart';
 import 'quests.dart';
@@ -23,7 +26,9 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     required PlayerProfile initial,
     math.Random? random,
   }) : _random = random ?? math.Random(),
-       super(initial);
+       super(initial) {
+    GameServices.revision.addListener(_onGameServicesChanged);
+  }
 
   final GameData data;
   final math.Random _random;
@@ -36,6 +41,63 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   void _save(PlayerProfile next) {
     state = next;
     saveToDisk(next);
+    reportAchievements();
+  }
+
+  // --- Achievements -------------------------------------------------------
+
+  /// Where the player stands against the whole set.
+  ///
+  /// Assembled from the profile every time rather than tracked alongside it.
+  /// Most of it is already in the save — levels cleared, stars, card levels,
+  /// cards unlocked — and a parallel copy of a number the game already knows
+  /// is a number that can disagree with it.
+  AchievementProgress get achievementProgress => AchievementProgress(
+    levelsCleared: state.campaignStars.length,
+    threeStarLevels: state.campaignStars.values.where((s) => s >= 3).length,
+    bestCoveragePercent: state.stat(Stats.bestCoveragePercent),
+    suddenDeathWins: state.stat(Stats.suddenDeathWins),
+    deployedPastMidline: state.stat(Stats.deployedPastMidline),
+    chestsOpened: state.stat(Stats.chestsOpened),
+    highestCardLevel: state.cardLevels.values.fold(
+      0,
+      (best, level) => level > best ? level : best,
+    ),
+    cardsOwned: unlockedCards.length,
+  );
+
+  /// Tells the platform where the player is now.
+  ///
+  /// Called from [_save], so **every** change to the profile reports —
+  /// clearing a level, opening a chest, upgrading a card. That is deliberate:
+  /// hanging it off each individual action is how one gets forgotten, and the
+  /// call is free when nothing moved. `GameServices.report` is signed-out
+  /// safe, skips achievements with no platform id, and remembers what it last
+  /// sent, so the common case does nothing at all.
+  ///
+  /// Never awaited. An achievement is a record of play, not part of it, and
+  /// a slow platform call must not hold up a chest opening.
+  @protected
+  void reportAchievements() {
+    unawaited(GameServices.report(data.achievements, achievementProgress));
+  }
+
+  /// Reports everything again when a player connects mid-session.
+  ///
+  /// Without this, signing in banks nothing until the next time the profile
+  /// changes — so somebody who connects and then immediately opens the
+  /// achievements list is shown an empty one, which is precisely the moment
+  /// they went looking. Because [reportAchievements] sends absolute values
+  /// read off the save rather than deltas, a player who cleared two hundred
+  /// levels offline has all of it land on the first report.
+  void _onGameServicesChanged() {
+    if (GameServices.isSignedIn) reportAchievements();
+  }
+
+  @override
+  void dispose() {
+    GameServices.revision.removeListener(_onGameServicesChanged);
+    super.dispose();
   }
 
   /// Where a change is persisted. Overridable so tests can run the whole
@@ -121,6 +183,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
       trophies: math.max(0, state.trophies + trophyChange),
     );
     next = _withQuestProgress(next, tally);
+    next = _withMatchStats(next, tally);
 
     final before = next.chests.length;
     if (won) next = _withEarnedChest(next);
@@ -153,7 +216,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     final before = state.starsOnLevel(level);
     final firstClear = before == 0 && stars > 0;
 
-    var next = _withQuestProgress(state, tally);
+    var next = _withMatchStats(_withQuestProgress(state, tally), tally);
 
     // Only an improvement is recorded, so replaying a level you already
     // three-starred can never take those stars away.
@@ -293,11 +356,13 @@ class ProfileController extends StateNotifier<PlayerProfile> {
 
     final remaining = List<ChestSlot>.of(state.chests)..removeAt(index);
     _save(
-      state.copyWith(
-        coins: state.coins + reward.coins,
-        cardCopies: copies,
-        chests: remaining,
-      ),
+      state
+          .copyWith(
+            coins: state.coins + reward.coins,
+            cardCopies: copies,
+            chests: remaining,
+          )
+          .withStatAdded(Stats.chestsOpened, 1),
     );
     return reward;
   }
@@ -371,6 +436,26 @@ class ProfileController extends StateNotifier<PlayerProfile> {
 
   bool isComplete(Quest quest) =>
       progressFor(quest.id).progress >= quest.target;
+
+  /// Folds a finished match into the achievement counters.
+  ///
+  /// Only the things the save cannot work out for itself. Two of the three
+  /// are gated on the win: a whitewash is a *win* holding 95%, not a scoreline
+  /// in a match that was lost, and overtime you lost is not overtime you won.
+  /// A deploy in the opponent's half counts either way — it happened.
+  PlayerProfile _withMatchStats(PlayerProfile profile, MatchTally tally) {
+    var next = profile.withStatAdded(
+      Stats.deployedPastMidline,
+      tally.deploysPastMidline,
+    );
+    if (!tally.won) return next;
+    next = next.withStatAtLeast(
+      Stats.bestCoveragePercent,
+      tally.paintSharePercent,
+    );
+    if (tally.suddenDeath) next = next.withStatAdded(Stats.suddenDeathWins, 1);
+    return next;
+  }
 
   PlayerProfile _withQuestProgress(PlayerProfile profile, MatchTally tally) {
     if (profile.quests.isEmpty) return profile;

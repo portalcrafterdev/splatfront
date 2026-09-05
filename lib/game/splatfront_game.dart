@@ -137,6 +137,14 @@ class SplatfrontGame extends FlameGame {
   int cardsPlayed = 0;
   int spellsPlayed = 0;
 
+  /// Cards the player landed in the opponent's half.
+  ///
+  /// Counted at the drop rather than worked out afterwards: the deploy rule
+  /// means a card can only land on ground your side already holds, so a drop
+  /// past the middle is a moment — it is only legal because you painted your
+  /// way up there, and the frontier can be pushed back a second later.
+  int deploysPastMidline = 0;
+
   final math.Random _random = math.Random();
 
   @override
@@ -396,6 +404,11 @@ class SplatfrontGame extends FlameGame {
     if (side == player) {
       cardsPlayed++;
       if (card.isSpell) spellsPlayed++;
+      // The player always starts at the bottom, whichever colour they are —
+      // `PaintLayer.reset` puts their half there — so the opponent's half is
+      // the top one regardless of team. Reading it off `playerTeam` instead
+      // would invert the whole thing in a red-side sandbox.
+      if (position.y < ArenaSpec.worldHeight / 2) deploysPastMidline++;
     }
 
     hand.play(slot);

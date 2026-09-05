@@ -283,16 +283,27 @@ class _PlayGamesTileState extends State<_PlayGamesTile> {
         ),
         subtitle: Text(
           signedIn
-              ? 'Connected to $_serviceName.'
+              ? 'Connected. Achievements are recorded as you play.'
               // Says what it is for rather than just what it is. A sign-in
               // with no stated purpose on a single-player game reads as the
               // app asking for something.
-              : 'Optional. Connect an account to carry achievements and '
-                    'leaderboards when they arrive.',
+              : 'Optional. Connect an account to record achievements as '
+                    'you play.',
           style: const TextStyle(color: Palette.uiTextDim, fontSize: 11),
         ),
+        // Signed in, this is the only way into the achievements list — the
+        // platform draws that screen, so there is nothing to build and
+        // nothing to keep in step. A tick where a button could be would
+        // leave fourteen achievements with no door.
         trailing: signedIn
-            ? const Icon(Icons.check, color: Palette.success, size: 18)
+            ? TextButton(
+                onPressed: GameServices.showAchievements,
+                style: TextButton.styleFrom(
+                  foregroundColor: Palette.accent,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Achievements'),
+              )
             : FilledButton(
                 onPressed: busy ? null : _signIn,
                 style: FilledButton.styleFrom(

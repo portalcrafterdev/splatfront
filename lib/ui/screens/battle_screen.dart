@@ -352,6 +352,8 @@ class _BattleScreenState extends State<BattleScreen>
         cardsPlayed: _game.cardsPlayed,
         spellsPlayed: _game.spellsPlayed,
         paintSharePercent: (result.playerShare * 100).round(),
+        suddenDeath: _game.match?.wentToSuddenDeath ?? false,
+        deploysPastMidline: _game.deploysPastMidline,
       ),
     );
   }

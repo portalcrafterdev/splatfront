@@ -118,6 +118,7 @@ class PlayerProfile {
     this.quests = const [],
     this.questDay,
     this.campaignStars = const {},
+    this.stats = const {},
     this.settings = const Settings(),
   });
 
@@ -145,6 +146,23 @@ class PlayerProfile {
   /// campaign is — a player 300 levels in carries 300 entries, not 1000.
   final Map<int, int> campaignStars;
 
+  /// Counters that nothing else in the save already implies.
+  ///
+  /// A map rather than four named fields, and that is the whole point: the
+  /// achievement set is data, and a new milestone should be a line of JSON.
+  /// A named field per counter would mean a save-format change every time
+  /// somebody adds one, and a save-format change is the most expensive kind
+  /// of edit in this file.
+  ///
+  /// Only things that cannot be derived live here. Levels cleared, stars,
+  /// card levels and cards owned are all already in the profile, and
+  /// duplicating them as counters would give two answers to one question the
+  /// first time a save was hand-edited.
+  ///
+  /// Keys in use: `chestsOpened`, `suddenDeathWins`, `deploysPastMidline`,
+  /// `bestCoveragePercent`. An unknown key reads as 0.
+  final Map<String, int> stats;
+
   final Settings settings;
 
   /// The highest level cleared, or 0 before the first one.
@@ -159,6 +177,21 @@ class PlayerProfile {
       campaignStars.values.fold(0, (sum, stars) => sum + stars);
 
   int starsOnLevel(int level) => campaignStars[level] ?? 0;
+
+  /// One of the [stats] counters, or 0 if it has never been set.
+  int stat(String key) => stats[key] ?? 0;
+
+  /// [this] with [key] raised to [value], if that is higher than it is now.
+  ///
+  /// Only ever upward: these back achievements, and an achievement that can
+  /// be taken away by a worse match afterwards is not one.
+  PlayerProfile withStatAtLeast(String key, int value) => value <= stat(key)
+      ? this
+      : copyWith(stats: {...stats, key: value});
+
+  /// [this] with [key] increased by [by].
+  PlayerProfile withStatAdded(String key, int by) =>
+      by <= 0 ? this : copyWith(stats: {...stats, key: stat(key) + by});
 
   /// Whether [level] may be played. The next uncleared level is always
   /// playable; everything past it is not.
@@ -182,6 +215,7 @@ class PlayerProfile {
     List<QuestProgress>? quests,
     String? questDay,
     Map<int, int>? campaignStars,
+    Map<String, int>? stats,
     Settings? settings,
   }) => PlayerProfile(
     trophies: trophies ?? this.trophies,
@@ -193,6 +227,7 @@ class PlayerProfile {
     quests: quests ?? this.quests,
     questDay: questDay ?? this.questDay,
     campaignStars: campaignStars ?? this.campaignStars,
+    stats: stats ?? this.stats,
     settings: settings ?? this.settings,
   );
 
@@ -211,6 +246,7 @@ class PlayerProfile {
     'campaignStars': {
       for (final entry in campaignStars.entries) '${entry.key}': entry.value,
     },
+    'stats': stats,
     'settings': settings.toJson(),
   };
 
@@ -230,6 +266,7 @@ class PlayerProfile {
     ],
     questDay: json['questDay'] as String?,
     campaignStars: _levelMap(json['campaignStars']),
+    stats: _intMap(json['stats']),
     settings: Settings.fromJson(
       Map<String, dynamic>.from(json['settings'] as Map? ?? const {}),
     ),

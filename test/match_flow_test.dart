@@ -209,6 +209,40 @@ void main() {
       expect(game.match!.result.value!.reason, EndReason.suddenDeath);
     });
 
+    gameTest('that overtime happened outlives the phase it happened in', (
+      game,
+      tester,
+    ) async {
+      // The Overtime achievement asks whether the match went to sudden death,
+      // and by the time it is asked the phase is `finished`. The end reason
+      // cannot answer it either: a match won on the 95% rule *during*
+      // overtime reports `instantWin`, so reading the reason would deny the
+      // achievement to the one match most worth having it for.
+      expect(game.match!.wentToSuddenDeath, isFalse);
+      run(game, Timings.countdown + Timings.normalTime + 0.2);
+      expect(game.match!.wentToSuddenDeath, isTrue);
+
+      run(game, Timings.suddenDeathTime + 0.3);
+      expect(game.match!.phase.value, MatchPhase.finished);
+      expect(
+        game.match!.wentToSuddenDeath,
+        isTrue,
+        reason: 'the flag has to survive the match ending',
+      );
+    });
+
+    gameTest('a match that never went to overtime says so', (
+      game,
+      tester,
+    ) async {
+      run(game, Timings.countdown + 0.1);
+      await paintEverything(game, tester, Team.red);
+      run(game, Timings.instantWinHold + 0.2);
+
+      expect(game.match!.phase.value, MatchPhase.finished);
+      expect(game.match!.wentToSuddenDeath, isFalse);
+    });
+
     gameTest('a finished match refuses further input', (game, tester) async {
       run(
         game,

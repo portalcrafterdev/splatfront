@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--Google Play game services IDs. Save this file as res/values/games-ids.xml in your project.-->
+<resources>
+<!--app_id-->
+<string name="app_id" translatable="false">475270289175</string>
+<!--package_name-->
+<string name="package_name" translatable="false">com.portalcrafter.splatfront</string>
+<!--achievement First Coat-->
+<string name="achievement_first_coat" translatable="false">CgkIl67EwuoNEAIQAg</string>
+<!--achievement Primer-->
+<string name="achievement_primer" translatable="false">CgkIl67EwuoNEAIQBA</string>
+<!--achievement Undercoat-->
+<string name="achievement_undercoat" translatable="false">CgkIl67EwuoNEAIQAQ</string>
+<!--achievement Topcoat-->
+<string name="achievement_topcoat" translatable="false">CgkIl67EwuoNEAIQDA</string>
+<!--achievement Gloss Finish-->
+<string name="achievement_gloss_finish" translatable="false">CgkIl67EwuoNEAIQDQ</string>
+<!--achievement The Whole Yard-->
+<string name="achievement_the_whole_yard" translatable="false">CgkIl67EwuoNEAIQBw</string>
+<!--achievement Three Star Job-->
+<string name="achievement_three_star_job" translatable="false">CgkIl67EwuoNEAIQDg</string>
+<!--achievement Snagging List-->
+<string name="achievement_snagging_list" translatable="false">CgkIl67EwuoNEAIQAw</string>
+<!--achievement Whitewash-->
+<string name="achievement_whitewash" translatable="false">CgkIl67EwuoNEAIQCA</string>
+<!--achievement Overtime-->
+<string name="achievement_overtime" translatable="false">CgkIl67EwuoNEAIQCQ</string>
+<!--achievement Frontier-->
+<string name="achievement_frontier" translatable="false">CgkIl67EwuoNEAIQBg</string>
+<!--achievement Break the Seal-->
+<string name="achievement_break_the_seal" translatable="false">CgkIl67EwuoNEAIQCg</string>
+<!--achievement Fully Loaded-->
+<string name="achievement_fully_loaded" translatable="false">CgkIl67EwuoNEAIQCw</string>
+<!--achievement Full Set-->
+<string name="achievement_full_set" translatable="false">CgkIl67EwuoNEAIQBQ</string>
+</resources>

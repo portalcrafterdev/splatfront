@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/meta/achievements.dart';
 
@@ -107,9 +109,9 @@ void main() {
   });
 
   test('an achievement with no platform id is skipped, not broken', () {
-    // The whole set ships before the Play Console work is done. Until an id
-    // is pasted in, `unlockAll` must pass over it in silence rather than
-    // calling the platform with an empty string.
+    // Still the rule, and iOS is in exactly this state: the Game Center half
+    // does not exist yet. Reporting one must pass over it in silence rather
+    // than calling the platform with an empty string.
     const unconfigured = Achievement(
       key: 'x',
       name: 'X',
@@ -122,11 +124,70 @@ void main() {
       target: 1,
     );
     expect(unconfigured.isConfigured, isFalse);
-    // And the shipped file is in exactly that state today, deliberately.
+  });
+
+  test('every achievement has a Play Games id, and no two share one', () {
+    for (final a in set.all) {
+      expect(
+        a.androidId,
+        startsWith('Cgk'),
+        reason: '${a.key} has no Play Games id',
+      );
+    }
     expect(
-      set.configured,
-      isEmpty,
-      reason: 'ids have been filled in — update this test with them',
+      set.all.map((a) => a.androidId).toSet(),
+      hasLength(set.all.length),
+      reason: 'two achievements point at the same id',
     );
+  });
+
+  test('the ids match the Play Console file they were copied from', () {
+    // The one check that earns its keep here. Dart cannot read an Android
+    // string resource, so `androidId` is a hand-copied duplicate of
+    // games-ids.xml — and a wrong id fails *silently*: the achievement simply
+    // never unlocks, exactly like one nobody has reached. Nothing else in the
+    // app would ever notice.
+    final xml = File(
+      'android/app/src/main/res/values/games-ids.xml',
+    ).readAsStringSync();
+    final fromConsole = <String, String>{
+      for (final m in RegExp(
+        r'<string name="achievement_([a-z_]+)"[^>]*>([^<]+)</string>',
+      ).allMatches(xml))
+        m.group(1)!: m.group(2)!,
+    };
+
+    expect(
+      fromConsole.length,
+      set.all.length,
+      reason: 'games-ids.xml and achievements.json hold different sets',
+    );
+    for (final a in set.all) {
+      expect(
+        a.androidId,
+        fromConsole[a.key],
+        reason: '${a.key} disagrees with games-ids.xml',
+      );
+    }
+  });
+
+  test('every trigger that needs a saved counter has one', () {
+    // A trigger naming a stat and the profile key holding it are the same
+    // string on purpose. If they drift the achievement reads zero forever and
+    // looks merely unearned.
+    const derived = {
+      'levelsCleared',
+      'threeStarLevels',
+      'highestCardLevel',
+      'cardsOwned',
+    };
+    for (final a in set.all) {
+      if (derived.contains(a.trigger)) continue;
+      expect(
+        Stats.all,
+        contains(a.trigger),
+        reason: '${a.key} triggers on "${a.trigger}", which nothing records',
+      );
+    }
   });
 }

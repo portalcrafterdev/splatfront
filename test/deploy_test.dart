@@ -333,6 +333,52 @@ void main() {
     expect(card.bodyCount, 6);
     expect(before, isNotNull);
   });
+
+  // --- Counting the drops that reached the far half -----------------------
+
+  gameTest('a drop in your own half is not counted as a push', (
+    game,
+    tester,
+  ) async {
+    game.elixir.value.value = 10;
+    expect(game.playFromHand(game.player, _slotOf(game, 'brusher'), ownGround),
+        isTrue);
+    expect(game.deploysPastMidline, 0);
+  });
+
+  anywhereTest('a drop in the opponent half is counted', (game, tester) async {
+    // Through the anywhere rule because that is the only way to *reach* the
+    // far half at the opening whistle. Under the shipped rule the same drop
+    // becomes legal once you have painted your way up there, and it takes
+    // the same path through `playFromHand`.
+    //
+    // The player here is red, and the counter must still fire: the player's
+    // own half is the bottom of the board whichever colour they are, so
+    // reading the direction off the team would invert this.
+    game.elixir.value.value = 10;
+    expect(
+      game.playFromHand(game.player, _slotOf(game, 'brusher'), enemyGround),
+      isTrue,
+    );
+    expect(game.deploysPastMidline, 1);
+
+    // Standing exactly on the line is not past it — the same off-by-one that
+    // cost a session on the midline leash.
+    game.elixir.value.value = 10;
+    game.playFromHand(game.player, _slotOf(game, 'roller'), midLine);
+    expect(game.deploysPastMidline, 1);
+  });
+
+  anywhereTest('the bot pushing forward does not count for the player', (
+    game,
+    tester,
+  ) async {
+    // `deploysPastMidline` feeds a player achievement, so it has to be the
+    // player's drops and nobody else's.
+    game.opponent.elixir.value.value = 10;
+    game.spawnCard('brusher', team: Team.blue, position: ownGround);
+    expect(game.deploysPastMidline, 0);
+  });
 }
 
 /// Which hand slot currently holds [cardId]. The starter deck's order is not
