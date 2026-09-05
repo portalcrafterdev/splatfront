@@ -36,6 +36,7 @@ class MatchController extends Component with HasGameReference<SplatfrontGame> {
   MatchController({required this.trophyRules, required this.botStrength});
 
   final TrophyRules trophyRules;
+
   /// How far up the campaign ramp this match's opponent sits, 0 to 1.
   /// Feeds the notional rating the trophy maths compares against.
   final double botStrength;
@@ -186,7 +187,10 @@ class MatchController extends Component with HasGameReference<SplatfrontGame> {
       trophyChange: trophyRules.change(
         outcome: partial.outcome,
         playerTrophies: playerTrophies,
-        opponentTrophies: trophyRules.trophiesForBot(playerTrophies, botStrength),
+        opponentTrophies: trophyRules.trophiesForBot(
+          playerTrophies,
+          botStrength,
+        ),
       ),
     );
 

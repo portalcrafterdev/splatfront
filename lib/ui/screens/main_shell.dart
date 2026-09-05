@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/audio.dart';
 import '../../core/palette.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/motion.dart';
 import 'campaign_screen.dart';
 import 'collection_screen.dart';
@@ -57,10 +58,19 @@ class _MainShellState extends State<MainShell> {
       4 => const SettingsScreen(),
       _ => const HomeScreen(),
     },
-    bottomNavigationBar: _BottomBar(
-      tabs: _tabs,
-      index: _index,
-      onSelect: _select,
+    // The menu banner rides directly above the nav bar rather than inside
+    // each screen, so it is one slot for all five tabs and switching tabs
+    // does not tear it down and reload it — a banner that reloads on every
+    // tap is both worse to look at and worse for fill.
+    //
+    // Bottom is safe here in a way it is not in a match: nothing on a menu is
+    // dragged, so there is no gesture that can end on an ad by accident.
+    bottomNavigationBar: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const AdBanner(inMatch: false),
+        _BottomBar(tabs: _tabs, index: _index, onSelect: _select),
+      ],
     ),
   );
 }
@@ -102,9 +112,7 @@ class _BottomBar extends StatelessWidget {
         end: Alignment.bottomCenter,
         colors: [Palette.uiSurfaceHigh, Palette.uiSurface],
       ),
-      border: Border(
-        top: BorderSide(color: Color(0x1A15201C), width: 1),
-      ),
+      border: Border(top: BorderSide(color: Color(0x1A15201C), width: 1)),
       boxShadow: [
         BoxShadow(
           color: Color(0x14000000),

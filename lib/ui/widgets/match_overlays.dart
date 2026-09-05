@@ -15,6 +15,7 @@ class MatchTimer extends StatelessWidget {
     super.key,
     required this.match,
     this.ink = Palette.hudText,
+    this.urgentInk = Palette.accent,
   });
 
   final MatchController? match;
@@ -26,6 +27,16 @@ class MatchTimer extends StatelessWidget {
   /// so it passes white. The result overlay prints the same widget on a pale
   /// card and takes the default.
   final Color ink;
+
+  /// The digits' colour in the last ten seconds and in sudden death.
+  ///
+  /// **The caller has to set this whenever it changes the ground underneath.**
+  /// This was hard-coded to [Palette.accent], which was right while the pill
+  /// stayed dark and only the digits changed colour. The pill then started
+  /// going accent on the same condition, and the two met: accent digits on an
+  /// accent pill, so the last ten seconds of every match showed a clock icon
+  /// and no number at all — the one moment the clock matters most.
+  final Color urgentInk;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +55,12 @@ class MatchTimer extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (phase == MatchPhase.suddenDeath)
-                const Text(
+                Text(
                   'SUDDEN DEATH',
                   style: TextStyle(
-                    color: Palette.accent,
+                    // Sudden death counts as urgent, so this sat on the
+                    // recoloured pill too and vanished with the digits.
+                    color: urgentInk,
                     fontSize: 11,
                     letterSpacing: 2,
                     fontWeight: FontWeight.w900,
@@ -58,7 +71,7 @@ class MatchTimer extends StatelessWidget {
                     ? 'GET READY'
                     : _clock(seconds),
                 colour: urgent && phase != MatchPhase.countdown
-                    ? Palette.accent
+                    ? urgentInk
                     : ink,
               ),
             ],
@@ -183,6 +196,7 @@ class ResultOverlay extends StatelessWidget {
     required this.result,
     required this.onRematch,
     required this.onHome,
+    this.onNextLevel,
     this.chestKept = true,
     this.campaign,
   });
@@ -190,6 +204,19 @@ class ResultOverlay extends StatelessWidget {
   final MatchResult result;
   final VoidCallback onRematch;
   final VoidCallback onHome;
+
+  /// Straight into the level after this one.
+  ///
+  /// Null when there is nowhere to go: a sandbox, a ladder match, or the last
+  /// level of the campaign. It is also ignored on a loss, because the next
+  /// level does not unlock until this one is cleared and a button that opens
+  /// a locked level is worse than no button.
+  ///
+  /// Without it, clearing level 1 left the player on an end screen offering
+  /// only REMATCH and HOME — so the way to play level 2 was to leave, land on
+  /// Home and press BATTLE, which is three taps to do the one thing anybody
+  /// wants after a win.
+  final VoidCallback? onNextLevel;
 
   /// Set on a campaign level. The campaign does not move trophies, so the
   /// end screen shows the stars the level was worth instead of a number that
@@ -233,9 +260,9 @@ class ResultOverlay extends StatelessWidget {
                   color: Palette.hudSurface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                  color: Palette.hudOutline.withValues(alpha: 0.14),
-                  width: 1,
-                ),
+                    color: Palette.hudOutline.withValues(alpha: 0.14),
+                    width: 1,
+                  ),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x59000000),
@@ -292,11 +319,31 @@ class ResultOverlay extends StatelessWidget {
                     ],
 
                     const SizedBox(height: 26),
-                    _ResultButton(
-                      label: 'REMATCH',
-                      onPressed: onRematch,
-                      accent: accent,
-                    ),
+                    // The one thing a player wants after a win goes first and
+                    // wears the accent; replaying drops to secondary beside
+                    // it. On a loss there is no next level to offer, so the
+                    // retry takes the primary slot instead.
+                    if (onNextLevel case final next? when result.won) ...[
+                      _ResultButton(
+                        label: 'NEXT LEVEL',
+                        onPressed: next,
+                        accent: accent,
+                      ),
+                      const SizedBox(height: 10),
+                      _ResultButton(
+                        label: 'REPLAY',
+                        onPressed: onRematch,
+                        secondary: true,
+                      ),
+                    ] else
+                      _ResultButton(
+                        // "Rematch" is what you press after a draw with a
+                        // person. Against a level you either go again or you
+                        // do not, and the word for that is plainer.
+                        label: result.won ? 'REPLAY' : 'TRY AGAIN',
+                        onPressed: onRematch,
+                        accent: accent,
+                      ),
                     const SizedBox(height: 10),
                     _ResultButton(
                       label: 'HOME',

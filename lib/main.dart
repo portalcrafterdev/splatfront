@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/ads/ads.dart';
 import 'core/audio.dart';
 import 'core/game_data.dart';
 import 'core/save/hive_boxes.dart';
@@ -50,6 +51,13 @@ Future<void> main() async {
     music: profile.settings.musicVolume,
     sfx: profile.settings.sfxVolume,
   );
+
+  // Ads are started here and *only* here, which is what keeps them out of the
+  // widget suite: no test calls this, so `Ads.enabled` is false throughout and
+  // no banner ever touches a platform channel. Like the audio and the Rive
+  // art above, it cannot throw — a device with no network runs the whole game
+  // with empty ad slots.
+  await Ads.start();
 
   runApp(
     ProviderScope(

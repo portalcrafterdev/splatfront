@@ -35,7 +35,6 @@ class CampaignLevel {
 
   /// Which arena to fight in, as an index into the loaded arena list.
   final int arenaIndex;
-
 }
 
 /// Everything in `assets/data/campaign.json`.
@@ -76,7 +75,6 @@ class CampaignConfig {
   /// new tracking code to notice.
   final double twoStarCoverage;
   final double threeStarCoverage;
-
 
   /// How many levels the brain takes to go from blunt to its best, and the
   /// curve it follows getting there.
@@ -177,7 +175,6 @@ class CampaignConfig {
 
   static double _lerp(List<double> pair, double t) =>
       pair.first + (pair.last - pair.first) * t;
-
 
   int botCardLevelAt(int level) {
     if (level < botCardLevelFrom) return 1;

@@ -53,15 +53,14 @@ class BotDifficulty {
   /// half of what decides a match. 1.0 is perfect play.
   final double cardPrecision;
 
-  factory BotDifficulty.fromJson(Map<String, dynamic> json) =>
-      BotDifficulty(
-        reactionDelay: (json['reactionDelay'] as num).toDouble(),
-        elixirWasteRate: (json['elixirWasteRate'] as num).toDouble(),
-        countersThreats: json['countersThreats'] as bool,
-        playsSpells: json['playsSpells'] as bool,
-        lanePrecision: (json['lanePrecision'] as num?)?.toDouble() ?? 1.0,
-        cardPrecision: (json['cardPrecision'] as num?)?.toDouble() ?? 1.0,
-      );
+  factory BotDifficulty.fromJson(Map<String, dynamic> json) => BotDifficulty(
+    reactionDelay: (json['reactionDelay'] as num).toDouble(),
+    elixirWasteRate: (json['elixirWasteRate'] as num).toDouble(),
+    countersThreats: json['countersThreats'] as bool,
+    playsSpells: json['playsSpells'] as bool,
+    lanePrecision: (json['lanePrecision'] as num?)?.toDouble() ?? 1.0,
+    cardPrecision: (json['cardPrecision'] as num?)?.toDouble() ?? 1.0,
+  );
 }
 
 /// Everything in `assets/data/bot_decks.json`: one deck per trophy arena.

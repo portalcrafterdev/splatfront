@@ -66,5 +66,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- The AdMob application id, which the SDK reads from here at launch.
+	     The same value is in AndroidManifest.xml; the per-format unit ids
+	     live in assets/data/ads.json instead. -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-8244651657160773~3791923774</string>
+	<!-- Required by SKAdNetwork so iOS attributes installs the ads drive.
+	     Google's list is long and changes; this is Google's own network,
+	     which is the one that has to be here for AdMob to report at all. -->
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
+		</dict>
+	</array>
 </dict>
 </plist>

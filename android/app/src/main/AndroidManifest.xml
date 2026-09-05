@@ -30,6 +30,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- AdMob application id. This one has to live here rather than in
+             assets/data/ads.json with the unit ids: the Play Services SDK
+             reads it out of the manifest at process start, before any Dart
+             has run, and crashes the app on launch if it is missing. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8244651657160773~3791923774" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

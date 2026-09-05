@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ads/ads.dart';
 import '../../core/audio.dart';
 import '../../core/game_data.dart';
 import '../../core/palette.dart';
@@ -206,7 +207,11 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
 /// list here, and the battle button on Home, which plays whichever level you
 /// are up to. One function so the two can never drift on what a level scores
 /// or how its result is banked.
-void startCampaignLevel(BuildContext context, WidgetRef ref, int number) {
+Future<void> startCampaignLevel(
+  BuildContext context,
+  WidgetRef ref,
+  int number,
+) async {
   final data = ref.read(gameDataProvider);
   final profile = ref.read(profileProvider);
   final controller = ref.read(profileProvider.notifier);
@@ -216,6 +221,22 @@ void startCampaignLevel(BuildContext context, WidgetRef ref, int number) {
   final arena = data.arenas[level.arenaIndex % data.arenas.length];
 
   Audio.play(Sfx.uiTap);
+
+  // The interstitial goes here, before the arena is built, and it is awaited.
+  //
+  // Two reasons it cannot go inside the battle screen. Ad loading is
+  // platform-channel work, and this app has already been killed by Android
+  // once for flooding that queue — so nothing may be fetched or shown while a
+  // game loop is asking for sixty frames a second. And an ad appearing *over*
+  // a started match would run the countdown behind it.
+  //
+  // With ads off, no fill, or the pacing rules saying no, this returns
+  // immediately and the player never knows it was here. It never blocks and
+  // never shows a spinner: a level start that waits on a network is a level
+  // start that fails on a train.
+  await Ads.maybeShowOnLevelStart();
+  if (!context.mounted) return;
+
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => BattleScreen(
@@ -245,6 +266,21 @@ void startCampaignLevel(BuildContext context, WidgetRef ref, int number) {
           );
           return reward.chestKept;
         },
+        // Straight into the next level from the end screen, rather than out
+        // to Home and back in through BATTLE.
+        //
+        // It recurses through this same function rather than building a
+        // BattleScreen for level+1 inline, so the next level is assembled
+        // exactly like every other one — same deck, same ramp, same banking,
+        // and the same interstitial pacing. Popping first keeps the route
+        // stack flat: without it, a run of twenty levels would be twenty
+        // battle screens deep and HOME would only ever go back one.
+        onNextLevel: number < campaign.levelCount
+            ? () {
+                Navigator.of(context).pop();
+                startCampaignLevel(context, ref, number + 1);
+              }
+            : null,
       ),
     ),
   );

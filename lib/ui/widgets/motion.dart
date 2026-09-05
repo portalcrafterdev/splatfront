@@ -262,16 +262,8 @@ class Panel extends StatelessWidget {
   /// wide faint one for the ambient drop. A single blurred shadow big enough
   /// to be visible on a light page is also big enough to look like fog.
   static const List<BoxShadow> softShadow = [
-    BoxShadow(
-      color: Color(0x14151F1C),
-      blurRadius: 3,
-      offset: Offset(0, 1),
-    ),
-    BoxShadow(
-      color: Color(0x1F151F1C),
-      blurRadius: 14,
-      offset: Offset(0, 6),
-    ),
+    BoxShadow(color: Color(0x14151F1C), blurRadius: 3, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x1F151F1C), blurRadius: 14, offset: Offset(0, 6)),
   ];
 }
 

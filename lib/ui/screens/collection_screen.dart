@@ -114,9 +114,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                           return;
                         }
                         setState(
-                          () => _swapping = _swapping == card.id
-                              ? null
-                              : card.id,
+                          () =>
+                              _swapping = _swapping == card.id ? null : card.id,
                         );
                       },
                     ),
@@ -327,10 +326,7 @@ class _CollectionCard extends StatelessWidget {
                   // 2.5dp stroke in this sum after softening the edge to 1
                   // would size every card in the grid three pixels wide.
                   child: _maybeLocked(
-                    CardTile(
-                      card: card,
-                      width: constraints.maxWidth - 6 - 2,
-                    ),
+                    CardTile(card: card, width: constraints.maxWidth - 6 - 2),
                     locked: lockedUntil != null,
                   ),
                 ),

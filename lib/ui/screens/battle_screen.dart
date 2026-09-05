@@ -4,6 +4,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/ads/ads.dart';
 import '../../core/audio.dart';
 import '../../core/frame_log.dart';
 import '../../core/palette.dart';
@@ -16,6 +17,7 @@ import '../../game/splatfront_game.dart';
 import '../../meta/campaign.dart';
 import '../../meta/quests.dart';
 import '../../game/units/units_registry.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/card_tile.dart';
 import '../widgets/match_background.dart';
 import '../widgets/match_header.dart';
@@ -42,6 +44,7 @@ class BattleScreen extends StatefulWidget {
     this.economy = MatchRules.flat,
     this.startingTrophies = 0,
     this.onFinished,
+    this.onNextLevel,
     this.playerTeam = Team.blue,
     this.sandbox = SandboxMode.off,
   });
@@ -55,6 +58,7 @@ class BattleScreen extends StatefulWidget {
   /// The opponent. Null means an empty arena with no one to fight.
   final Deck? botDeck;
   final BotDifficulty? botDifficulty;
+
   /// How far up the campaign ramp the opponent sits, 0 to 1.
   ///
   /// Only the trophy maths reads it — how hard the bot actually plays is
@@ -87,6 +91,15 @@ class BattleScreen extends StatefulWidget {
   /// Returns whether the chest the win earned was actually stored, so the
   /// end screen can tell the truth about it.
   final bool Function(MatchResult result, MatchTally tally)? onFinished;
+
+  /// Opens the level after this one from the end screen.
+  ///
+  /// Supplied by [startCampaignLevel], which is the only thing that knows how
+  /// to build a level — this screen would otherwise have to reassemble the
+  /// deck, the bot and the ramp for level+1 itself, and that is exactly the
+  /// duplication `startCampaignLevel` exists to prevent. Null in a sandbox
+  /// and on the last level.
+  final VoidCallback? onNextLevel;
 
   final Team playerTeam;
 
@@ -126,6 +139,16 @@ class _BattleScreenState extends State<BattleScreen> {
   void initState() {
     super.initState();
     FrameLog.start(widget.sandbox == SandboxMode.off ? 'match' : 'sandbox');
+    // Blocks every ad *load* for as long as an arena is on screen.
+    //
+    // The banner at the top is already up by now and stays; what this stops
+    // is the next interstitial being fetched in the background while the game
+    // loop is asking for sixty frames a second. Ad loading is platform-channel
+    // work, and this app has been killed by Android once already for filling
+    // that queue — the ANR trace sat in `DartMessenger.handleMessageFromDart`
+    // after an unpooled sound played per shot. The interstitial is fetched
+    // from a menu instead.
+    Ads.matchRunning = true;
     // In an arena, so the fight is audible. The sandboxes count too: they
     // have no clock and no whistle, and they are still somewhere you watch
     // units hit each other.
@@ -159,6 +182,11 @@ class _BattleScreenState extends State<BattleScreen> {
     // off before the game does.
     _game.arena.coverage.removeListener(_watchLead);
     if (widget.sandbox == SandboxMode.off) Audio.playMusic(Track.menu);
+    // Back on a menu, so the next interstitial can be fetched — and it is
+    // fetched now rather than at the next level start, so the ad is already
+    // in hand when the player presses BATTLE and there is nothing to wait for.
+    Ads.matchRunning = false;
+    Ads.prefetch();
     _paused.dispose();
     super.dispose();
   }
@@ -354,11 +382,13 @@ class _BattleScreenState extends State<BattleScreen> {
                 economy: widget.economy,
                 startingTrophies: widget.startingTrophies,
                 onFinished: widget.onFinished,
+                onNextLevel: widget.onNextLevel,
                 playerTeam: widget.playerTeam,
                 sandbox: widget.sandbox,
               ),
             ),
           ),
+          onNextLevel: widget.onNextLevel,
           onHome: () => Navigator.of(context).pop(),
         );
       },
@@ -371,6 +401,7 @@ class _BattleScreenState extends State<BattleScreen> {
     match: _game.match,
     playerTeam: widget.playerTeam,
     showPlates: widget.sandbox == SandboxMode.off,
+    levelNumber: widget.campaign?.level,
     // The sandboxes have no clock to stop.
     onPause: widget.sandbox == SandboxMode.off ? _pause : null,
   );
@@ -399,10 +430,24 @@ class _BattleScreenState extends State<BattleScreen> {
     _paused.value = false;
   }
 
-  /// Phone and tablet portrait: header, arena, elixir, hand.
+  /// Phone and tablet portrait: banner, header, arena, elixir, hand.
+  ///
+  /// **The banner is at the top and that is load-bearing.** Cards are dragged
+  /// from the tray at the foot of this screen onto the board, so an ad down
+  /// there sits directly under the busiest gesture in the game — and a drag
+  /// that ends on an ad is an accidental click, which AdMob treats as invalid
+  /// traffic and suspends accounts over. Above the coverage bar there is no
+  /// gesture to catch.
+  ///
+  /// It is a row in the column rather than an overlay, so the arena scales
+  /// down inside what is left instead of being covered by it. That is the
+  /// safe way round: section 14 forbids changing the arena's *aspect*,
+  /// because every deploy distance is measured against it, but the same 2:3
+  /// board drawn smaller plays identically.
   Widget _stackedLayout(LayoutClass layout) {
     return Column(
       children: [
+        const AdBanner(inMatch: true),
         _header(),
         Expanded(child: Center(child: _arena())),
         if (_game.hand != null) _tray(layout),
@@ -433,9 +478,7 @@ class _BattleScreenState extends State<BattleScreen> {
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       // A hairline, not a rule. `withValues` is a method call and this
       // decoration is const, so the alpha is baked into the literal.
-      border: Border(
-        top: BorderSide(color: Color(0x331B2A26), width: 1),
-      ),
+      border: Border(top: BorderSide(color: Color(0x331B2A26), width: 1)),
       boxShadow: [
         BoxShadow(
           color: Color(0x40000000),

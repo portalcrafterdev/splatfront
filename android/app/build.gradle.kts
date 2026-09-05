@@ -18,7 +18,10 @@ android {
         applicationId = "com.portalcrafter.splatfront"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // google_mobile_ads requires 23. Flutter's own floor has been lower
+        // than that, so this is pinned rather than inherited: with the
+        // inherited value the manifest merger fails the build outright.
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

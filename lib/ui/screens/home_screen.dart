@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -860,6 +861,23 @@ class _NextLevelCard extends StatelessWidget {
 
   final VoidCallback onPressed;
 
+  /// How tall the painted board is.
+  ///
+  /// Raised from 132 when the level number turned out to be sitting on the
+  /// frontier. A frontier step is a whole grid cell and a cell is sized off
+  /// the card's *width*, so on a wider phone a single step reaches further
+  /// down the board while the type stays the same size — which is why this
+  /// could look fine on one screen and overlap on another.
+  static const double _boardHeight = 160;
+
+  /// The strip along the bottom the frontier is not allowed into.
+  ///
+  /// Covers the two lines of type plus their padding, with room to spare, so
+  /// whatever the painter does above it there is always flat player-colour
+  /// behind the level number. This is the guarantee; the scrim and the text
+  /// shadow are what make it look good on top of that.
+  static const double _textBand = 64;
+
   @override
   Widget build(BuildContext context) => PressScale(
     onTap: onPressed,
@@ -883,14 +901,17 @@ class _NextLevelCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                height: 132,
+                height: _boardHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     // CustomPaint does not clip, and the frontier steps run to
                     // the full width. The ClipRRect above is what holds it in.
                     CustomPaint(
-                      painter: _BoardPreviewPainter(seed: level),
+                      painter: _BoardPreviewPainter(
+                        seed: level,
+                        reserve: _textBand,
+                      ),
                       isComplex: true,
                       willChange: false,
                     ),
@@ -898,13 +919,24 @@ class _NextLevelCard extends StatelessWidget {
                     // either is thin. A dark gradient rising from the bottom
                     // gives the two lines a ground of their own without
                     // dimming the paint they sit on.
+                    //
+                    // Three stops rather than two, and it holds its strength
+                    // through the whole text band before falling away. At two
+                    // stops it was already fading where the type started, so
+                    // the busiest part of the board — the frontier itself —
+                    // was showing through the tops of the letters at about a
+                    // fifth of the intended darkness.
                     const DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
-                          colors: [Color(0xB80B1512), Color(0x000B1512)],
-                          stops: [0, 0.55],
+                          colors: [
+                            Color(0xCC0B1512),
+                            Color(0x990B1512),
+                            Color(0x000B1512),
+                          ],
+                          stops: [0, 0.45, 0.8],
                         ),
                       ),
                     ),
@@ -924,6 +956,18 @@ class _NextLevelCard extends StatelessWidget {
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1,
                                 height: 1.05,
+                                // Belt and braces over a two-colour board. The
+                                // scrim and the reserved band should already
+                                // put blue behind every letter; this is what
+                                // keeps the type readable if either is ever
+                                // retuned and stops being enough.
+                                shadows: [
+                                  Shadow(
+                                    color: Color(0x8C0B1512),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 1),
@@ -932,9 +976,16 @@ class _NextLevelCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.82),
+                                color: Colors.white.withValues(alpha: 0.88),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
+                                shadows: const [
+                                  Shadow(
+                                    color: Color(0x8C0B1512),
+                                    blurRadius: 5,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -982,9 +1033,19 @@ class _NextLevelCard extends StatelessWidget {
 /// Deterministic from the level number: the same level always draws the same
 /// board, so this never repaints and never flickers under a rebuild.
 class _BoardPreviewPainter extends CustomPainter {
-  const _BoardPreviewPainter({required this.seed});
+  const _BoardPreviewPainter({required this.seed, this.reserve = 0});
 
   final int seed;
+
+  /// A strip along the bottom the frontier may not cross into, so the level
+  /// number always has flat player-colour behind it.
+  ///
+  /// The clamp is in pixels rather than in cells on purpose. A cell is sized
+  /// off the card's width, so one step down reaches further on a wide phone
+  /// than on a narrow one while the type stays the same size — a reserve
+  /// counted in cells would hold on the screen it was tuned on and fail on
+  /// the next one.
+  final double reserve;
 
   /// Columns across the board. The real grid is 64 wide, which at this size
   /// would be hairlines; this keeps a cell big enough to read as a tile.
@@ -1019,12 +1080,17 @@ class _BoardPreviewPainter extends CustomPainter {
           : roll == 4
           ? 1
           : 0;
-      final split = (mid + step) * cell;
+      final split = math.min(
+        (mid + step) * cell,
+        math.max(0.0, size.height - reserve),
+      );
       final x = c * cell;
 
       canvas
-        ..drawRect(Rect.fromLTWH(x, 0, cell + 0.5, split), paint
-          ..color = Palette.red)
+        ..drawRect(
+          Rect.fromLTWH(x, 0, cell + 0.5, split),
+          paint..color = Palette.red,
+        )
         ..drawRect(
           Rect.fromLTWH(x, split, cell + 0.5, size.height - split),
           paint..color = Palette.blue,
@@ -1038,11 +1104,7 @@ class _BoardPreviewPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = const Color(0x14000000);
     for (var c = 1; c < _columns; c++) {
-      canvas.drawLine(
-        Offset(c * cell, 0),
-        Offset(c * cell, size.height),
-        line,
-      );
+      canvas.drawLine(Offset(c * cell, 0), Offset(c * cell, size.height), line);
     }
     for (var r = 1; r < rows; r++) {
       canvas.drawLine(Offset(0, r * cell), Offset(size.width, r * cell), line);
@@ -1051,7 +1113,7 @@ class _BoardPreviewPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BoardPreviewPainter oldDelegate) =>
-      oldDelegate.seed != seed;
+      oldDelegate.seed != seed || oldDelegate.reserve != reserve;
 }
 
 class _AnimatedBar extends StatelessWidget {

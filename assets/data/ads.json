@@ -1,0 +1,84 @@
+{
+  "_comment": [
+    "Ad placement and the unit ids behind it. Section 10 of CLAUDE.md said no",
+    "ads in v1; that was reversed on the owner's call and this file is where",
+    "the reversal is tuned. The application id is NOT here — the SDK reads it",
+    "from AndroidManifest.xml and Info.plist before any Dart runs.",
+    "",
+    "Everything below can be switched off without a code change. `enabled`",
+    "false anywhere means that format never loads, never shows, and costs",
+    "nothing: no widget, no platform call."
+  ],
+
+  "enabled": true,
+
+  "_bannerComment": [
+    "On screen everywhere, on the owner's call.",
+    "",
+    "In a match it is pinned to the TOP, above the coverage bar, and that is",
+    "not a style choice. Cards are dragged from the bottom of the battle",
+    "screen to deploy, and a banner beside that is an accidental-click",
+    "generator — AdMob suspends accounts for invalid traffic, so a bottom",
+    "banner there risks the revenue it is meant to earn. In menus nothing is",
+    "dragged, so it sits at the bottom above the nav bar.",
+    "",
+    "It takes real layout space rather than floating over the arena. The",
+    "arena keeps its 2:3 aspect and simply scales down inside what is left:",
+    "section 14 forbids changing the aspect, because every deploy distance in",
+    "the game is measured against it, but a smaller board at the same shape",
+    "changes nothing mechanically."
+  ],
+  "banner": {
+    "enabled": true,
+    "unitId": "ca-app-pub-8244651657160773/7539597097",
+    "inMenus": true,
+    "inMatch": true
+  },
+
+  "_interstitialComment": [
+    "Shown when a level starts, on the owner's call.",
+    "",
+    "A match is 90 seconds, so `everyNthStart: 1` is an ad roughly every 90",
+    "seconds of play. That is legal — a level start is a natural transition —",
+    "but it is aggressive, and the usual outcome is that retention costs more",
+    "than the impressions earn. Two dials are here to walk it back without a",
+    "rebuild: raise `everyNthStart`, or set `afterMatchInstead` true to move",
+    "it to the result screen, which is the same frequency without blocking",
+    "the thing the player just pressed.",
+    "",
+    "`minSecondsBetween` is a floor regardless of the count, so quitting and",
+    "restarting a level repeatedly cannot chain ads back to back.",
+    "",
+    "`skipFirstSession` keeps the ad off the first level of a launch. It is",
+    "now FALSE, on the owner's call — the ask was an ad on every start and",
+    "this was suppressing one of them. The argument for it stands and the",
+    "flag is kept: an interstitial before anyone has seen the game once is",
+    "the single biggest driver of a one-star review, and it is the one",
+    "impression that reliably costs more than it earns.",
+    "",
+    "`minSecondsBetween` came down from 45 to 10 for the same reason. At 45",
+    "a level finished or quit quickly took the next start's ad with it. Ten",
+    "still stops a player who is hammering quit-and-restart from chaining",
+    "ads back to back, which is both miserable and something Google will",
+    "throttle serving over."
+  ],
+  "interstitial": {
+    "enabled": true,
+    "unitId": "ca-app-pub-8244651657160773/7236344765",
+    "everyNthStart": 1,
+    "minSecondsBetween": 10,
+    "skipFirstSession": false,
+    "afterMatchInstead": false
+  },
+
+  "_rewardedComment": [
+    "Opt-in, and the only format the player chooses to see. Loaded but not",
+    "yet offered anywhere: the placements worth having are a chest speed-up",
+    "and doubling a level's coins, and both need reward plumbing in",
+    "ProfileController rather than just an ad call."
+  ],
+  "rewarded": {
+    "enabled": false,
+    "unitId": "ca-app-pub-8244651657160773/4885513592"
+  }
+}

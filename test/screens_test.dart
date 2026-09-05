@@ -7,6 +7,7 @@ import 'package:splatfront/app.dart';
 import 'package:splatfront/core/game_data.dart';
 import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/game/arena/arena_layout.dart';
+import 'package:splatfront/game/match/match_controller.dart';
 import 'package:splatfront/game/splatfront_game.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/ui/screens/battle_screen.dart';
@@ -256,6 +257,129 @@ void main() {
       reason: 'banking the result threw — most likely a provider write '
           'during build',
     );
+
+    await unmount(tester);
+  });
+
+  testWidgets('a match says which level it is', (tester) async {
+    // The match screen said who was playing and how long was left, and never
+    // which level — so once the countdown cleared there was nothing on screen
+    // connecting the fight to the ladder it came from.
+    // Scoped to the battle screen on purpose. Pushing a route leaves Home
+    // mounted underneath, and Home's board card carries the same "LEVEL n"
+    // wording — so an unscoped finder matches two widgets and would have
+    // passed even with nothing in the header at all.
+    Finder inMatch(String text) => find.descendant(
+      of: find.byType(BattleScreen),
+      matching: find.text(text),
+    );
+
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+    expect(inMatch('LEVEL 1'), findsOneWidget);
+    await unmount(tester);
+
+    // And it follows the level actually being played, rather than being
+    // pinned to wherever the campaign happens to start.
+    await pumpApp(
+      tester,
+      profile: const PlayerProfile(campaignStars: {1: 3, 2: 2, 3: 1}),
+    );
+    await openRoute(tester, find.text('BATTLE'));
+    expect(inMatch('LEVEL 4'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the clock stays readable in the last ten seconds', (
+    tester,
+  ) async {
+    // The reported symptom was a green pill with a clock icon and no number
+    // in it. Two things reacted to the same "urgent" condition: the pill
+    // painted its ground accent, and the digits painted themselves accent —
+    // so the readout that matters most disappeared exactly when it mattered.
+    //
+    // Pinned as a *relationship* rather than as two colour values, because
+    // the failure was never a wrong colour. Each half was right on its own;
+    // they were only wrong together, and a test on either one alone would
+    // have passed all the way through this bug.
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+
+    final game = tester
+        .widget<GameWidget<SplatfrontGame>>(
+          find.byType(GameWidget<SplatfrontGame>),
+        )
+        .game!;
+    final match = game.match!;
+
+    // Out of the countdown and into the closing stretch, without playing
+    // eighty seconds of match to get there.
+    match.phase.value = MatchPhase.playing;
+    match.timeRemaining.value = 9;
+    await tester.pump();
+
+    final clock = find.textContaining(':').first;
+    expect(clock, findsOneWidget, reason: 'no clock on screen at all');
+
+    final ink = tester.widget<Text>(clock).style?.color;
+    final pill = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(of: clock, matching: find.byType(AnimatedContainer))
+          .first,
+    );
+    final ground = (pill.decoration as BoxDecoration?)?.color;
+
+    expect(ink, isNotNull);
+    expect(ground, isNotNull);
+    expect(
+      ink,
+      isNot(ground),
+      reason: 'the digits are the same colour as the pill under them',
+    );
+
+    await unmount(tester);
+  });
+
+  testWidgets('the end screen offers the level after the one just cleared', (
+    tester,
+  ) async {
+    // The reported gap: clear level 1 and the end screen offered only REMATCH
+    // and HOME, so playing level 2 meant leaving the match, landing on Home
+    // and pressing BATTLE — three taps for the one thing anybody wants after
+    // a win.
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+
+    final game = tester
+        .widget<GameWidget<SplatfrontGame>>(
+          find.byType(GameWidget<SplatfrontGame>),
+        )
+        .game!;
+    final match = game.match!;
+
+    const step = 1 / 60;
+    for (var t = 0.0; t < 140 && match.result.value == null; t += step) {
+      game.updateTree(step);
+      if ((t * 60).round() % 30 == 0) {
+        await tester.runAsync(() => game.arena.resampleNow());
+      }
+    }
+    expect(match.result.value, isNotNull, reason: 'the match never finished');
+    await tester.pump();
+
+    // Which buttons are on offer depends on the outcome, and both branches
+    // have to be right: there is no next level to walk into off a loss,
+    // because it does not unlock until this one is cleared.
+    if (match.result.value!.won) {
+      expect(find.text('NEXT LEVEL'), findsOneWidget);
+      expect(find.text('REPLAY'), findsOneWidget);
+      expect(find.text('TRY AGAIN'), findsNothing);
+    } else {
+      expect(find.text('NEXT LEVEL'), findsNothing);
+      expect(find.text('TRY AGAIN'), findsOneWidget);
+    }
+    // Either way there is always a way out.
+    expect(find.text('HOME'), findsOneWidget);
 
     await unmount(tester);
   });

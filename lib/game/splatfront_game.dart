@@ -86,6 +86,7 @@ class SplatfrontGame extends FlameGame {
   /// Trophy maths for the end screen. Null runs the arena with no clock at
   /// all, which is what the debug sandboxes want.
   final TrophyRules? trophyRules;
+
   /// How far up the campaign ramp the opponent sits, 0 to 1.
   final double botStrength;
 

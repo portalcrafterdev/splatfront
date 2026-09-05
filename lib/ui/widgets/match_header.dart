@@ -20,12 +20,26 @@ class MatchHeader extends StatelessWidget {
     required this.match,
     required this.playerTeam,
     this.showPlates = true,
+    this.levelNumber,
     this.onPause,
   });
 
   final ValueListenable<Coverage> coverage;
   final MatchController? match;
   final Team playerTeam;
+
+  /// Which campaign level this is. Null in a sandbox or a ladder match.
+  ///
+  /// The match screen said who was playing and how long was left, and never
+  /// once said *what* was being played — so once the countdown was gone there
+  /// was nothing on screen tying the fight to the ladder it belongs to.
+  ///
+  /// It goes in the gap between the two name plates: that space is already
+  /// there and empty, so the line costs the arena no height, and between the
+  /// two sides is where the thing they are both in belongs. It is a number
+  /// rather than a rank word — section 14 keeps the opponent "Red Team" at
+  /// every level, and the level number is the difficulty in full.
+  final int? levelNumber;
 
   /// The debug sandboxes have no opponent, so they skip the plates.
   final bool showPlates;
@@ -43,7 +57,30 @@ class MatchHeader extends StatelessWidget {
           child: Row(
             children: [
               _NamePlate(team: playerTeam, name: 'You', alignEnd: false),
-              const Spacer(),
+              Expanded(
+                child: levelNumber == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          'LEVEL $levelNumber',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            // Dark ink on the sky, not white: this sits over
+                            // the lit background rather than on a plate, and
+                            // the plates either side already carry the two
+                            // team colours. A third colour here would read as
+                            // a third side.
+                            color: Palette.hudText.withValues(alpha: 0.55),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+              ),
               _NamePlate(
                 team: playerTeam.opponent,
                 name: opponentName,
@@ -191,7 +228,13 @@ class _TimerPill extends StatelessWidget {
       children: [
         Icon(Icons.timer_outlined, size: 14, color: Colors.white),
         const SizedBox(width: 6),
-        MatchTimer(match: match, ink: Colors.white),
+        // White in both states, because this pill changes its own ground to
+        // signal urgency. The colour change *is* the signal — section 11 has
+        // the reasoning: a player in the last ten seconds is looking at the
+        // board, not the top of the screen, and peripheral vision catches a
+        // block of colour where it would never catch four small characters.
+        // The digits only have to stay readable while that happens.
+        MatchTimer(match: match, ink: Colors.white, urgentInk: Colors.white),
       ],
     ),
   );
@@ -224,9 +267,9 @@ class _PauseButton extends StatelessWidget {
           color: Palette.hudBezelLow,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-        color: Palette.hudOutline.withValues(alpha: 0.28),
-        width: 1,
-      ),
+            color: Palette.hudOutline.withValues(alpha: 0.28),
+            width: 1,
+          ),
           boxShadow: const [
             BoxShadow(
               color: Color(0x38000000),
