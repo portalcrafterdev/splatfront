@@ -86,8 +86,16 @@ void main() {
       _writePng('${out.path}/$key.png', pixels);
     }
 
+    final boards = Directory('build/leaderboards')..createSync(recursive: true);
+    for (final entry in _leaderboardGlyphs.entries) {
+      final pixels = _resize(await _render(entry.value), _output);
+      _writePng('${boards.path}/${entry.key}.png', pixels);
+    }
+
     stdout.writeln(
-      'Wrote ${keys.length} icons at ${_output}x$_output to ${out.path}',
+      'Wrote ${keys.length} achievement icons and '
+      '${_leaderboardGlyphs.length} leaderboard icons at '
+      '${_output}x$_output to ${out.path} and ${boards.path}',
     );
   });
 }
@@ -118,7 +126,92 @@ final Map<String, Glyph> _glyphs = <String, Glyph>{
   'full_set': _cardFan,
 };
 
+/// Leaderboard icons, drawn the same way and into `build/leaderboards/`.
+///
+/// Separate from the achievement set because leaderboards are not in
+/// `achievements.json` and have their own ids, but the same ground and the
+/// same palette: they sit next to each other in the Play Games app, and two
+/// visual families there would just look like two games.
+final Map<String, Glyph> _leaderboardGlyphs = <String, Glyph>{
+  'total_stars': _podium,
+  'levels_cleared': _steps,
+};
+
 // --- The drawings --------------------------------------------------------
+
+/// A podium with a star over the winner: ranking, by stars.
+///
+/// A star on its own is what two of the achievements already are, and the
+/// leaderboard sits in the same list as those — so the podium is doing the
+/// work of saying *ranking*, and the star says what is being ranked.
+void _podium(Canvas canvas, Paint brush) {
+  const base = 0.762;
+
+  // The floor, so the three columns stand on something rather than float.
+  canvas.drawRRect(
+    RRect.fromRectXY(
+      const Rect.fromLTWH(0.195, base, 0.610, 0.032),
+      0.016,
+      0.016,
+    ),
+    brush..color = _cream,
+  );
+
+  // Second, first, third — the arrangement everyone already reads as a
+  // podium, and the only one where the middle being tallest means something.
+  void column(double centre, double height, Color colour) {
+    canvas.drawRRect(
+      RRect.fromRectXY(
+        Rect.fromLTWH(centre - 0.0875, base - height, 0.175, height),
+        0.022,
+        0.022,
+      ),
+      brush..color = colour,
+    );
+  }
+
+  column(0.303, 0.205, _cream);
+  column(0.697, 0.150, _cream);
+  column(0.500, 0.300, Palette.blue);
+
+  canvas.drawPath(_star(0.500, 0.330, 0.128), brush..color = Palette.gold);
+}
+
+/// A staircase climbing to the right: how far up the campaign you are.
+///
+/// Deliberately *asymmetric*, because it sits next to the podium and the two
+/// must not read as the same picture at 32 dp. A podium is symmetric with a
+/// winner in the middle; a climb only goes one way and has no top.
+///
+/// Cream for the steps behind you and gold for the one you are on, which is
+/// the same grammar the campaign list already uses.
+void _steps(Canvas canvas, Paint brush) {
+  const base = 0.762;
+  const width = 0.145;
+  const gap = 0.016;
+  const left = 0.186;
+
+  canvas.drawRRect(
+    RRect.fromRectXY(
+      const Rect.fromLTWH(left, base, width * 4 + gap * 3, 0.030),
+      0.015,
+      0.015,
+    ),
+    brush..color = _cream,
+  );
+
+  for (var i = 0; i < 4; i++) {
+    final height = 0.145 + i * 0.080;
+    canvas.drawRRect(
+      RRect.fromRectXY(
+        Rect.fromLTWH(left + i * (width + gap), base - height, width, height),
+        0.020,
+        0.020,
+      ),
+      brush..color = i == 3 ? Palette.gold : _cream,
+    );
+  }
+}
 
 /// A 3x3 board with [filled] cells taken, counting from the bottom left.
 ///
