@@ -134,6 +134,44 @@ void main() {
     });
   });
 
+  group('the rewarded chest skip', () {
+    test('one watch takes four hours off', () async {
+      final raw = await rootBundle.loadString('assets/data/ads.json');
+      final cfg = AdConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).rewarded;
+
+      expect(cfg.enabled, isTrue);
+      expect(cfg.chestSkip, const Duration(hours: 4));
+    });
+
+    test('the owner\'s two worked examples come out right', () async {
+      // These are the spec, stated as cases rather than as a rule: "8 hours,
+      // watch for -4h, watch again to open" and "3 minutes, one watch opens
+      // it". A flat reduction is the only shape that gives both, and it is
+      // worth pinning as arithmetic because a future change to a fraction
+      // would still pass the first example and quietly break the second.
+      final raw = await rootBundle.loadString('assets/data/ads.json');
+      final skip = AdConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).rewarded.chestSkip;
+
+      var magic = const Duration(hours: 8);
+      magic -= skip;
+      expect(magic, const Duration(hours: 4), reason: 'first ad on a Magic');
+      expect(magic > Duration.zero, isTrue, reason: 'not open yet');
+      magic -= skip;
+      expect(magic <= Duration.zero, isTrue, reason: 'second ad opens it');
+
+      const wood = Duration(minutes: 3);
+      expect(
+        wood - skip <= Duration.zero,
+        isTrue,
+        reason: 'a three minute chest takes exactly one watch',
+      );
+    });
+  });
+
   group('interstitial pacing', () {
     AdConfig withInterstitial({
       int everyNth = 1,

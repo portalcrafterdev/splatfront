@@ -72,13 +72,24 @@
   },
 
   "_rewardedComment": [
-    "Opt-in, and the only format the player chooses to see. Loaded but not",
-    "yet offered anywhere: the placements worth having are a chest speed-up",
-    "and doubling a level's coins, and both need reward plumbing in",
-    "ProfileController rather than just an ad call."
+    "Opt-in, and the only format the player chooses to see. Offered on a",
+    "chest that is already counting down, which is the one real time gate in",
+    "the game.",
+    "",
+    "`chestSkipMinutes` is what one watch takes off, and 240 is the owner's",
+    "spec written out: a Magic chest at eight hours needs two ads, and a Wood",
+    "chest at three minutes needs one. Because it is a flat amount rather",
+    "than a fraction, Silver (8 min) and Gold (3 h) are one ad each too —",
+    "only Magic ever asks for two. Lower it to make the long chests cost",
+    "more watches.",
+    "",
+    "There is no cap and no cooldown on purpose. A rewarded ad is one the",
+    "player asked for, and the chest timer is its own limit: a chest can only",
+    "be finished once."
   ],
   "rewarded": {
-    "enabled": false,
-    "unitId": "ca-app-pub-8244651657160773/4885513592"
+    "enabled": true,
+    "unitId": "ca-app-pub-8244651657160773/4885513592",
+    "chestSkipMinutes": 240
   }
 }

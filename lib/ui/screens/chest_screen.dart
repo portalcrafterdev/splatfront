@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ads/ads.dart';
 import '../../core/game_data.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
@@ -118,7 +119,42 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
       controller: controller,
       index: index,
       onOpened: (reward) => _showReward(reward, type.name),
+      watching: _watching,
+      onWatchAd: () => _watchToSkip(index),
     );
+  }
+
+  /// True while a rewarded ad is being fetched or is on screen.
+  ///
+  /// Held here rather than in the slot because the offer is disabled on
+  /// *every* chest while one is running — two videos started from two rows
+  /// would be two rewards for one watch.
+  bool _watching = false;
+
+  Future<void> _watchToSkip(int index) async {
+    if (_watching) return;
+    setState(() => _watching = true);
+    try {
+      final earned = await Ads.showRewarded();
+      if (!mounted) return;
+      // Only on `onUserEarnedReward`. Somebody who backed out of the video
+      // early gets nothing, which is the whole contract of the format —
+      // paying out on dismissal would be paying for nothing.
+      if (earned) {
+        ref.read(profileProvider.notifier).speedUpChest(index, Ads.chestSkip);
+      } else {
+        // Said plainly rather than silently doing nothing, because from the
+        // player's side a button that does nothing is a broken button.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No ad available right now. Try again in a moment.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _watching = false);
+    }
   }
 
   /// Hands the reward to the opening animation.
@@ -165,6 +201,8 @@ class _FilledSlot extends StatelessWidget {
     required this.controller,
     required this.index,
     required this.onOpened,
+    required this.watching,
+    required this.onWatchAd,
   });
 
   final ChestSlot slot;
@@ -172,6 +210,10 @@ class _FilledSlot extends StatelessWidget {
   final ProfileController controller;
   final int index;
   final void Function(ChestReward reward) onOpened;
+
+  /// A rewarded ad is already running, from this row or another one.
+  final bool watching;
+  final VoidCallback onWatchAd;
 
   @override
   Widget build(BuildContext context) {
@@ -192,44 +234,92 @@ class _FilledSlot extends StatelessWidget {
           width: ready ? 2 : 1,
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.inventory_2,
-            size: 34,
-            color: ready ? Palette.accent : Palette.uiTextDim,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${type.name} chest',
-                  style: const TextStyle(
-                    color: Palette.uiText,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
+          Row(
+            children: [
+              Icon(
+                Icons.inventory_2,
+                size: 34,
+                color: ready ? Palette.accent : Palette.uiTextDim,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${type.name} chest',
+                      style: const TextStyle(
+                        color: Palette.uiText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ready
+                          ? 'Ready'
+                          : remaining == null
+                          ? 'Takes ${formatDuration(type.duration)}'
+                          : formatDuration(remaining),
+                      style: TextStyle(
+                        color: ready ? Palette.accent : Palette.uiTextDim,
+                        fontSize: 12,
+                        fontWeight: ready ? FontWeight.w800 : FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  ready
-                      ? 'Ready'
-                      : remaining == null
-                      ? 'Takes ${formatDuration(type.duration)}'
-                      : formatDuration(remaining),
-                  style: TextStyle(
-                    color: ready ? Palette.accent : Palette.uiTextDim,
-                    fontSize: 12,
-                    fontWeight: ready ? FontWeight.w800 : FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              _action(context, ready, somethingElseUnlocking),
+            ],
           ),
-          _action(context, ready, somethingElseUnlocking),
+          // Only while it is actually counting down. A sealed chest has not
+          // started, so there is nothing to take off; a finished one is
+          // already there to press.
+          if (!ready && remaining != null && Ads.rewardedAvailable)
+            _watchToSkip(remaining),
         ],
+      ),
+    );
+  }
+
+  /// The rewarded offer, on a chest that is counting down.
+  ///
+  /// Only on a *running* chest: a sealed one has not started yet, so there is
+  /// nothing to take time off, and a finished one is already open to press.
+  /// The chest timer is the only real time gate in this game, which is why it
+  /// is the placement worth having.
+  Widget _watchToSkip(Duration remaining) {
+    final skip = Ads.chestSkip;
+    // Says what the press will actually do. "Take 4 hours off" on a chest
+    // with two minutes left would be nonsense, and "open now" on one with
+    // eight hours left would be a lie — this is the only honest way to label
+    // a flat reduction against timers that run from three minutes to eight
+    // hours.
+    final finishes = remaining <= skip;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: watching ? null : onWatchAd,
+          icon: const Icon(Icons.play_circle_outline, size: 18),
+          label: Text(
+            finishes
+                ? 'Watch an ad to open now'
+                : 'Watch an ad  ·  −${formatDuration(skip)}',
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: Palette.info,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
       ),
     );
   }

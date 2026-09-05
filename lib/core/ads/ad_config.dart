@@ -143,16 +143,42 @@ class InterstitialConfig {
 }
 
 class RewardedConfig {
-  const RewardedConfig({required this.enabled, required this.unitId});
+  const RewardedConfig({
+    required this.enabled,
+    required this.unitId,
+    required this.chestSkipMinutes,
+  });
 
   final bool enabled;
   final String unitId;
 
-  static const RewardedConfig off = RewardedConfig(enabled: false, unitId: '');
+  /// How much time one watched ad takes off a chest timer.
+  ///
+  /// Four hours, on the owner's call, and the two worked examples are the
+  /// spec: a Magic chest at eight hours takes two ads — four off, then the
+  /// remaining four — and a Wood chest at three minutes takes one, because a
+  /// single reduction already covers everything left.
+  ///
+  /// It is a flat amount rather than a fraction of the chest, which is what
+  /// makes the short chests a single watch. The consequence worth knowing is
+  /// that Silver (8 min) and Gold (3 h) are also one ad each; only Magic ever
+  /// asks for two. Lower this and the longer chests start costing more
+  /// watches.
+  final int chestSkipMinutes;
+
+  Duration get chestSkip => Duration(minutes: chestSkipMinutes);
+
+  static const RewardedConfig off = RewardedConfig(
+    enabled: false,
+    unitId: '',
+    chestSkipMinutes: 240,
+  );
 
   factory RewardedConfig.fromJson(Map<String, dynamic> json) => RewardedConfig(
     enabled: json['enabled'] as bool? ?? false,
     unitId: json['unitId'] as String? ?? '',
+    chestSkipMinutes:
+        (json['chestSkipMinutes'] as num?)?.toInt() ?? 240,
   );
 }
 

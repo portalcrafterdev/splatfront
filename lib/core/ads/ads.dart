@@ -281,6 +281,92 @@ abstract final class Ads {
     await done.future.timeout(const Duration(seconds: 30), onTimeout: finish);
   }
 
+  // --- Rewarded ------------------------------------------------------------
+
+  /// Whether a rewarded offer should be shown at all.
+  static bool get rewardedAvailable => enabled && _config.rewarded.enabled;
+
+  /// What one watched ad takes off a chest timer.
+  static Duration get chestSkip => _config.rewarded.chestSkip;
+
+  static bool _rewardedShowing = false;
+
+  /// True while one is on screen, so a double tap cannot start two.
+  static bool get rewardedShowing => _rewardedShowing;
+
+  /// Loads and shows a rewarded ad, and reports whether the reward was earned.
+  ///
+  /// **The reward hangs off `onUserEarnedReward`, never off the ad closing.**
+  /// A player who dismisses the video early gets nothing, which is the whole
+  /// contract of the format; paying out on dismissal would be paying for
+  /// nothing and is the kind of thing that gets an account looked at.
+  ///
+  /// Returns false for every failure — ads off, no fill, no network, a show
+  /// that throws — so the caller's only job is to do nothing in that case.
+  /// Unlike the interstitial this is *not* preloaded: it is offered on a
+  /// button the player chooses to press, so the fetch happens then rather
+  /// than holding an ad in memory for something that may never be tapped.
+  static Future<bool> showRewarded() async {
+    if (!rewardedAvailable || _rewardedShowing) return false;
+    _rewardedShowing = true;
+    try {
+      final loaded = Completer<RewardedAd?>();
+      await RewardedAd.load(
+        adUnitId: AdUnits.rewarded(_config.rewarded.unitId),
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            if (!loaded.isCompleted) loaded.complete(ad);
+          },
+          onAdFailedToLoad: (error) {
+            debugPrint('Rewarded failed to load: ${error.code}');
+            if (!loaded.isCompleted) loaded.complete(null);
+          },
+        ),
+      );
+
+      final ad = await loaded.future.timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => null,
+      );
+      if (ad == null) return false;
+
+      var earned = false;
+      final closed = Completer<void>();
+      void finish() {
+        Audio.handleLifecycleState(AppLifecycleState.resumed);
+        if (!closed.isCompleted) closed.complete();
+      }
+
+      ad.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          finish();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          ad.dispose();
+          debugPrint('Rewarded failed to show: ${error.code}');
+          finish();
+        },
+      );
+
+      Audio.handleLifecycleState(AppLifecycleState.paused);
+      await ad.show(onUserEarnedReward: (ad, reward) => earned = true);
+      // Bounded, so a show that never calls back cannot strand the button in
+      // its spinner for the rest of the session.
+      await closed.future.timeout(
+        const Duration(minutes: 5),
+        onTimeout: finish,
+      );
+      return earned;
+    } catch (error) {
+      debugPrint('Rewarded threw: $error');
+      return false;
+    } finally {
+      _rewardedShowing = false;
+    }
+  }
+
   /// Drops everything held. For tests and for a clean shutdown.
   @visibleForTesting
   static void reset() {

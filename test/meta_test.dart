@@ -190,6 +190,63 @@ void main() {
   });
 
   group('chests', () {
+    test('watching an ad takes time off a running chest', () {
+      // The rewarded placement. Implemented by moving the start time back
+      // rather than storing a credit, so what is actually asserted is that
+      // the *remaining* time drops and that it survives being derived from
+      // one timestamp.
+      final controller = fresh(
+        PlayerProfile(chests: [const ChestSlot(typeId: 'magic')]),
+      );
+      final started = DateTime(2026, 9, 5, 12);
+      controller.startUnlocking(0, now: started);
+
+      final full = controller.remainingOn(
+        controller.state.chests.first,
+        now: started,
+      );
+      expect(full, isNotNull);
+
+      expect(controller.speedUpChest(0, const Duration(hours: 4)), isTrue);
+      expect(
+        controller.remainingOn(controller.state.chests.first, now: started),
+        full! - const Duration(hours: 4),
+      );
+
+      // A second watch finishes an eight hour chest, which is the owner's
+      // worked example.
+      expect(controller.speedUpChest(0, const Duration(hours: 4)), isTrue);
+      expect(controller.isReady(controller.state.chests.first, now: started),
+          isTrue);
+    });
+
+    test('there is nothing to speed up on a sealed or finished chest', () {
+      // A sealed chest has no timer to shorten, and a finished one is already
+      // there to open — spending a watched ad on either would be taking
+      // something for nothing, which is the one thing a rewarded placement
+      // must never do.
+      final controller = fresh(
+        PlayerProfile(chests: [const ChestSlot(typeId: 'wood')]),
+      );
+      expect(
+        controller.speedUpChest(0, const Duration(hours: 4)),
+        isFalse,
+        reason: 'sealed, so no timer exists yet',
+      );
+
+      final started = DateTime(2026, 9, 5, 12);
+      controller.startUnlocking(0, now: started);
+      controller.speedUpChest(0, const Duration(hours: 4));
+      expect(
+        controller.speedUpChest(0, const Duration(hours: 4)),
+        isFalse,
+        reason: 'already finished',
+      );
+
+      // And nothing off the end of the list.
+      expect(controller.speedUpChest(9, const Duration(hours: 4)), isFalse);
+    });
+
     test('two slots to start, four from Arena 2', () {
       expect(fresh().chestSlots, 2);
       expect(fresh(const PlayerProfile(trophies: 400)).chestSlots, 4);

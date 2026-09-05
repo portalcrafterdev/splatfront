@@ -233,6 +233,33 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     return true;
   }
 
+  /// Takes [by] off the chest in [index], as a rewarded ad does.
+  ///
+  /// Implemented by moving the start time *backwards* rather than storing a
+  /// separate credit. The remaining time is already derived from that one
+  /// timestamp, so there is nothing to keep in step and nothing new to save —
+  /// and a chest sped up before the app closed is still sped up after it,
+  /// for free.
+  ///
+  /// Returns whether anything changed: a chest that has not been started, or
+  /// one already finished, is not something to spend an ad on.
+  bool speedUpChest(int index, Duration by, {DateTime? now}) {
+    if (index < 0 || index >= state.chests.length) return false;
+    if (by <= Duration.zero) return false;
+    final slot = state.chests[index];
+    final started = slot.unlockStartedAt;
+    if (started == null) return false;
+    if (isReady(slot, now: now)) return false;
+
+    final updated = List<ChestSlot>.of(state.chests);
+    updated[index] = ChestSlot(
+      typeId: slot.typeId,
+      unlockStartedAt: started.subtract(by),
+    );
+    _save(state.copyWith(chests: updated));
+    return true;
+  }
+
   /// How long is left on [slot], or null if it is not unlocking.
   Duration? remainingOn(ChestSlot slot, {DateTime? now}) {
     final started = slot.unlockStartedAt;
