@@ -33,4 +33,8 @@
 <string name="achievement_fully_loaded" translatable="false">CgkIl67EwuoNEAIQCw</string>
 <!--achievement Full Set-->
 <string name="achievement_full_set" translatable="false">CgkIl67EwuoNEAIQBQ</string>
+<!--leaderboard Levels cleared-->
+<string name="leaderboard_levels_cleared" translatable="false">CgkIl67EwuoNEAIQDw</string>
+<!--leaderboard Total stars-->
+<string name="leaderboard_total_stars" translatable="false">CgkIl67EwuoNEAIQEA</string>
 </resources>

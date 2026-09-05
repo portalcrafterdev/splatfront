@@ -283,7 +283,7 @@ class _PlayGamesTileState extends State<_PlayGamesTile> {
         ),
         subtitle: Text(
           signedIn
-              ? 'Connected. Achievements are recorded as you play.'
+              ? 'Connected. Achievements and scores are recorded as you play.'
               // Says what it is for rather than just what it is. A sign-in
               // with no stated purpose on a single-player game reads as the
               // app asking for something.
@@ -291,18 +291,29 @@ class _PlayGamesTileState extends State<_PlayGamesTile> {
                     'you play.',
           style: const TextStyle(color: Palette.uiTextDim, fontSize: 11),
         ),
-        // Signed in, this is the only way into the achievements list — the
-        // platform draws that screen, so there is nothing to build and
-        // nothing to keep in step. A tick where a button could be would
-        // leave fourteen achievements with no door.
+        // Signed in, these are the only way into the two platform screens —
+        // Play Games draws both, so there is nothing to build and nothing to
+        // keep in step. A tick where a button could be would leave fourteen
+        // achievements and a leaderboard with no door.
         trailing: signedIn
-            ? TextButton(
-                onPressed: GameServices.showAchievements,
-                style: TextButton.styleFrom(
-                  foregroundColor: Palette.accent,
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: const Text('Achievements'),
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => GameServices.showLeaderboards(),
+                    icon: const Icon(Icons.leaderboard_outlined),
+                    color: Palette.accent,
+                    tooltip: 'Leaderboards',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    onPressed: GameServices.showAchievements,
+                    icon: const Icon(Icons.military_tech_outlined),
+                    color: Palette.accent,
+                    tooltip: 'Achievements',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               )
             : FilledButton(
                 onPressed: busy ? null : _signIn,

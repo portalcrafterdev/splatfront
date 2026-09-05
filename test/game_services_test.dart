@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/core/games/game_services.dart';
+import 'package:splatfront/meta/achievements.dart';
+import 'package:splatfront/meta/leaderboards.dart';
 
 /// Play Games / Game Center sign-in.
 ///
@@ -63,9 +65,30 @@ void main() {
   });
 
   test('achievements do nothing while signed out', () async {
-    // Not an error, not a crash, and not a sheet. There are no achievements
-    // defined in the Play Console yet either, so this is the honest state.
+    // Not an error, not a crash, and not a sheet. Signed out there is nowhere
+    // to report to, and the game has to carry on exactly as it does offline.
     await expectLater(GameServices.showAchievements(), completes);
+    await expectLater(
+      GameServices.report(
+        await AchievementSet.load(),
+        const AchievementProgress(levelsCleared: 40),
+      ),
+      completes,
+    );
+  });
+
+  test('scores do nothing while signed out', () async {
+    // Same rule for the leaderboards, and it matters more here: a submit is
+    // the one call that would otherwise reach the network on a device with no
+    // account at all.
+    await expectLater(GameServices.showLeaderboards(), completes);
+    await expectLater(
+      GameServices.submitScores(
+        await LeaderboardSet.load(),
+        const AchievementProgress(levelsCleared: 40, totalStars: 96),
+      ),
+      completes,
+    );
   });
 
   test('the signed-in state is observable without polling', () {

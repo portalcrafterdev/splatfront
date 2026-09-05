@@ -176,6 +176,7 @@ abstract final class Stats {
 class AchievementProgress {
   const AchievementProgress({
     this.levelsCleared = 0,
+    this.totalStars = 0,
     this.threeStarLevels = 0,
     this.bestCoveragePercent = 0,
     this.suddenDeathWins = 0,
@@ -186,6 +187,14 @@ class AchievementProgress {
   });
 
   final int levelsCleared;
+
+  /// Every star earned across the campaign.
+  ///
+  /// No achievement uses this — it is here for the leaderboards, which rank
+  /// the same numbers the achievements are measured against rather than
+  /// keeping a second set that could drift out of step with them.
+  final int totalStars;
+
   final int threeStarLevels;
 
   /// The best share of the board held in a *won* match. A losing blowout is
@@ -206,6 +215,7 @@ class AchievementProgress {
   /// sit there looking merely unearned instead of broken.
   int? valueFor(String trigger) => switch (trigger) {
     'levelsCleared' => levelsCleared,
+    'totalStars' => totalStars,
     'threeStarLevels' => threeStarLevels,
     'bestCoveragePercent' => bestCoveragePercent,
     'suddenDeathWins' => suddenDeathWins,

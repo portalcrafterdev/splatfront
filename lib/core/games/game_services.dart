@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:games_services/games_services.dart' as gs;
 
 import '../../meta/achievements.dart';
+import '../../meta/leaderboards.dart';
 
 /// Play Games on Android, Game Center on iOS.
 ///
@@ -19,10 +20,12 @@ import '../../meta/achievements.dart';
 /// and this is a sign-in for a single-player game: it is decoration on the
 /// progression, never a gate in front of it.
 ///
-/// **Achievements go through [unlockAll], and only ever as a record.** The
-/// set and its unlock conditions live in ; an
-/// entry with no platform id yet is skipped in silence, which is what lets
-/// the whole set ship before the Play Console work is done.
+/// **Achievements and scores go out through [report] and [submitScores], and
+/// only ever as a record.** Both sets live in JSON — `achievements.json` and
+/// `leaderboards.json` — and an entry with no platform id for the running
+/// platform is skipped in silence. That is what let the whole set ship before
+/// the Play Console work was done, and it is what keeps the iOS half quiet
+/// until Game Center exists.
 abstract final class GameServices {
   static bool _started = false;
   static bool _signedIn = false;
@@ -173,6 +176,71 @@ abstract final class GameServices {
     }
   }
 
+  // --- Leaderboards --------------------------------------------------------
+
+  /// The last score posted for each board this launch.
+  static final Map<String, int> _posted = <String, int>{};
+
+  /// Submits the player's current standing to every configured board.
+  ///
+  /// Silent about everything, the same way [report] is: signed out, no ids,
+  /// no network — all of it ends in nothing happening.
+  ///
+  /// Scores are absolute, not deltas, and the platform keeps the *best* one
+  /// it has seen. That is what makes a single submission after any change
+  /// sufficient, and it is why a player who cleared two hundred levels
+  /// offline has all of it counted on their first submission after signing
+  /// in. It also means a submission can never make a standing worse — a
+  /// wiped save, or a profile that somehow reads low, cannot cost somebody
+  /// their place.
+  static Future<void> submitScores(
+    LeaderboardSet boards,
+    AchievementProgress progress,
+  ) async {
+    if (!_signedIn) return;
+    for (final board in boards.all) {
+      if (!board.isConfigured) continue;
+      final value = progress.valueFor(board.source);
+      // Zero is not submitted. Every board here starts at a lowest allowed
+      // score of 1, so a fresh profile posting zero would be rejected by the
+      // platform anyway — and posting it would put somebody who has never
+      // finished a level on the board at all.
+      if (value == null || value <= 0) continue;
+      if (_posted[board.key] == value) continue;
+
+      try {
+        await gs.Leaderboards.submitScore(
+          score: gs.Score(
+            androidLeaderboardID: board.androidId,
+            iOSLeaderboardID: board.iosId,
+            value: value,
+          ),
+        );
+        _posted[board.key] = value;
+      } catch (error) {
+        // Left unrecorded, so the next change tries again.
+        debugPrint('Could not submit ${board.key}: $error');
+      }
+    }
+  }
+
+  /// Opens the platform's own leaderboards screen.
+  ///
+  /// With no [board] it shows the list of all of them, which is what the
+  /// button in Settings wants: two boards behind one door rather than a row
+  /// of buttons that has to grow every time one is added.
+  static Future<void> showLeaderboards([Leaderboard? board]) async {
+    if (!_signedIn) return;
+    try {
+      await gs.Leaderboards.showLeaderboards(
+        androidLeaderboardID: board?.androidId ?? '',
+        iOSLeaderboardID: board?.iosId ?? '',
+      );
+    } catch (error) {
+      debugPrint('Could not open leaderboards: $error');
+    }
+  }
+
   /// Opens the platform's own achievements screen.
   ///
   /// Does nothing while signed out, and nothing if no achievements have been
@@ -195,6 +263,7 @@ abstract final class GameServices {
     _playerName = null;
     _busy = false;
     _sent.clear();
+    _posted.clear();
   }
 
   /// Installs a signed-in state directly, for tests of the UI around it.

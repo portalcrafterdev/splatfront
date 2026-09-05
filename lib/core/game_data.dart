@@ -10,6 +10,7 @@ import '../game/match/match_result.dart';
 import '../game/units/units_registry.dart';
 import '../meta/achievements.dart';
 import '../meta/campaign.dart';
+import '../meta/leaderboards.dart';
 import '../meta/chests.dart';
 import '../meta/quests.dart';
 import '../meta/upgrades.dart';
@@ -63,6 +64,7 @@ class GameData {
     required this.shop,
     required this.campaign,
     required this.achievements,
+    required this.leaderboards,
   });
 
   final List<ArenaLayout> arenas;
@@ -96,6 +98,9 @@ class GameData {
   /// enough to do after any change, and an await in that path would make it
   /// something a caller could forget.
   final AchievementSet achievements;
+
+  /// The score boards, ranking numbers the profile already keeps.
+  final LeaderboardSet leaderboards;
 
   UnitsRegistry get units => cards.units;
 
@@ -131,6 +136,7 @@ class GameData {
     final shop = await ShopConfig.load();
     final campaign = await CampaignConfig.load();
     final achievements = await AchievementSet.load();
+    final leaderboards = await LeaderboardSet.load();
 
     // Fail at startup, not mid-match, if any deck names something that
     // cannot be played.
@@ -151,6 +157,7 @@ class GameData {
       shop: shop,
       campaign: campaign,
       achievements: achievements,
+      leaderboards: leaderboards,
     );
   }
 }

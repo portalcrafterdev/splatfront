@@ -41,7 +41,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   void _save(PlayerProfile next) {
     state = next;
     saveToDisk(next);
-    reportAchievements();
+    reportProgress();
   }
 
   // --- Achievements -------------------------------------------------------
@@ -54,6 +54,7 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   /// is a number that can disagree with it.
   AchievementProgress get achievementProgress => AchievementProgress(
     levelsCleared: state.campaignStars.length,
+    totalStars: state.campaignTotalStars,
     threeStarLevels: state.campaignStars.values.where((s) => s >= 3).length,
     bestCoveragePercent: state.stat(Stats.bestCoveragePercent),
     suddenDeathWins: state.stat(Stats.suddenDeathWins),
@@ -66,20 +67,26 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     cardsOwned: unlockedCards.length,
   );
 
-  /// Tells the platform where the player is now.
+  /// Tells the platform where the player is now — achievements and scores.
   ///
   /// Called from [_save], so **every** change to the profile reports —
   /// clearing a level, opening a chest, upgrading a card. That is deliberate:
   /// hanging it off each individual action is how one gets forgotten, and the
-  /// call is free when nothing moved. `GameServices.report` is signed-out
-  /// safe, skips achievements with no platform id, and remembers what it last
-  /// sent, so the common case does nothing at all.
+  /// call is free when nothing moved. Both calls are signed-out safe, skip
+  /// entries with no platform id, and remember what they last sent, so the
+  /// common case does nothing at all.
   ///
-  /// Never awaited. An achievement is a record of play, not part of it, and
-  /// a slow platform call must not hold up a chest opening.
+  /// One method for both because they are one question — "where is this
+  /// player?" — asked of two services, and splitting it would give a future
+  /// call site the chance to remember one and forget the other.
+  ///
+  /// Never awaited. This is a record of play, not part of it, and a slow
+  /// platform call must not hold up a chest opening.
   @protected
-  void reportAchievements() {
-    unawaited(GameServices.report(data.achievements, achievementProgress));
+  void reportProgress() {
+    final progress = achievementProgress;
+    unawaited(GameServices.report(data.achievements, progress));
+    unawaited(GameServices.submitScores(data.leaderboards, progress));
   }
 
   /// Reports everything again when a player connects mid-session.
@@ -87,11 +94,11 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   /// Without this, signing in banks nothing until the next time the profile
   /// changes — so somebody who connects and then immediately opens the
   /// achievements list is shown an empty one, which is precisely the moment
-  /// they went looking. Because [reportAchievements] sends absolute values
+  /// they went looking. Because [reportProgress] sends absolute values
   /// read off the save rather than deltas, a player who cleared two hundred
   /// levels offline has all of it land on the first report.
   void _onGameServicesChanged() {
-    if (GameServices.isSignedIn) reportAchievements();
+    if (GameServices.isSignedIn) reportProgress();
   }
 
   @override

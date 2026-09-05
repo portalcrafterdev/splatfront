@@ -28,7 +28,7 @@ class _TestProfile extends ProfileController {
   AchievementProgress? lastReported;
 
   @override
-  void reportAchievements() {
+  void reportProgress() {
     reports++;
     lastReported = achievementProgress;
   }
@@ -764,6 +764,8 @@ void main() {
       final progress = controller.achievementProgress;
 
       expect(progress.levelsCleared, 3);
+      expect(progress.totalStars, 8, reason: 'the levels_cleared board ranks '
+          'depth and total_stars ranks quality — they must be two numbers');
       expect(progress.threeStarLevels, 2);
       expect(progress.highestCardLevel, 7);
       expect(progress.cardsOwned, controller.unlockedCards.length);
