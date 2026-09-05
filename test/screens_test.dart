@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/app.dart';
 import 'package:splatfront/core/game_data.dart';
+import 'package:splatfront/core/games/game_services.dart';
 import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/game/arena/arena_layout.dart';
 import 'package:splatfront/game/match/match_controller.dart';
@@ -258,6 +259,27 @@ void main() {
           'during build',
     );
 
+    await unmount(tester);
+  });
+
+  testWidgets('the sign-in prompt is on Home, and leaves once used', (
+    tester,
+  ) async {
+    // Signed out it is offered on Home, where it was asked for.
+    GameServices.debugSignedIn(signedIn: false);
+    addTearDown(GameServices.reset);
+    await pumpApp(tester);
+    expect(find.textContaining('Sign in to'), findsOneWidget);
+    // And it never outranks the thing the page exists for.
+    expect(find.text('BATTLE'), findsOneWidget);
+    await unmount(tester);
+
+    // Signed in it builds nothing at all: a permanent account row does
+    // nothing for somebody already connected, and Settings carries the
+    // connected state instead.
+    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+    await pumpApp(tester);
+    expect(find.textContaining('Sign in to'), findsNothing);
     await unmount(tester);
   });
 

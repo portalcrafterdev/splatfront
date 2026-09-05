@@ -34,11 +34,30 @@ void main() {
     expect(GameServices.isBusy, isFalse);
   });
 
+  test('start gives up rather than hanging', () async {
+    // The plugin's `isSignedIn` is a Completer waiting on a stream with no
+    // timeout of its own, so with no Play Services behind it — a test
+    // binding, or a device without them — it never completes at all. This
+    // test *is* the guard: without the bound in `start` it does not fail, it
+    // times out after thirty seconds, and on a phone it would leave the Home
+    // prompt stuck on "Connecting…" forever.
+    await GameServices.start().timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => fail('start never returned'),
+    );
+    expect(GameServices.isStarted, isTrue);
+    expect(GameServices.isSignedIn, isFalse);
+  }, timeout: const Timeout(Duration(seconds: 25)));
+
   test('start never throws and only runs once', () async {
+    // It asks whether a session already exists and shows nothing. It must
+    // never call signIn: Play Games v2 treats that as an explicit request and
+    // puts its account sheet on screen, which on launch means a Google dialog
+    // over the splash before anyone has seen the game. That happened once.
     await GameServices.start();
     expect(GameServices.isStarted, isTrue);
-    // Idempotent: a second call is a no-op rather than a second sign-in
-    // attempt and a second account sheet.
+    expect(GameServices.isSignedIn, isFalse, reason: 'no session in a test');
+    // Idempotent: a second call is a no-op rather than a second attempt.
     await GameServices.start();
     expect(GameServices.isStarted, isTrue);
   });

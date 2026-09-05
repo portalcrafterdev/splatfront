@@ -45,27 +45,40 @@ abstract final class GameServices {
   /// without every screen having to poll.
   static final ValueNotifier<int> revision = ValueNotifier(0);
 
-  /// Attempts the silent sign-in the platforms both offer at launch.
+  /// Asks whether there is already a signed-in player. Shows nothing.
   ///
-  /// Silent on purpose: Play Games shows its own welcome banner if the player
-  /// has signed in before, and throwing an account chooser at somebody who
-  /// just opened a single-player game is the sort of thing that gets an app
-  /// closed. The explicit [signIn] is behind a button they choose to press.
+  /// **This must never be `signIn()`.** It was, and it was wrong: Play Games
+  /// Services v2 treats `signIn` as an explicit request and puts its full
+  /// account sheet on screen — so launching the app threw a Google sign-in
+  /// dialog over the splash before anybody had seen the game. That is exactly
+  /// the thing this was supposed to avoid, and on a single-player game it is
+  /// the sort of prompt that gets an app closed rather than played.
+  ///
+  /// `isSignedIn` is the silent question. If the player has connected before,
+  /// the platform restores the session on its own and this reports it; if
+  /// they have not, nothing appears and the button on Home is there for when
+  /// they want it.
   static Future<void> start() async {
     if (_started) return;
     _started = true;
     try {
-      // On Android this resolves against the already-authenticated Play
-      // Games session and does nothing visible if there is not one.
-      final result = await gs.GamesServices.signIn();
-      _signedIn = result != null && !result.toLowerCase().contains('error');
+      // Bounded, and it has to be. The plugin implements `isSignedIn` as a
+      // Completer waiting on its player stream with no timeout of its own, so
+      // on a device with no Play Services — or in a test binding — it never
+      // completes at all rather than failing. An unbounded await here would
+      // leave this permanently half-started and the Home prompt frozen on
+      // "Connecting…".
+      _signedIn = await gs.GamesServices.isSignedIn.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => false,
+      );
       if (_signedIn) await _readPlayer();
     } catch (error) {
       // The overwhelmingly common cause in development is a signing
       // certificate whose SHA-1 is not registered against the Play Games
       // project, which surfaces here as an opaque platform error. It is not
       // something the player can act on, so it stays in the log.
-      debugPrint('Play Games silent sign-in unavailable: $error');
+      debugPrint('Play Games not available: $error');
       _signedIn = false;
     }
     revision.value++;

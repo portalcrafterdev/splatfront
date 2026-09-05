@@ -254,6 +254,17 @@ class _PlayGamesTileState extends State<_PlayGamesTile> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilt off the notifier, not just off this widget's own setState. The
+    // silent sign-in at launch resolves in the background and the Home prompt
+    // can sign in too, so this tile has to be able to catch up on a state
+    // change it did not cause.
+    return ValueListenableBuilder<int>(
+      valueListenable: GameServices.revision,
+      builder: (context, revision, _) => _tile(context),
+    );
+  }
+
+  Widget _tile(BuildContext context) {
     final signedIn = GameServices.isSignedIn;
     final name = GameServices.playerName;
     final busy = _pressed || GameServices.isBusy;

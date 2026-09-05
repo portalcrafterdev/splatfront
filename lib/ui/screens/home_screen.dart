@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/game_data.dart';
 import '../../core/audio.dart';
+import '../../core/game_data.dart';
+import '../../core/games/game_services.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../game/arena/arena_layout.dart';
@@ -130,6 +132,7 @@ class _PlayerPane extends ConsumerWidget {
               nextAt: data.nextArenaThreshold(profile.trophies),
             ),
           ),
+          const _PlayGamesPrompt(),
           const SizedBox(height: 14),
           // The hero, and the only loud thing on the page.
           //
@@ -169,6 +172,120 @@ class _PlayerPane extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The Play Games / Game Center sign-in, on Home.
+///
+/// **It disappears once you use it.** A permanent account row on the home
+/// screen of a single-player game is a line of chrome that does nothing for
+/// anybody who has already connected — and, worse, it competes with the one
+/// thing this page exists to get you to press. Signed in, this builds
+/// nothing at all and Settings carries the connected state instead.
+///
+/// Slim and quiet by design: it is the only element on Home that is not part
+/// of playing, so it takes one line, uses the secondary accent rather than
+/// the action colour, and sits above the board card rather than beside it.
+/// Nothing here gates a level, a chest or a card — section 14's rule that v1
+/// never pretends to be more than single player cuts the same way.
+class _PlayGamesPrompt extends StatefulWidget {
+  const _PlayGamesPrompt();
+
+  @override
+  State<_PlayGamesPrompt> createState() => _PlayGamesPromptState();
+}
+
+class _PlayGamesPromptState extends State<_PlayGamesPrompt> {
+  bool _pressed = false;
+
+  String get _serviceName => defaultTargetPlatform == TargetPlatform.iOS
+      ? 'Game Center'
+      : 'Play Games';
+
+  Future<void> _signIn() async {
+    setState(() => _pressed = true);
+    final ok = await GameServices.signIn();
+    if (!mounted) return;
+    setState(() => _pressed = false);
+    if (!ok) {
+      // Said out loud rather than left as a button that did nothing. The
+      // usual cause in a debug build is a signing certificate not registered
+      // against the Play Games project, which the player can do nothing
+      // about — so the wording blames the connection and does not pretend to
+      // diagnose it.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not connect to $_serviceName.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Rebuilds off the notifier rather than polling, because the silent
+    // sign-in at launch resolves in the background — this row has to be able
+    // to vanish on its own when it does.
+    return ValueListenableBuilder<int>(
+      valueListenable: GameServices.revision,
+      builder: (context, revision, _) {
+        if (GameServices.isSignedIn) return const SizedBox.shrink();
+        final busy = _pressed || GameServices.isBusy;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: PressScale(
+            onTap: busy ? null : _signIn,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: Palette.uiSurfaceHigh,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Palette.info.withValues(alpha: 0.35),
+                  width: 1,
+                ),
+                boxShadow: Panel.softShadow,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sports_esports_outlined,
+                    size: 18,
+                    color: Palette.info,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      busy ? 'Connecting…' : 'Sign in to $_serviceName',
+                      style: const TextStyle(
+                        color: Palette.uiText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Optional',
+                    style: TextStyle(
+                      color: Palette.uiTextDim.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Palette.uiTextDim.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
