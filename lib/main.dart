@@ -11,6 +11,7 @@ import 'core/game_data.dart';
 import 'core/games/game_services.dart';
 import 'core/save/hive_boxes.dart';
 import 'core/save/player_profile.dart';
+import 'core/screen_wake.dart';
 import 'game/units/rive_units.dart';
 import 'meta/profile_controller.dart';
 
@@ -67,6 +68,11 @@ Future<void> main() async {
   // never sit between them and the home screen. It resolves in the
   // background and the Settings tile updates when it does.
   unawaited(GameServices.start());
+
+  // Allows the battle screen to hold the display awake. Same reason as the
+  // three above: no test calls this, so the widget suite opens arenas without
+  // ever reaching for a wakelock plugin that is not registered under it.
+  ScreenWake.start();
 
   runApp(
     ProviderScope(

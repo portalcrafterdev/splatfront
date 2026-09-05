@@ -8,6 +8,7 @@ import '../../core/ads/ads.dart';
 import '../../core/audio.dart';
 import '../../core/frame_log.dart';
 import '../../core/palette.dart';
+import '../../core/screen_wake.dart';
 import '../../game/arena/arena_layout.dart';
 import '../../game/bot/bot_difficulty.dart';
 import '../../game/cards/card_registry.dart';
@@ -157,6 +158,11 @@ class _BattleScreenState extends State<BattleScreen>
     // have no clock and no whistle, and they are still somewhere you watch
     // units hit each other.
     Audio.gameplayMuted = false;
+    // And the screen stays awake for the same reason it stays audible. A
+    // player can deploy a card and then not touch the glass for the rest of
+    // the match — the phone reads that as idle and sleeps mid-push. The
+    // sandboxes count here too: watching units fight is the whole activity.
+    ScreenWake.request(true);
     if (widget.sandbox == SandboxMode.off) {
       Audio.playMusic(Track.match);
       _game.match?.timeRemaining.addListener(_watchClock);
@@ -180,6 +186,10 @@ class _BattleScreenState extends State<BattleScreen>
     // rematch replacing this screen. Whatever is still moving down there
     // stops being audible the moment it is off screen.
     Audio.gameplayMuted = true;
+    // The backstop. The whistle releases the lock already, but a match left
+    // by the back button never reaches a whistle — the same hole that left
+    // the arena audible on the way out until this line's neighbour was added.
+    ScreenWake.request(false);
     _game.match?.timeRemaining.removeListener(_watchClock);
     _game.match?.phase.removeListener(_watchPhase);
     _game.match?.result.removeListener(_bankFromResult);
@@ -208,6 +218,12 @@ class _BattleScreenState extends State<BattleScreen>
     // The calm loop, not silence: the result screen has no clock on it and
     // can sit there as long as the player likes.
     Audio.playMusic(Track.menu);
+    // And that is exactly why the screen goes back to sleeping normally at
+    // the whistle rather than on the way out. The result screen has no clock:
+    // a player who walks away from it would otherwise leave the display lit
+    // until the battery went, which is the one way a comfort like this turns
+    // into a complaint.
+    ScreenWake.request(false);
   }
 
   /// Swaps to the percussion layer for the closing stretch, per section 12.
