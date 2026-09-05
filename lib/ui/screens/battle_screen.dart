@@ -110,7 +110,8 @@ class BattleScreen extends StatefulWidget {
   State<BattleScreen> createState() => _BattleScreenState();
 }
 
-class _BattleScreenState extends State<BattleScreen> {
+class _BattleScreenState extends State<BattleScreen>
+    with WidgetsBindingObserver {
   /// Anchors the world-coordinate conversion for drag-to-deploy.
   final GlobalKey _arenaKey = GlobalKey();
 
@@ -138,6 +139,9 @@ class _BattleScreenState extends State<BattleScreen> {
   @override
   void initState() {
     super.initState();
+    // Watches for the app losing the foreground, which is what an ad taking
+    // over the screen looks like from in here.
+    WidgetsBinding.instance.addObserver(this);
     FrameLog.start(widget.sandbox == SandboxMode.off ? 'match' : 'sandbox');
     // Blocks every ad *load* for as long as an arena is on screen.
     //
@@ -170,6 +174,7 @@ class _BattleScreenState extends State<BattleScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     FrameLog.stop();
     // Leaving the arena, by any route: the whistle, the back button, or a
     // rematch replacing this screen. Whatever is still moving down there
@@ -421,6 +426,31 @@ class _BattleScreenState extends State<BattleScreen> {
     // the whistle and on the way out. The interface still speaks.
     Audio.gameplayMuted = true;
     _paused.value = true;
+  }
+
+  /// Holds the match whenever the app stops being the thing on screen.
+  ///
+  /// **Nothing was doing this.** Only the audio watched the lifecycle, so an
+  /// interstitial, a tapped banner, a phone call or the home button all left
+  /// the arena running: the clock kept counting, the bot kept deploying, and
+  /// the player came back to a match they had already lost. An ad is the
+  /// worst case of the four, because the app itself opened it.
+  ///
+  /// It deliberately does **not** resume on the way back. The pause overlay
+  /// stays up and the player presses RESUME, which is both the standard for a
+  /// real-time mobile game and the safe answer — dropping someone straight
+  /// into a live board they have not looked at for thirty seconds is how the
+  /// interruption costs them the match anyway. It also means an interruption
+  /// during a pause the *player* asked for cannot silently un-pause them.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) return;
+    // Nothing to hold in a sandbox, and nothing to hold after the whistle —
+    // the result screen is not a match, and pausing under it would put a
+    // PAUSED card over the end of the game.
+    if (widget.sandbox != SandboxMode.off) return;
+    if (_game.match?.phase.value.isOver ?? true) return;
+    _pause();
   }
 
   void _resume() {

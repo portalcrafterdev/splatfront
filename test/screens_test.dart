@@ -261,6 +261,48 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('the match stops when the app loses the foreground', (
+    tester,
+  ) async {
+    // The reported symptom was an ad on screen with the game still running
+    // behind it. Only the audio was watching the lifecycle, so an
+    // interstitial, a tapped banner, a phone call or the home button all left
+    // the clock counting and the bot deploying — and the player came back to
+    // a match they had already lost.
+    await pumpApp(tester);
+    await openRoute(tester, find.text('BATTLE'));
+    await tester.pump(const Duration(seconds: 4));
+
+    final before = tester.widget<Text>(find.textContaining(':').first).data;
+    expect(before, isNotNull, reason: 'no clock to watch');
+
+    // What Android reports while an AdActivity is in front of us.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    expect(find.text('PAUSED'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(
+      tester.widget<Text>(find.textContaining(':').first).data,
+      before,
+      reason: 'the clock ran on while the app was in the background',
+    );
+
+    // Coming back does not un-pause. Dropping someone into a live board they
+    // have not looked at for thirty seconds costs them the match just as
+    // surely as leaving it running did.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.text('RESUME'), findsOneWidget);
+
+    await tester.tap(find.text('RESUME'));
+    await tester.pump();
+    expect(find.text('PAUSED'), findsNothing);
+
+    await unmount(tester);
+  });
+
   testWidgets('a match says which level it is', (tester) async {
     // The match screen said who was playing and how long was left, and never
     // which level — so once the countdown cleared there was nothing on screen
