@@ -207,7 +207,16 @@ void main() {
       );
       expect(full, isNotNull);
 
-      expect(controller.speedUpChest(0, const Duration(hours: 4)), isTrue);
+      // `now` on every call, and that is not decoration. Without it
+      // `speedUpChest` reads the real clock to decide whether the chest has
+      // already finished, so this test passed all afternoon and then started
+      // failing at 16:00 on the day it was written — the point at which a
+      // wall clock caught up with an eight hour chest started at noon. A test
+      // that depends on the hour it runs at is worse than no test.
+      expect(
+        controller.speedUpChest(0, const Duration(hours: 4), now: started),
+        isTrue,
+      );
       expect(
         controller.remainingOn(controller.state.chests.first, now: started),
         full! - const Duration(hours: 4),
@@ -215,7 +224,10 @@ void main() {
 
       // A second watch finishes an eight hour chest, which is the owner's
       // worked example.
-      expect(controller.speedUpChest(0, const Duration(hours: 4)), isTrue);
+      expect(
+        controller.speedUpChest(0, const Duration(hours: 4), now: started),
+        isTrue,
+      );
       expect(controller.isReady(controller.state.chests.first, now: started),
           isTrue);
     });
@@ -236,9 +248,9 @@ void main() {
 
       final started = DateTime(2026, 9, 5, 12);
       controller.startUnlocking(0, now: started);
-      controller.speedUpChest(0, const Duration(hours: 4));
+      controller.speedUpChest(0, const Duration(hours: 4), now: started);
       expect(
-        controller.speedUpChest(0, const Duration(hours: 4)),
+        controller.speedUpChest(0, const Duration(hours: 4), now: started),
         isFalse,
         reason: 'already finished',
       );

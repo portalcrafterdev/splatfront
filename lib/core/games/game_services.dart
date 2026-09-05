@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:games_services/games_services.dart' as gs;
 
+import '../../meta/achievements.dart';
+
 /// Play Games on Android, Game Center on iOS.
 ///
 /// Deliberately static and deliberately forgiving, the same shape as `Audio`
@@ -17,11 +19,10 @@ import 'package:games_services/games_services.dart' as gs;
 /// and this is a sign-in for a single-player game: it is decoration on the
 /// progression, never a gate in front of it.
 ///
-/// **Signing in buys nothing yet, and that is deliberate.** There are no
-/// achievements and no leaderboards defined in the Play Console, so the only
-/// thing this currently does is establish the session and hand back a player
-/// name. Submitting scores is a small addition on top once boards exist; it
-/// is not something the code can invent on its own.
+/// **Achievements go through [unlockAll], and only ever as a record.** The
+/// set and its unlock conditions live in ; an
+/// entry with no platform id yet is skipped in silence, which is what lets
+/// the whole set ship before the Play Console work is done.
 abstract final class GameServices {
   static bool _started = false;
   static bool _signedIn = false;
@@ -115,6 +116,63 @@ abstract final class GameServices {
     }
   }
 
+  // --- Achievements --------------------------------------------------------
+
+  /// The last value posted for each key this launch.
+  ///
+  /// In-memory only, and that is fine: the platform is the real record, and
+  /// re-posting a value it already has is a no-op on both stores. This only
+  /// keeps the chatter down, so that a profile change does not fire fourteen
+  /// platform calls when nothing about them moved.
+  static final Map<String, int> _sent = <String, int>{};
+
+  /// Reports where the player is against the whole set.
+  ///
+  /// Takes the progress rather than a list of earned achievements, because
+  /// the incremental ones want reporting *before* they are finished — "47 of
+  /// 100" is the entire reason to make something a progress bar.
+  ///
+  /// Silent about everything: signed out, no ids configured, no network — all
+  /// of it ends in nothing happening. Achievements are a record of play, not
+  /// part of it, and they must never interrupt or block.
+  static Future<void> report(
+    AchievementSet set,
+    AchievementProgress progress,
+  ) async {
+    if (!_signedIn) return;
+    for (final achievement in set.all) {
+      if (!achievement.isConfigured) continue;
+      final value = progress.valueFor(achievement.trigger);
+      if (value == null || value <= 0) continue;
+
+      // Never overshoot: the platform rejects steps above the configured
+      // total, and there is nothing past "done" to report anyway.
+      final capped = value > achievement.target ? achievement.target : value;
+      if (_sent[achievement.key] == capped) continue;
+      if (!achievement.incremental && capped < achievement.target) continue;
+
+      final id = gs.Achievement(
+        androidID: achievement.androidId,
+        iOSID: achievement.iosId,
+        steps: capped,
+      );
+      try {
+        // The two kinds take different calls and the platform ignores the
+        // wrong one, which is a silent failure rather than an error — so this
+        // branch has to agree with what was typed into the Console.
+        if (achievement.incremental) {
+          await gs.Achievements.setSteps(achievement: id);
+        } else {
+          await gs.GamesServices.unlock(achievement: id);
+        }
+        _sent[achievement.key] = capped;
+      } catch (error) {
+        // Left unrecorded, so the next check tries again.
+        debugPrint('Could not report ${achievement.key}: $error');
+      }
+    }
+  }
+
   /// Opens the platform's own achievements screen.
   ///
   /// Does nothing while signed out, and nothing if no achievements have been
@@ -136,6 +194,7 @@ abstract final class GameServices {
     _signedIn = false;
     _playerName = null;
     _busy = false;
+    _sent.clear();
   }
 
   /// Installs a signed-in state directly, for tests of the UI around it.
