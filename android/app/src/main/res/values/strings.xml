@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The Play Games Services project id.
+
+      It lives in a string resource rather than inline in the manifest on
+      purpose. The value is all digits, and Android resolves a bare numeric
+      manifest attribute as an integer — Play Services then reads a mangled id
+      and sign-in fails at runtime with nothing useful in the log. A string
+      resource is unambiguous.
+    -->
+    <string name="game_services_project_id">475270289175</string>
+</resources>

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'app.dart';
 import 'core/ads/ads.dart';
 import 'core/audio.dart';
 import 'core/game_data.dart';
+import 'core/games/game_services.dart';
 import 'core/save/hive_boxes.dart';
 import 'core/save/player_profile.dart';
 import 'game/units/rive_units.dart';
@@ -58,6 +61,12 @@ Future<void> main() async {
   // art above, it cannot throw — a device with no network runs the whole game
   // with empty ad slots.
   await Ads.start();
+
+  // Play Games / Game Center. Not awaited, and that is the point: it is a
+  // network round trip that buys the player nothing they need, so it must
+  // never sit between them and the home screen. It resolves in the
+  // background and the Settings tile updates when it does.
+  unawaited(GameServices.start());
 
   runApp(
     ProviderScope(
