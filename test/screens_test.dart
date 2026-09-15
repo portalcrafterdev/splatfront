@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:splatfront/app.dart';
 import 'package:splatfront/core/game_data.dart';
 import 'package:splatfront/core/games/game_services.dart';
+import 'package:splatfront/core/games/games_opt_out.dart';
 import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/game/arena/arena_layout.dart';
 import 'package:splatfront/game/match/match_controller.dart';
@@ -280,33 +281,113 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('sign-in is off Home and behind the grown-ups door', (
+  testWidgets('Home offers sign-in, then the two doors it opens', (
     tester,
   ) async {
-    // It used to sit on Home, directly under the wordmark. That is the best
-    // real estate on the first screen of the app, and it was spent on the one
-    // thing a child cannot action by themselves: connecting an account is a
-    // parent's decision. Home is now for playing.
+    // On Home on the owner's call. It was moved to Settings during the
+    // children's redesign — an account is a parent's decision and this is the
+    // best space on the first screen a child sees — and moved back, because
+    // fourteen achievements and two leaderboards reachable only three taps
+    // into a settings page are achievements nobody looks at.
     GameServices.debugSignedIn(signedIn: false);
     addTearDown(GameServices.reset);
     await pumpApp(tester);
 
-    expect(
-      find.textContaining('Sign in to'),
-      findsNothing,
-      reason: 'an account row is not a thing a child can do',
-    );
-    // What stands in its place is the guide, and what it says is an
-    // instruction rather than a status.
-    expect(find.textContaining('Tap Battle'), findsOneWidget);
+    expect(find.textContaining('Sign in to'), findsOneWidget);
+    // And it never outranks the thing the page exists for.
     expect(find.text('BATTLE'), findsOneWidget);
+    expect(find.textContaining('Tap Battle'), findsOneWidget);
     await unmount(tester);
 
-    // Still reachable, and still the same tile — Settings has carried its own
-    // copy all along, so moving it off Home lost no capability.
+    // Signed in, the row turns into the only way into the two platform
+    // screens. A row that just said "connected" would be chrome doing
+    // nothing, and the achievements would have no door on Home at all.
+    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+    await pumpApp(tester);
+    expect(find.textContaining('Sign in to'), findsNothing);
+    expect(find.byIcon(Icons.leaderboard_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.military_tech_rounded), findsOneWidget);
+
+    // "Disconnect", never "Sign out". Play Games Services v2 has no sign-out
+    // for a game to call — the player stays signed in to Play Games on the
+    // device whatever this button does — so a key labelled Sign out sends
+    // them hunting for a bug that is not there.
+    expect(find.byIcon(Icons.link_off_rounded), findsOneWidget);
+    expect(find.textContaining('Sign out'), findsNothing);
+    expect(find.textContaining('Log out'), findsNothing);
+    await unmount(tester);
+
+    // Settings keeps its own copy either way, so neither move ever lost the
+    // capability.
     await pumpApp(tester);
     await openRoute(tester, find.text('Settings'));
-    expect(find.textContaining('Sign in'), findsWidgets);
+    expect(find.text('Music'), findsOneWidget, reason: 'settings opened');
+    await unmount(tester);
+  });
+
+  testWidgets('Disconnect asks first, and cancel really cancels', (
+    tester,
+  ) async {
+    // The confirmation is not politeness. Disconnect stops the game recording
+    // anything, and the dialog is the only place the player is told what that
+    // does and does not cost — in particular that the account keeps
+    // everything it already has.
+    GamesOptOut.debugValue = false;
+    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+    addTearDown(() {
+      GamesOptOut.debugValue = null;
+      GameServices.reset();
+    });
+
+    await pumpApp(tester);
+    await tester.tap(find.byIcon(Icons.link_off_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Disconnect?'), findsOneWidget);
+    // The promise that makes the dialog honest rather than a scare: nothing
+    // earned is lost, and this is reversible.
+    expect(find.textContaining('stays on your account'), findsOneWidget);
+    expect(find.textContaining('Sign in again'), findsOneWidget);
+
+    await tester.tap(find.text('CANCEL'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Disconnect?'), findsNothing, reason: 'the dialog closed');
+    expect(
+      GameServices.isSignedIn,
+      isTrue,
+      reason: 'cancel disconnected anyway',
+    );
+    expect(GameServices.isOptedOut, isFalse);
+    expect(await GamesOptOut.isSet(), isFalse, reason: 'and persisted nothing');
+
+    await unmount(tester);
+  });
+
+  testWidgets('confirming the dialog disconnects', (tester) async {
+    GamesOptOut.debugValue = false;
+    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+    addTearDown(() {
+      GamesOptOut.debugValue = null;
+      GameServices.reset();
+    });
+
+    await pumpApp(tester);
+    await tester.tap(find.byIcon(Icons.link_off_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DISCONNECT'));
+    await tester.pumpAndSettle();
+
+    expect(GameServices.isSignedIn, isFalse);
+    expect(GameServices.isOptedOut, isTrue);
+    expect(await GamesOptOut.isSet(), isTrue);
+
+    // And the row says what happened. "Sign in" here would read as the
+    // button having failed — disconnected is a choice this player made, not
+    // a state they never left.
+    expect(find.text('Disconnected'), findsOneWidget);
+    expect(find.textContaining('Sign in to'), findsNothing);
+
     await unmount(tester);
   });
 

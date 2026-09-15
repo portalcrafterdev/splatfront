@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:games_services/games_services.dart' as gs;
 
+import 'games_opt_out.dart';
 import '../../meta/achievements.dart';
 import '../../meta/leaderboards.dart';
 
@@ -31,6 +32,14 @@ abstract final class GameServices {
   static bool _signedIn = false;
   static String? _playerName;
   static bool _busy = false;
+  static bool _optedOut = false;
+
+  /// True when the player has disconnected on this device.
+  ///
+  /// Exposed so the UI can say "Disconnected" rather than "Sign in", which
+  /// are different facts: one is a choice this player made and can undo, the
+  /// other is a state they have never left.
+  static bool get isOptedOut => _optedOut;
 
   /// True once [start] has run, whatever the sign-in result was.
   static bool get isStarted => _started;
@@ -65,6 +74,23 @@ abstract final class GameServices {
   static Future<void> start() async {
     if (_started) return;
     _started = true;
+
+    // **Before the platform is asked anything.** This one line is what makes
+    // [disconnect] mean something: both platforms restore the session
+    // silently at the next cold start, so without checking the opt-out first
+    // a disconnected player would be signed back in by the very next launch
+    // and would be right to call the button broken.
+    //
+    // It also has to come before the `isSignedIn` call rather than after —
+    // that call is what re-establishes the session on Android, so asking it
+    // and then discarding the answer would reconnect the account anyway.
+    if (await GamesOptOut.isSet()) {
+      _optedOut = true;
+      _signedIn = false;
+      revision.value++;
+      return;
+    }
+
     try {
       // Bounded, and it has to be. The plugin implements `isSignedIn` as a
       // Completer waiting on its player stream with no timeout of its own, so
@@ -96,6 +122,17 @@ abstract final class GameServices {
     _busy = true;
     revision.value++;
     try {
+      // Reconnecting clears the opt-out, and it has to happen *before* the
+      // platform call rather than after a success. Otherwise a player who
+      // disconnected and then pressed Sign in would be signed in for this
+      // session and disconnected again by the next launch — the opt-out
+      // outliving the decision that undid it, with a sign-in button that
+      // appears to work once and then forgets.
+      if (_optedOut) {
+        _optedOut = false;
+        await GamesOptOut.set(value: false);
+      }
+
       final result = await gs.GamesServices.signIn();
       _signedIn = result != null && !result.toLowerCase().contains('error');
       if (_signedIn) await _readPlayer();
@@ -108,6 +145,42 @@ abstract final class GameServices {
       _busy = false;
       revision.value++;
     }
+  }
+
+  /// Disconnects this device from the account.
+  ///
+  /// **Not a sign-out, and the button must not say so.** Play Games Services
+  /// v2 has no sign-out for a game to call and Game Center never had one, so
+  /// nothing here reaches the platform: the session on the device is
+  /// untouched and the player is still signed in to Play Games. A button
+  /// labelled "Sign out" would leave them hunting for a bug that is not
+  /// there. "Disconnect" is what this actually does — it ends *this game's*
+  /// relationship with the account.
+  ///
+  /// Everything derived from the account goes, not just the name. The one
+  /// that is easy to miss is [_posted]: those are the last leaderboard values
+  /// this launch sent, and leaving them behind would mean that reconnecting a
+  /// *different* account silently skipped its first submissions, because the
+  /// cache would claim the platform already had them.
+  ///
+  /// **The cloud snapshot is deliberately left alone** — this app does not
+  /// keep one today, and if it ever does, disconnect is about this device's
+  /// relationship to the account rather than the account's contents. Signing
+  /// in again has to bring everything back; that is what makes the
+  /// confirmation dialog honest.
+  static Future<void> disconnect() async {
+    _optedOut = true;
+    _signedIn = false;
+    _playerName = null;
+    _busy = false;
+    // Both caches are account-derived. See above for why _posted matters.
+    _sent.clear();
+    _posted.clear();
+    revision.value++;
+    // Last, and unawaited by nothing: the in-memory state above is already
+    // correct for this session whatever the store does, and GamesOptOut
+    // swallows its own failures.
+    await GamesOptOut.set(value: true);
   }
 
   static Future<void> _readPlayer() async {
@@ -262,12 +335,30 @@ abstract final class GameServices {
     _signedIn = false;
     _playerName = null;
     _busy = false;
+    _optedOut = false;
     _sent.clear();
     _posted.clear();
   }
 
   /// Installs a signed-in state directly, for tests of the UI around it.
   @visibleForTesting
+  /// How many account-derived values are cached right now.
+  ///
+  /// Exposed only so a test can prove [disconnect] empties them. They are the
+  /// half of a disconnect that is invisible from outside and easy to forget:
+  /// left behind, they would make the *next* account's first submissions
+  /// silently skip, because the cache would claim the platform already had
+  /// those values.
+  @visibleForTesting
+  static int get debugCachedValues => _sent.length + _posted.length;
+
+  /// Seeds the caches, so a test has something to watch be cleared.
+  @visibleForTesting
+  static void debugSeedCaches() {
+    _sent['first_coat'] = 1;
+    _posted['levels_cleared'] = 9;
+  }
+
   static void debugSignedIn({required bool signedIn, String? name}) {
     _started = true;
     _signedIn = signedIn;

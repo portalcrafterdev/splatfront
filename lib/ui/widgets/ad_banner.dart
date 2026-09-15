@@ -28,12 +28,21 @@ class AdBanner extends StatefulWidget {
   /// Where this slot lives, which decides both whether it appears at all and
   /// which side of the screen it belongs on.
   ///
-  /// **In a match the banner goes at the top**, above the coverage bar. Cards
-  /// are dragged from the bottom of the battle screen to deploy, and an ad
-  /// next to that is an accidental-click generator — AdMob suspends accounts
-  /// for invalid traffic, so a bottom banner there puts at risk the revenue
-  /// it exists to earn. In menus nothing is dragged and it sits at the
-  /// bottom, above the nav bar.
+  /// The slot sits at the foot of the screen in both places: in menus above
+  /// the nav bar, in a match below the card tray.
+  ///
+  /// **In a match that placement is a deliberate risk, taken on the owner's
+  /// call.** It used to be at the top, above the coverage bar, because cards
+  /// are dragged from the bottom of the battle screen to deploy and an ad
+  /// next to that gesture is an accidental-click generator — AdMob treats
+  /// sustained accidental clicks as invalid traffic and suspends accounts
+  /// over it, which would cost the revenue the slot exists to earn. The
+  /// battle screen keeps a dead strip above the banner to blunt that; see
+  /// `_adGuard` in `battle_screen.dart` for what it does and does not cover.
+  ///
+  /// The flag still matters beyond placement: `Ads.bannerIn` reads it to
+  /// decide whether this slot is enabled at all, and the two are configured
+  /// separately in `ads.json`.
   final bool inMatch;
 
   @override

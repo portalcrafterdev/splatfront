@@ -67,5 +67,22 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+
+        <!-- The Play Games app, so "Manage account" can find it.
+
+             Package visibility, from Android 11 (API 30), hides every other
+             installed app from us unless it is declared here.
+             `getLaunchIntentForPackage` does not fail loudly when it is
+             missing — it returns null, exactly as it would for an app that
+             genuinely is not installed. So without this line the button
+             reports "not installed" on every phone that has it, and the
+             message is indistinguishable from the truthful case. -->
+        <package android:name="com.google.android.play.games"/>
+
+        <!-- The Play Store, for the fallback that offers to install it. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="market"/>
+        </intent>
     </queries>
 </manifest>

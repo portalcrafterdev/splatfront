@@ -478,14 +478,20 @@ class _BattleScreenState extends State<BattleScreen>
     _paused.value = false;
   }
 
-  /// Phone and tablet portrait: banner, header, arena, elixir, hand.
+  /// Phone and tablet portrait: header, arena, elixir, hand, banner.
   ///
-  /// **The banner is at the top and that is load-bearing.** Cards are dragged
-  /// from the tray at the foot of this screen onto the board, so an ad down
-  /// there sits directly under the busiest gesture in the game — and a drag
-  /// that ends on an ad is an accidental click, which AdMob treats as invalid
-  /// traffic and suspends accounts over. Above the coverage bar there is no
-  /// gesture to catch.
+  /// **The banner is at the foot, on the owner's call, and it carries a real
+  /// risk worth naming.** Cards are dragged from the tray directly above it
+  /// onto the board, so the ad now sits under the busiest gesture in the
+  /// game. A drag released on an ad is an accidental click, and AdMob treats
+  /// sustained accidental clicks as invalid traffic — which is an account
+  /// suspension, not a warning. That is why it was at the top.
+  ///
+  /// [_adGuard] is the mitigation: a dead strip between the tray and the ad,
+  /// wide enough that a finger sliding off the bottom of a card lands on
+  /// nothing. It is not a guarantee. If click-through rate on this unit ever
+  /// looks implausible against menu placements, that is what it looks like
+  /// from the outside, and the fix is to put the slot back above the header.
   ///
   /// It is a row in the column rather than an overlay, so the arena scales
   /// down inside what is left instead of being covered by it. That is the
@@ -495,14 +501,23 @@ class _BattleScreenState extends State<BattleScreen>
   Widget _stackedLayout(LayoutClass layout) {
     return Column(
       children: [
-        const AdBanner(inMatch: true),
         _header(),
         Expanded(child: Center(child: _arena())),
         if (_game.hand != null) _tray(layout),
         _sandboxControls(),
+        const SizedBox(height: _adGuard),
+        const AdBanner(inMatch: true),
       ],
     );
   }
+
+  /// The dead strip between the card tray and the banner below it.
+  ///
+  /// Not spacing. It is the whole reason a bottom banner is survivable on
+  /// this screen: a deploy drag starts on a card a few millimetres above the
+  /// ad, and without a gap the natural overshoot at the end of a cancelled
+  /// drag lands on it.
+  static const double _adGuard = 10;
 
   /// The elixir bar and the hand, on one raised deck at the foot of the
   /// screen.

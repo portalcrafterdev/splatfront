@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio.dart';
 import '../../core/game_data.dart';
+import '../../core/games/game_services.dart';
+import '../../core/games/player_account.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../game/arena/arena_layout.dart';
@@ -133,14 +136,11 @@ class _PlayerPane extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
+          // Play Games, on the owner's call. Above Dab rather than below it,
+          // so the guide stays the last thing read before the Battle card —
+          // the instruction should sit next to the thing it points at.
+          const Entrance(child: _PlayGamesRow()),
           // Dab, saying the one thing worth doing next.
-          //
-          // This is the slot the Play Games sign-in used to hold. That row
-          // was the best real estate on the first screen of the app, spent on
-          // the one thing a child cannot action by themselves — it is an
-          // account decision, so it now lives in Settings behind the
-          // grown-ups gate, where a parent can find it and a seven-year-old
-          // is not asked to.
           Entrance(child: DabSays(_dabLine(ref))),
           const SizedBox(height: 12),
           // The hero, and the only loud thing on the page.
@@ -221,6 +221,256 @@ String _dabLine(WidgetRef ref) {
   return 'Tap Battle to paint level ${profile.campaignNextLevel}!';
 }
 
+
+/// Play Games on Home: sign in, or the two doors it opens.
+///
+/// **Back on Home on the owner's call**, having been moved to Settings during
+/// the children's redesign. The argument for moving it stands and is worth
+/// keeping written down: connecting an account is a parent's decision, and
+/// this row occupies the best space on the first screen a child sees. What
+/// outweighed it is that achievements and leaderboards are unreachable in
+/// practice if the only door is three taps into a settings page — fourteen
+/// achievements and two boards with nothing pointing at them.
+///
+/// It is built to cost the page as little as possible: one slim row, the
+/// secondary accent rather than the action colour, and it never competes with
+/// the Battle card for attention.
+///
+/// Signed out it offers the sign-in. Signed in it becomes the two buttons,
+/// because that is the state the player spends the rest of the game in and a
+/// row that just said "connected" would be a line of chrome doing nothing.
+class _PlayGamesRow extends StatefulWidget {
+  const _PlayGamesRow();
+
+  @override
+  State<_PlayGamesRow> createState() => _PlayGamesRowState();
+}
+
+class _PlayGamesRowState extends State<_PlayGamesRow> {
+  bool _pressed = false;
+
+  String get _serviceName => defaultTargetPlatform == TargetPlatform.iOS
+      ? 'Game Center'
+      : 'Play Games';
+
+  Future<void> _signIn() async {
+    setState(() => _pressed = true);
+    final ok = await GameServices.signIn();
+    if (!mounted) return;
+    setState(() => _pressed = false);
+    if (!ok) {
+      // Said plainly. A button that silently does nothing is a broken button,
+      // and sign-in fails for reasons the player can do nothing about —
+      // no network, a device with no Play Games, an account that declines.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not connect to $_serviceName.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Asks first, then disconnects.
+  ///
+  /// **The dialog exists because the button is not reversible by accident.**
+  /// What it costs has to be said in the words that are actually true: the
+  /// game stops recording, the account keeps everything it already has, and
+  /// reconnecting brings it all back. That last line is what makes this an
+  /// honest confirmation rather than a scare.
+  ///
+  /// It deliberately does **not** say "sign out". The player stays signed in
+  /// to Play Games on the device — nothing in this app can change that — and
+  /// promising otherwise sends them hunting for a bug that is not there.
+  Future<void> _disconnect(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Palette.uiSurfaceHigh,
+        title: const Text(
+          'Disconnect?',
+          style: TextStyle(fontFamily: Fonts.display, color: Palette.uiText),
+        ),
+        content: Text(
+          'Splatfront will stop recording your stars and achievements to '
+          '$_serviceName.\n\n'
+          'Everything you have already earned stays on your account, and '
+          'your game on this phone is not touched. Sign in again any time '
+          'to start recording again.',
+          style: const TextStyle(
+            color: Palette.uiTextDim,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          // The one honest route to an actual sign-out, offered next to the
+          // thing people mistake for one. Disconnect stops *this game*
+          // recording; only the Play Games app can release the account from
+          // the device, and this is the moment somebody is looking for that.
+          if (PlayerAccount.isSupported)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+                _openAccount(context);
+              },
+              child: const Text('PLAY GAMES APP'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Palette.danger),
+            child: const Text('DISCONNECT'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await GameServices.disconnect();
+  }
+
+  /// Hands the player to the Play Games app.
+  ///
+  /// Says so plainly when there is nowhere to go, rather than doing nothing:
+  /// on a device with no Play Games installed this is the only feedback the
+  /// press produces.
+  Future<void> _openAccount(BuildContext context) async {
+    final opened = await PlayerAccount.openPlayGames();
+    if (opened || !context.mounted) return;
+    // Reached only when neither the Play Games app, the Play Store nor a
+    // browser would open — a device with no Google services at all. The old
+    // wording said "Play Games is not installed", which was wrong twice over:
+    // it is now offered for install rather than refused, and the same message
+    // used to appear on phones that *did* have it, because the manifest was
+    // missing the <queries> entry that makes it visible.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open Play Games on this device.'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    // Rebuilds when the service state changes, including a sign-in that
+    // completes long after this row was built.
+    valueListenable: GameServices.revision,
+    builder: (context, _, _) {
+      final signedIn = GameServices.isSignedIn;
+      final busy = _pressed || GameServices.isBusy;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Panel(
+          outlined: false,
+          radius: 14,
+          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+          child: Row(
+            children: [
+              Icon(
+                signedIn
+                    ? Icons.sports_esports_rounded
+                    : Icons.sports_esports_outlined,
+                size: 20,
+                color: Palette.info,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  signedIn
+                      ? (GameServices.playerName ?? 'Signed in')
+                      // Disconnected is not the same fact as never connected:
+                      // one is a choice this player made and can undo, the
+                      // other is a state they have never left. Saying "Sign
+                      // in" to somebody who just pressed Disconnect reads as
+                      // the button having failed.
+                      : GameServices.isOptedOut
+                      ? 'Disconnected'
+                      : 'Sign in to $_serviceName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Palette.uiText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (signedIn) ...[
+                _IconDoor(
+                  icon: Icons.leaderboard_rounded,
+                  tooltip: 'Leaderboards',
+                  onTap: () => GameServices.showLeaderboards(),
+                ),
+                const SizedBox(width: 4),
+                _IconDoor(
+                  icon: Icons.military_tech_rounded,
+                  tooltip: 'Achievements',
+                  onTap: GameServices.showAchievements,
+                ),
+                const SizedBox(width: 4),
+                _IconDoor(
+                  icon: Icons.link_off_rounded,
+                  tooltip: 'Disconnect',
+                  onTap: () => _disconnect(context),
+                ),
+              ] else
+                FilledButton(
+                  onPressed: busy ? null : _signIn,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Palette.info,
+                    disabledBackgroundColor: Palette.uiBackground,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(busy ? '…' : 'Sign in'),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// One of the two platform screens, as a tap target big enough for a thumb.
+class _IconDoor extends StatelessWidget {
+  const _IconDoor({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: tooltip,
+    child: Tooltip(
+      message: tooltip,
+      child: PressScale(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Palette.info.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 21, color: Palette.info),
+        ),
+      ),
+    ),
+  );
+}
 
 /// The chest slots on Home.
 ///
