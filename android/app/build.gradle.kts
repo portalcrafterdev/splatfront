@@ -32,6 +32,20 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Stated rather than inherited. R8 was already running here —
+            // the crash stack was full of obfuscated `b1.a` frames — but
+            // nothing in this file said so, which made the release build's
+            // behaviour a property of whichever Flutter version was
+            // installed. Turning it on explicitly is what makes
+            // `proguard-rules.pro` load at all, and what stops the next
+            // toolchain upgrade silently changing whether it does.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
