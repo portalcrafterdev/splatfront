@@ -7,6 +7,7 @@ import 'package:splatfront/core/save/player_profile.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/ui/screens/chest_screen.dart';
 import 'package:splatfront/ui/widgets/unit_art_view.dart';
+import 'package:splatfront/ui/type.dart';
 
 /// The chest screen, end to end.
 ///
@@ -124,21 +125,25 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a sealed chest offers START and nothing else', (tester) async {
+  testWidgets('a sealed chest offers a start and nothing else', (tester) async {
     final controller = await pump(
       tester,
       const PlayerProfile(chests: [ChestSlot(typeId: 'wood')]),
     );
 
     expect(find.text('Wood chest'), findsOneWidget);
-    expect(find.text('START'), findsOneWidget);
-    expect(find.text('OPEN'), findsNothing);
+    expect(find.text('Tap to start'), findsOneWidget);
+    expect(find.text('Tap to open!'), findsNothing);
 
-    await tester.tap(find.text('START'));
+    await tester.tap(find.text('Tap to start'));
     await tester.pump();
 
     expect(controller.state.chests.single.isUnlocking, isTrue);
-    expect(find.text('START'), findsNothing, reason: 'it is running now');
+    expect(
+      find.text('Tap to start'),
+      findsNothing,
+      reason: 'it is running now',
+    );
     await unmount(tester);
   });
 
@@ -156,7 +161,7 @@ void main() {
         ],
       ),
     );
-    await tester.tap(find.text('OPEN'));
+    await tester.tap(find.text('OPEN IT!'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 2500));
 
@@ -199,7 +204,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a chest whose timer has run out shows OPEN and opens', (
+  testWidgets('a chest whose timer has run out can be opened', (
     tester,
   ) async {
     // Started five minutes ago; Wood takes three.
@@ -217,10 +222,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Ready'), findsOneWidget);
-    expect(find.text('OPEN'), findsOneWidget);
+    expect(find.text('Tap to open!'), findsOneWidget);
+    expect(find.text('OPEN IT!'), findsOneWidget);
 
-    await tester.tap(find.text('OPEN'));
+    await tester.tap(find.text('OPEN IT!'));
     await tester.pump();
 
     expect(controller.state.chests, isEmpty, reason: 'the slot is free again');
@@ -241,11 +246,18 @@ void main() {
     // Matched on the big counter specifically: the app bar's coin chip shows
     // the same number the moment the reward lands, so a plain text match
     // finds two and proves nothing about the animation.
+    //
+    // "Big" rather than an exact point size. This read `fontSize == 30` and
+    // broke the day the type scale moved — which told us nothing about the
+    // counter and cost a debugging pass. The distinction that matters is
+    // that this is the headline number and the chip is not, so the test says
+    // that: the display face, set large.
     expect(
       find.byWidgetPredicate(
         (w) =>
             w is Text &&
-            w.style?.fontSize == 30 &&
+            w.style?.fontFamily == Fonts.display &&
+            (w.style?.fontSize ?? 0) >= 24 &&
             w.data == '${controller.state.coins}',
       ),
       findsOneWidget,
@@ -256,7 +268,7 @@ void main() {
     await tester.tap(find.text('Tap to close'));
     await tester.pumpAndSettle();
     expect(find.text('Tap to close'), findsNothing);
-    expect(find.text('EMPTY'), findsWidgets);
+    expect(find.text('Empty'), findsWidgets);
 
     await unmount(tester);
   });
@@ -281,7 +293,7 @@ void main() {
         ],
       ),
     );
-    await tester.tap(find.text('OPEN'));
+    await tester.tap(find.text('OPEN IT!'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 2500));
 
@@ -315,7 +327,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('OPEN'));
+    await tester.tap(find.text('OPEN IT!'));
     await tester.pump();
     // Part-way through the wind-up, before the burst.
     await tester.pump(const Duration(milliseconds: 300));
@@ -344,10 +356,15 @@ void main() {
       ),
     );
 
-    // Exactly one START, and it is disabled: only one unlocks at a time.
-    final start = find.widgetWithText(FilledButton, 'START');
-    expect(start, findsOneWidget);
-    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+    // The second chest says so rather than offering a start that would be
+    // refused. Only one unlocks at a time, and a tile that looks pressable
+    // and then does nothing is worse than one that explains itself.
+    expect(find.text('Wait your turn'), findsOneWidget);
+    expect(
+      find.text('Tap to start'),
+      findsNothing,
+      reason: 'nothing on screen can be started while one is running',
+    );
     await unmount(tester);
   });
 
@@ -369,13 +386,16 @@ void main() {
       ),
     );
 
-    expect(find.text('OPEN'), findsNothing);
-    expect(find.text('Ready'), findsNothing);
-    expect(find.textContaining('h'), findsWidgets, reason: 'hours remain');
+    expect(find.text('Tap to open!'), findsNothing);
+    expect(find.text('Tap to open!'), findsNothing);
+    // Two minutes into three hours, so the ring has barely moved and the
+    // tile says so. This is the assertion that would catch a timer stuck at
+    // zero progress reading as finished.
+    expect(find.text('Just started'), findsOneWidget);
     await unmount(tester);
   });
 
-  testWidgets('a chest that finishes while you watch grows an OPEN button', (
+  testWidgets('a chest that finishes while you watch grows its open button', (
     tester,
   ) async {
     // The one that would really look like "the chest will not open": the
@@ -401,7 +421,7 @@ void main() {
       ),
     );
 
-    expect(find.text('OPEN'), findsNothing, reason: 'not yet');
+    expect(find.text('OPEN IT!'), findsNothing, reason: 'not yet');
 
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 1400)),
@@ -409,8 +429,8 @@ void main() {
     // One pump past the ticker's next beat.
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Ready'), findsOneWidget);
-    expect(find.text('OPEN'), findsOneWidget);
+    expect(find.text('Tap to open!'), findsOneWidget);
+    expect(find.text('OPEN IT!'), findsOneWidget);
     await unmount(tester);
   });
 }

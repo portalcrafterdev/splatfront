@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
@@ -20,6 +21,23 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     data = await GameData.load();
+
+    // `flutter test` does **not** read the `fonts:` section of pubspec.yaml.
+    // Without these two lines every widget test in this file measures a
+    // fallback face, and the overflow test below — the one whose whole job is
+    // to catch text that does not fit — is measuring type the app never
+    // renders. It passed happily through two font changes that it could not
+    // see, which is worse than not having it.
+    //
+    // Baloo 2 is the wide one and the one that matters here: it is the
+    // display face, so it is on every heading and every button, and it is
+    // materially wider than the Roboto the test host falls back to.
+    for (final (family, path) in const [
+      ('Baloo2', 'assets/fonts/Baloo2.ttf'),
+      ('Lexend', 'assets/fonts/Lexend.ttf'),
+    ]) {
+      await (FontLoader(family)..addFont(rootBundle.load(path))).load();
+    }
   });
 
   /// Boots the app with a profile held in memory, so nothing touches Hive.
@@ -59,7 +77,7 @@ void main() {
     await pumpApp(tester);
     expect(find.text('SPLATFRONT'), findsOneWidget);
     expect(find.text('BATTLE'), findsOneWidget);
-    expect(find.text('Daily quests'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
     expect(find.text('Cards'), findsOneWidget);
     expect(find.text('Shop'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
@@ -262,24 +280,33 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('the sign-in prompt is on Home, and leaves once used', (
+  testWidgets('sign-in is off Home and behind the grown-ups door', (
     tester,
   ) async {
-    // Signed out it is offered on Home, where it was asked for.
+    // It used to sit on Home, directly under the wordmark. That is the best
+    // real estate on the first screen of the app, and it was spent on the one
+    // thing a child cannot action by themselves: connecting an account is a
+    // parent's decision. Home is now for playing.
     GameServices.debugSignedIn(signedIn: false);
     addTearDown(GameServices.reset);
     await pumpApp(tester);
-    expect(find.textContaining('Sign in to'), findsOneWidget);
-    // And it never outranks the thing the page exists for.
+
+    expect(
+      find.textContaining('Sign in to'),
+      findsNothing,
+      reason: 'an account row is not a thing a child can do',
+    );
+    // What stands in its place is the guide, and what it says is an
+    // instruction rather than a status.
+    expect(find.textContaining('Tap Battle'), findsOneWidget);
     expect(find.text('BATTLE'), findsOneWidget);
     await unmount(tester);
 
-    // Signed in it builds nothing at all: a permanent account row does
-    // nothing for somebody already connected, and Settings carries the
-    // connected state instead.
-    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+    // Still reachable, and still the same tile — Settings has carried its own
+    // copy all along, so moving it off Home lost no capability.
     await pumpApp(tester);
-    expect(find.textContaining('Sign in to'), findsNothing);
+    await openRoute(tester, find.text('Settings'));
+    expect(find.textContaining('Sign in'), findsWidgets);
     await unmount(tester);
   });
 
@@ -435,11 +462,11 @@ void main() {
     // have to be right: there is no next level to walk into off a loss,
     // because it does not unlock until this one is cleared.
     if (match.result.value!.won) {
-      expect(find.text('NEXT LEVEL'), findsOneWidget);
-      expect(find.text('REPLAY'), findsOneWidget);
+      expect(find.text('NEXT  ▶'), findsOneWidget);
+      expect(find.text('AGAIN'), findsOneWidget);
       expect(find.text('TRY AGAIN'), findsNothing);
     } else {
-      expect(find.text('NEXT LEVEL'), findsNothing);
+      expect(find.text('NEXT  ▶'), findsNothing);
       expect(find.text('TRY AGAIN'), findsOneWidget);
     }
     // Either way there is always a way out.
@@ -560,15 +587,25 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
+    // The card's own page, not a sheet — so the name, the level and the one
+    // line saying what the card does are all on screen straight away.
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('Tough'), findsOneWidget, reason: 'the stat bars');
+
+    // The grow button is at the bottom of a scrolling page. A sliver does not
+    // build what it has not laid out, so on a short viewport the button is
+    // genuinely absent from the tree until it is scrolled to — finding it
+    // without this passes or fails on the height of the test window.
+    await tester.scrollUntilVisible(find.text('GROW TO 2'), 120);
     expect(
-      find.text('UPGRADE TO 2'),
+      find.text('GROW TO 2'),
       findsOneWidget,
-      reason: 'tapping a card in the deck opens its upgrade sheet',
+      reason: 'tapping a card in the deck opens its own page',
     );
-    // And the sheet says what it will cost, which is the thing that makes it
+    // And the page says what it will cost, which is the thing that makes it
     // worth opening rather than a dead end with a greyed-out button. Only the
     // coin row is checked by name: "Cards" is also the bottom-bar tab, so
-    // matching it proves nothing about the sheet.
+    // matching it proves nothing about the page.
     expect(find.text('Coins'), findsOneWidget);
     await unmount(tester);
   });

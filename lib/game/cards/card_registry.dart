@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../units/unit_stats.dart';
 import '../units/units_registry.dart';
 import 'card_model.dart';
 
@@ -57,6 +59,7 @@ class CardRegistry {
       level: level.clamp(1, units.tuning.maxLevel),
       unit: units.at(id, level),
       note: card.note,
+      blurb: card.blurb,
     );
   }
 
@@ -79,6 +82,7 @@ class CardRegistry {
         unit: hasBody ? unitsRegistry[id] : null,
         spell: hasBody ? null : SpellStats.fromJson(entry),
         note: entry['note'] as String? ?? '',
+        blurb: entry['blurb'] as String? ?? '',
       );
     }
     return CardRegistry(unitsRegistry, byId);
@@ -149,4 +153,48 @@ class CardLevels {
   final int _floor;
 
   int of(String cardId) => _levels[cardId] ?? _floor;
+}
+
+/// The strongest value in the roster for each stat a card detail shows.
+///
+/// The card screen draws four bars instead of printing raw numbers, and a bar
+/// needs a full. That full is the best card in the set rather than a constant,
+/// so the bars stay honest through a balance pass: retune a card up and every
+/// other card's bar shortens to match, with no second number to remember to
+/// change. All measured at level 1, so a levelled card's bar grows past its
+/// neighbours exactly as much as the level actually gave it.
+class RosterPeaks {
+  const RosterPeaks({
+    required this.tough,
+    required this.hits,
+    required this.paint,
+    required this.speed,
+  });
+
+  factory RosterPeaks.of(CardRegistry cards) {
+    var tough = 1.0, hits = 1.0, paint = 1.0, speed = 1.0;
+    for (final card in cards.playable) {
+      final unit = card.unit;
+      if (unit == null) continue;
+      tough = math.max(tough, toughOf(unit));
+      hits = math.max(hits, hitsOf(unit));
+      paint = math.max(paint, unit.paint);
+      speed = math.max(speed, unit.speed);
+    }
+    return RosterPeaks(tough: tough, hits: hits, paint: paint, speed: speed);
+  }
+
+  /// Total bulk, counting every body the card puts down. A Dab is three 90hp
+  /// blobs, and "how much do I have to chew through" is 270, not 90.
+  static double toughOf(UnitStats unit) => unit.hp * unit.count;
+
+  /// Damage per second, across every body. Damage alone ranks a slow heavy
+  /// hitter above a fast light one that out-damages it three times over.
+  static double hitsOf(UnitStats unit) =>
+      unit.damage * unit.hitRate * unit.count;
+
+  final double tough;
+  final double hits;
+  final double paint;
+  final double speed;
 }

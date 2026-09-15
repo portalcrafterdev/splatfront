@@ -7,6 +7,8 @@ import '../../game/match/match_result.dart';
 import '../../meta/campaign.dart';
 import 'coverage_bar.dart';
 import 'match_background.dart';
+import 'motion.dart';
+import '../type.dart';
 
 /// The clock. Counts the countdown down to Splat, then normal time, then
 /// sudden death, and turns amber in the last ten seconds.
@@ -100,8 +102,9 @@ class _TimerText extends StatelessWidget {
     child: Text(
       text,
       style: TextStyle(
+        fontFamily: Fonts.display,
         color: colour,
-        fontSize: 18,
+        fontSize: 19,
         fontWeight: FontWeight.w700,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
@@ -274,34 +277,11 @@ class ResultOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      result.headline,
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      result.subtitle,
-                      style: const TextStyle(
-                        color: Palette.hudTextDim,
-                        fontSize: 12,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-
-                    // The bar slides to the final split rather than snapping.
-                    _FinalCoverage(
-                      coverage: result.coverage,
-                      playerTeam: result.playerTeam,
-                    ),
-
-                    const SizedBox(height: 22),
-                    if (campaign case final level?)
+                    // Stars first, and biggest. They are the thing a child is
+                    // collecting, and they were arriving *below* the headline
+                    // and the coverage bar — third in line behind a verdict
+                    // and a chart. On a campaign level they are the result.
+                    if (campaign case final level?) ...[
                       _StarsEarned(
                         level: level,
                         stars: level.starsFor(
@@ -309,38 +289,75 @@ class ResultOverlay extends StatelessWidget {
                           playerShare: result.playerShare,
                         ),
                         playerShare: result.playerShare,
-                      )
-                    else
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    Text(
+                      result.headline,
+                      style: TextStyle(
+                        fontFamily: Fonts.display,
+                        color: accent,
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Section 9 asks for this by name: the bar animates to
+                    // the final split rather than snapping to it.
+                    _FinalCoverage(
+                      coverage: result.coverage,
+                      playerTeam: result.playerTeam,
+                    ),
+
+                    // Off the campaign path there are no stars, so the
+                    // trophy change is what the match was worth.
+                    if (campaign == null) ...[
+                      const SizedBox(height: 18),
                       _TrophyChange(change: result.trophyChange),
+                    ],
 
                     if (result.chestEarned) ...[
                       const SizedBox(height: 14),
                       _ChestEarned(kept: chestKept),
                     ],
 
-                    const SizedBox(height: 26),
-                    // The one thing a player wants after a win goes first and
-                    // wears the accent; replaying drops to secondary beside
-                    // it. On a loss there is no next level to offer, so the
-                    // retry takes the primary slot instead.
-                    if (onNextLevel case final next? when result.won) ...[
-                      _ResultButton(
-                        label: 'NEXT LEVEL',
-                        onPressed: next,
-                        accent: accent,
-                      ),
-                      const SizedBox(height: 10),
-                      _ResultButton(
-                        label: 'REPLAY',
-                        onPressed: onRematch,
-                        secondary: true,
-                      ),
-                    ] else
+                    const SizedBox(height: 22),
+                    // Two buttons on one row, deliberately unequal. A child
+                    // should never have to choose between two things that
+                    // look the same: NEXT is wider and wears the colour,
+                    // AGAIN is plain and half the width. On a loss there is
+                    // no next level, so trying again takes the whole row and
+                    // the colour with it.
+                    if (onNextLevel case final next? when result.won)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ResultButton(
+                              label: 'AGAIN',
+                              onPressed: onRematch,
+                              secondary: true,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 3,
+                            child: _ResultButton(
+                              label: 'NEXT  ▶',
+                              onPressed: next,
+                              accent: accent,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
                       _ResultButton(
                         // "Rematch" is what you press after a draw with a
                         // person. Against a level you either go again or you
                         // do not, and the word for that is plainer.
-                        label: result.won ? 'REPLAY' : 'TRY AGAIN',
+                        label: result.won ? 'PLAY AGAIN' : 'TRY AGAIN',
                         onPressed: onRematch,
                         accent: accent,
                       ),
@@ -427,45 +444,81 @@ class _StarsEarned extends StatelessWidget {
 
     return Column(
       children: [
-        Text(
-          'LEVEL ${level.level}',
-          style: const TextStyle(
-            color: Palette.hudTextDim,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (var i = 1; i <= 3; i++)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  i <= stars ? Icons.star_rounded : Icons.star_outline_rounded,
-                  size: i <= stars ? 44 : 38,
-                  color: i <= stars
-                      ? Palette.gold
-                      : Palette.hudTextDim.withValues(alpha: 0.5),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: _Star(earned: i <= stars, index: i - 1),
               ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
           switch (stars) {
-            0 => 'No stars. Win the match to earn the first.',
-            3 => 'You held $percent% of the board.',
+            0 => 'Win the match to earn your first star.',
+            3 => 'You painted $percent% of the board!',
             _ =>
-              'You held $percent%. '
-                  '${(next! * 100).round()}% earns the next star.',
+              'You painted $percent% of the board. '
+                  'Paint ${(next! * 100).round()}% for another star.',
           },
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Palette.hudTextDim, fontSize: 12),
+          style: const TextStyle(
+            color: Palette.hudTextDim,
+            fontSize: 12.5,
+            height: 1.35,
+          ),
         ),
       ],
+    );
+  }
+}
+
+/// One star, landing with a bounce.
+///
+/// Stars are what a child is actually collecting, so they arrive rather than
+/// being already there — and they arrive **one at a time**, which is what
+/// turns a score into a small ceremony. The stagger is an [Interval] inside a
+/// single tween rather than three chained animations: one duration, three
+/// offsets, and the whole thing is over in under a second.
+///
+/// **It ends.** `screens_test.dart` asserts the app settles inside five
+/// seconds with no frame still scheduled, so a star that pulsed or shimmered
+/// here would hang the widget suite rather than fail it.
+class _Star extends StatelessWidget {
+  const _Star({required this.earned, required this.index});
+
+  final bool earned;
+
+  /// 0, 1 or 2 — how far into the sequence this star lands.
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = Icon(
+      earned ? Icons.star_rounded : Icons.star_outline_rounded,
+      size: earned ? 52 : 44,
+      color: earned
+          ? Palette.gold
+          : Palette.hudTextDim.withValues(alpha: 0.45),
+    );
+
+    // An unearned star is not an event. It is simply the shape of what is
+    // still missing, and animating it in would celebrate the gap.
+    if (!earned) return icon;
+
+    final start = index * 0.22;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      // Honours the OS reduced-motion switch, like every other animation in
+      // the app: with it on this collapses to zero and the stars are simply
+      // there.
+      duration: Motion.of(context, const Duration(milliseconds: 900)),
+      curve: Interval(start, start + 0.55, curve: Curves.elasticOut),
+      builder: (context, t, child) =>
+          Transform.scale(scale: t.clamp(0.0, 1.4), child: child),
+      child: icon,
     );
   }
 }
@@ -490,9 +543,10 @@ class _TrophyChange extends StatelessWidget {
         Text(
           change == 0 ? '0' : '${positive ? '+' : ''}$change',
           style: TextStyle(
+            fontFamily: Fonts.display,
             color: colour,
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(width: 6),
@@ -536,8 +590,8 @@ class _ChestEarned extends StatelessWidget {
           Flexible(
             child: Text(
               kept
-                  ? 'Chest earned'
-                  : 'No free slot — chest lost. Open one to keep the next.',
+                  ? 'You got a chest!'
+                  : 'No free box — this one is lost. Open one to keep the next.',
               style: TextStyle(
                 color: kept ? Palette.hudText : Palette.hudTextDim,
                 fontSize: 12,
@@ -596,7 +650,7 @@ class _ResultButton extends StatelessWidget {
 /// Deliberately the same object as the end screen: sky behind, one card in
 /// the middle, the same two buttons in the same places. A pause is not a
 /// different room, and a player who has just learned where RESUME sits should
-/// find HOME in the place DEFEAT put it.
+/// find HOME in the place the end screen put it.
 ///
 /// It covers the arena rather than dimming it. A frozen board under a
 /// half-transparent sheet looks like the game has hung; a board that is
@@ -652,10 +706,11 @@ class PauseOverlay extends StatelessWidget {
                   const Text(
                     'PAUSED',
                     style: TextStyle(
+                      fontFamily: Fonts.display,
                       color: Palette.hudText,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 4),

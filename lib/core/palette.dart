@@ -162,6 +162,24 @@ class Palette {
   /// Done, affordable, healthy.
   static const Color success = Color(0xFF3BD16F);
 
+  /// Progress being made: a quest part-done, a card close to levelling.
+  ///
+  /// Hue 95, which is the one unused slot left in the safe band: 92 from red
+  /// and 129 from blue, with 53 down to [gold] and 46 up to [success].
+  ///
+  /// That is the whole reason it is a leaf green rather than the sunny yellow
+  /// a children's palette reaches for first. A yellow near hue 50 collides
+  /// with gold, and gold is spoken for by coins and chests.
+  ///
+  /// **The first attempt was `#7BAF10`, which measured hue 80, not 95** — 38
+  /// from gold, and `palette_test.dart` caught it. Eyeballing a hex value
+  /// does not work for this; the gaps have to be computed.
+  ///
+  /// Distinct from [success] on purpose. Green means finished; lime means
+  /// *getting there*, which is the state a progress bar spends all its time
+  /// in and which had no colour of its own.
+  static const Color lime = Color(0xFF50A512);
+
   /// Cannot afford, negative trophy change, unhealthy.
   static const Color danger = Color(0xFFE2444B);
 

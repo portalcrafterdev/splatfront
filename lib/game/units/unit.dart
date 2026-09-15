@@ -109,7 +109,18 @@ class Unit extends PositionComponent with HasGameReference<SplatfrontGame> {
   static const double _flashTime = 0.12;
 
   /// Characters are drawn this much bigger than their collision radius.
-  static const double _artScale = 1.15;
+  ///
+  /// Raised from 1.15. A typical troop is 0.45 world units across, the arena
+  /// is 16 wide, and a phone gives the board about 250px — so at 1.15 a
+  /// character stood about 20px tall and its face was three or four pixels
+  /// of it. The bodies have faces; nobody could see them.
+  ///
+  /// The ceiling is overlap, not taste. Collision is unchanged, so every
+  /// step up here is a step further past a unit's own circle, and the
+  /// separation force parts allies at roughly two radii. 1.45 is about 25%
+  /// more character for an overlap that still reads as a crowd rather than
+  /// as a bug; much beyond 1.6 and a packed push turns into one mass.
+  static const double _artScale = 1.45;
 
   late final UnitArt _art = artFor(stats.id);
 

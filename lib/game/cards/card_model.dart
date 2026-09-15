@@ -95,6 +95,7 @@ class CardModel {
     this.unit,
     this.spell,
     this.note = '',
+    this.blurb = '',
   });
 
   final String id;
@@ -112,7 +113,18 @@ class CardModel {
   /// Set for spells.
   final SpellStats? spell;
 
+  /// The designer's note: precise, and written for whoever is balancing
+  /// the card. Not for the player — several of these name fields in
+  /// cards.json by their code names.
   final String note;
+
+  /// One line for the player, at roughly a seven-year-old's reading level.
+  ///
+  /// Separate from [note] rather than replacing it, because the two have
+  /// different jobs and different readers. "aggroRange 0 is what 'walks
+  /// straight' means" is exactly right in a balance note and useless on a
+  /// card a child is looking at.
+  final String blurb;
 
   bool get isTroop => kind == CardKind.troop;
   bool get isBuilding => kind == CardKind.building;

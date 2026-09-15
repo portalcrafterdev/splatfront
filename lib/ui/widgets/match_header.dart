@@ -6,6 +6,7 @@ import '../../game/arena/paint_sampler.dart';
 import '../../game/match/match_controller.dart';
 import 'coverage_bar.dart';
 import 'match_overlays.dart';
+import '../type.dart';
 
 /// Who is playing, who is winning, and how long is left — the block above the
 /// arena.
@@ -73,10 +74,11 @@ class MatchHeader extends StatelessWidget {
                             // the plates either side already carry the two
                             // team colours. A third colour here would read as
                             // a third side.
+                            fontFamily: Fonts.display,
                             color: Palette.hudText.withValues(alpha: 0.55),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
                           ),
                         ),
                       ),
@@ -113,6 +115,21 @@ class MatchHeader extends StatelessWidget {
   );
 }
 
+/// Each side's mark.
+///
+/// Both plates used to carry [Icons.brush_rounded], so the emblem differed
+/// only by the colour already filling the square behind it and the name
+/// already written beside it — the same fact said three times, and the one
+/// element of the plate carrying no information at all.
+///
+/// Keyed on the team rather than on who the player is: the sides keep their
+/// marks whichever one you are driving.
+IconData _emblemFor(Team team) => switch (team) {
+  Team.blue => Icons.format_paint_rounded,
+  Team.red => Icons.water_drop_rounded,
+  Team.neutral => Icons.brush_rounded,
+};
+
 /// A team's colour, emblem and name, on the side of the screen it fights for.
 class _NamePlate extends StatelessWidget {
   const _NamePlate({
@@ -137,7 +154,7 @@ class _NamePlate extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.brush_rounded, size: 12, color: Colors.white),
+      child: Icon(_emblemFor(team), size: 13, color: Colors.white),
     );
     final label = Text(
       name,

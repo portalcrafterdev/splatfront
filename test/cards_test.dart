@@ -15,6 +15,8 @@ void main() {
     decks = await Deck.loadStarterDecks();
   });
 
+  _blurbs(() => cards);
+
   group('card registry', () {
     test('holds the whole set: troops, buildings and spells', () {
       expect(cards.all, hasLength(21));
@@ -276,4 +278,45 @@ bool _sameOrder(List<String> a, List<String> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+/// Every playable card says what it does in words a child can read.
+///
+/// The card detail screen prints [CardModel.blurb] and nothing else — the
+/// designer's `note` is not shown, because several of those name fields in
+/// cards.json by their code names. A card with no blurb is a card whose
+/// detail screen has a blank where its description should be, and nothing
+/// else in the app would notice.
+void _blurbs(CardRegistry Function() registry) {
+  test('every playable card has a blurb, and it reads like one', () {
+    final cards = registry();
+    for (final card in cards.playable) {
+      expect(
+        card.blurb,
+        isNotEmpty,
+        reason: '${card.id} has no player-facing description',
+      );
+      expect(
+        card.blurb.length,
+        lessThanOrEqualTo(70),
+        reason:
+            '${card.id}: "${card.blurb}" is ${card.blurb.length} characters. '
+            'It has one line on the detail card; past about 70 it wraps to '
+            'three and pushes the stat bars off the screen.',
+      );
+      expect(
+        card.blurb.endsWith('.') || card.blurb.endsWith('!'),
+        isTrue,
+        reason: '${card.id}: a sentence for a child ends like a sentence',
+      );
+      // The balance note is written for whoever is tuning the card and is
+      // full of field names. If the two ever match, someone has pasted one
+      // into the other.
+      expect(
+        card.blurb,
+        isNot(card.note),
+        reason: '${card.id}: the blurb is a copy of the designer note',
+      );
+    }
+  });
 }

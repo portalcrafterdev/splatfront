@@ -306,6 +306,19 @@ void _face(
 ///
 /// Returns the shoulder line, which is where every painter hangs its arms
 /// and its equipment.
+///
+/// **The proportions are what tell one biped from another, not the tool.**
+/// Five cards share this body, and they once sat inside 0.92–1.10 on
+/// [bodyW], 0.98–1.06 on [bodyH] and 0.46–0.52 on [headR] — a spread of
+/// under 20% on every axis. On a 60dp hand card the tool is the smallest
+/// mark on the drawing, so Brusher, Pin and Sprayer read as one blue figure
+/// three times over, and the card you grabbed under pressure was whichever
+/// one your thumb happened to land on.
+///
+/// Each body now takes a shape from what the card does: Brusher short and
+/// solid, Pin tall and lean, Sprayer squat and round, Sniper Nib crouched,
+/// Warden broad. `unit_art_test.dart` pins the spread so a future tweak
+/// cannot quietly close it again.
 double _biped(
   Canvas c,
   UnitPose p, {
@@ -459,7 +472,10 @@ class _Brusher extends UnitArt {
 
   @override
   void draw(Canvas c, UnitPose p) {
-    final shoulderY = _biped(c, p, bodyW: 1.10, bodyH: 1.00, headR: 0.50);
+    // Short and solid — the front line. See the note on _biped's proportions:
+    // this is the stocky end of the range, and it is the shape a player is
+    // meant to read as "the ordinary one that can take a hit".
+    final shoulderY = _biped(c, p, bodyW: 1.16, bodyH: 0.92, headR: 0.52);
 
     final side = _side(p);
     final swing = _swing(p);
@@ -529,7 +545,16 @@ class _Pin extends UnitArt {
 
   @override
   void draw(Canvas c, UnitPose p) {
-    final shoulderY = _biped(c, p, bodyW: 0.92, bodyH: 1.02, headR: 0.46);
+    // Tall and lean. Pin is the anti-air answer, and a body that stands up
+    // out of the crowd is the silhouette for the card that shoots upward.
+    final shoulderY = _biped(
+      c,
+      p,
+      bodyW: 0.80,
+      bodyH: 1.30,
+      headR: 0.42,
+      legWidth: 0.16,
+    );
 
     final side = _side(p);
     final swing = _swing(p);
@@ -553,7 +578,17 @@ class _Sprayer extends UnitArt {
 
   @override
   void draw(Canvas c, UnitPose p) {
-    final shoulderY = _biped(c, p, bodyW: 1.00, bodyH: 1.00, headR: 0.47);
+    // Squat and round, with the biggest head in the set — a walking paint
+    // canister. Sprayer has the best paint-per-elixir in the roster, so the
+    // body is the tank it carries.
+    final shoulderY = _biped(
+      c,
+      p,
+      bodyW: 1.24,
+      bodyH: 0.70,
+      headR: 0.60,
+      legWidth: 0.26,
+    );
 
     final side = _side(p);
     final swing = _swing(p);
@@ -648,7 +683,9 @@ class _SniperNib extends UnitArt {
       c,
       p,
       bodyW: 0.76,
-      bodyH: 1.06,
+      // Crouched, which is both the pose for the longest gun in the set and
+      // what keeps it clear of Pin — the other thin body, now the tallest.
+      bodyH: 0.94,
       headR: 0.40,
       legWidth: 0.15,
     );

@@ -5,16 +5,18 @@ import '../../core/game_data.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../game/cards/card_model.dart';
+import '../../game/cards/card_registry.dart';
 import '../../meta/profile_controller.dart';
 import '../widgets/card_tile.dart';
 import '../widgets/meta_widgets.dart';
 import '../widgets/motion.dart';
 import '../widgets/responsive.dart';
+import '../type.dart';
 
 /// Collection and deck builder.
 ///
-/// Tap a card in the deck to pick it, then tap one in the collection to swap
-/// it in. Tapping a card on its own opens its upgrade sheet.
+/// Tap any card to open its upgrade sheet. Hold a deck card to arm a swap,
+/// then tap the card that takes its place. A tap is never destructive.
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
 
@@ -26,8 +28,33 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   /// The deck slot waiting to be replaced, if any.
   String? _swapping;
 
+  /// The card whose own page is open, if any. Held here rather than pushed as
+  /// a route so the bottom bar stays visible behind it.
+  String? _detail;
+
   @override
   Widget build(BuildContext context) {
+    final open = _detail;
+    if (open != null) {
+      return PopScope(
+        // The system back gesture closes the card rather than leaving the
+        // tab. Without this, backing out of a card detail drops the player
+        // off Cards entirely, which is not what the arrow in the corner
+        // implies and not what the gesture means anywhere else.
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) setState(() => _detail = null);
+        },
+        child: _CardPage(
+          cardId: open,
+          onBack: () => setState(() => _detail = null),
+        ),
+      );
+    }
+    return _gridPage(context);
+  }
+
+  Widget _gridPage(BuildContext context) {
     final data = ref.watch(gameDataProvider);
     final profile = ref.watch(profileProvider);
     final controller = ref.read(profileProvider.notifier);
@@ -55,6 +82,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     // card outside it to bring in.
     final canSwap = owned.length > deck.length;
 
+    // Cards you have both the copies and the coins for, right now. Cheapest
+    // first, so the one a child can most nearly afford twice is on the left.
+    final readyToGrow = owned
+        .where((c) => controller.canUpgrade(c.id))
+        .toList();
+
     final swapping = _swapping;
     return Scaffold(
       backgroundColor: Palette.uiBackground,
@@ -64,7 +97,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           child: Column(
             children: [
               MetaHeader(
-                title: 'Collection',
+                // "Cards", which is what the tab in the bottom bar has always
+                // called it. Two names for one screen is one too many, and of
+                // the two "collection" is the word a child is less likely to
+                // have.
+                title: 'Cards',
                 profile: profile,
                 // Says what tapping actually does *now*, which changes with
                 // how many cards you own.
@@ -75,13 +112,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 // tapping there armed a swap. There was no route to the
                 // upgrade sheet at all from a starting collection.
                 subtitle: swapping != null
-                    ? 'Now pick the card that replaces '
-                          '${data.cards[swapping].name}.'
+                    ? 'Now pick the card that takes '
+                          '${data.cards[swapping].name}\'s place.'
                     : canSwap
-                    ? 'Tap a card in your deck to swap it out. Tap any other '
-                          'card to level it up.'
-                    : 'Tap a card to level it up. Swapping opens once you own '
-                          'a card outside your deck.',
+                    // Tap and hold do different things, and the tap is the
+                    // one named first because it is the one that is always
+                    // safe. Holding a deck card to swap it out was a plain
+                    // tap, which is a child's default gesture — so the most
+                    // destructive thing on the screen was also the easiest
+                    // one to do by accident.
+                    ? 'Tap a card to make it stronger. '
+                          'Hold a deck card to swap it out.'
+                    : 'Tap a card to make it stronger.',
               ),
               Expanded(
                 child: ListView(
@@ -102,23 +144,65 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                           data.upgrades.stepFrom(level)?.copies,
                       lockedUntil: (_) => null,
                       highlight: _swapping,
+                      // A tap always means "make this stronger", in the deck
+                      // and out of it. It used to mean "arm a swap" here and
+                      // "level up" everywhere else, so the same gesture on
+                      // two grids on one page did two different things — and
+                      // the destructive one was on the default gesture.
+                      //
+                      // Mid-swap a tap picks the card to take out instead,
+                      // because the page is asking a question and a tap is
+                      // how you answer it.
                       onTap: (card) {
-                        // With nothing outside the deck to bring in, arming a
-                        // swap is a dead end dressed up as a selection: the
-                        // header would ask you to pick a replacement and there
-                        // would be nothing on the page to pick. Levelling up
-                        // is the one thing you can actually do to a card you
-                        // already own, so that is what a tap does.
-                        if (!canSwap) {
-                          _showUpgradeSheet(card);
+                        if (_swapping != null) {
+                          setState(
+                            () => _swapping = _swapping == card.id
+                                ? null
+                                : card.id,
+                          );
                           return;
                         }
-                        setState(
-                          () =>
-                              _swapping = _swapping == card.id ? null : card.id,
-                        );
+                        _showUpgradeSheet(card);
                       },
+                      // Holding arms the swap. Nothing to swap with means
+                      // nothing happens: arming it would be a dead end
+                      // dressed up as a selection, with the header asking for
+                      // a replacement and no card on the page to pick.
+                      onHold: canSwap
+                          ? (card) => setState(
+                              () => _swapping = _swapping == card.id
+                                  ? null
+                                  : card.id,
+                            )
+                          : null,
                     ),
+
+                    // The one section that answers "what can I actually do
+                    // right now". Everything else on this page is a picture
+                    // of what you own; these are the cards with enough copies
+                    // and enough coins behind them to change today.
+                    //
+                    // Deliberately allowed to repeat a card already shown in
+                    // the deck above. It is a callout, not a category — a
+                    // child should not have to audit six tiles for a small
+                    // green label to find the one that is ready.
+                    if (readyToGrow.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      SectionHeading(
+                        'Ready to grow',
+                        trailing: '${readyToGrow.length}',
+                      ),
+                      _grid(
+                        cards: readyToGrow,
+                        profile: profile,
+                        layout: layout,
+                        readyToUpgrade: controller.canUpgrade,
+                        copiesNeeded: (level) =>
+                            data.upgrades.stepFrom(level)?.copies,
+                        lockedUntil: (_) => null,
+                        onTap: _showUpgradeSheet,
+                      ),
+                    ],
 
                     // Until the campaign hands over a seventh card, everything
                     // owned is already in the deck and this grid would be a
@@ -208,6 +292,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     required LayoutClass layout,
     required void Function(CardModel card) onTap,
     required int? Function(String cardId) lockedUntil,
+    void Function(CardModel card)? onHold,
     Set<String> dimmed = const {},
     String? highlight,
   }) {
@@ -236,21 +321,24 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             dimmed: dimmed.contains(card.id),
             lockedUntil: lockedUntil(card.id),
             onTap: () => onTap(card),
+            onHold: onHold == null ? null : () => onHold(card),
           ),
       ],
     );
   }
 
-  void _showUpgradeSheet(CardModel card) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Palette.uiSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => _UpgradeSheet(cardId: card.id),
-    );
-  }
+  /// Opens the card's own page, in place of the grid.
+  ///
+  /// It was a modal bottom sheet, and a sheet is the wrong container for
+  /// this. It covers the page it came from, it is dismissed by a gesture a
+  /// child does not necessarily know, and it is short — which is what kept
+  /// the card's stats down to one line of "620 HP · 40 dmg" when what that
+  /// line needed was four bars and a sentence.
+  ///
+  /// Rendered inside the tab rather than pushed as a route, so the bottom bar
+  /// stays put and the page has one obvious way back: the arrow, top left.
+  void _showUpgradeSheet(CardModel card) =>
+      setState(() => _detail = card.id);
 }
 
 class _CollectionCard extends StatelessWidget {
@@ -264,6 +352,7 @@ class _CollectionCard extends StatelessWidget {
     required this.dimmed,
     required this.lockedUntil,
     required this.onTap,
+    this.onHold,
   });
 
   final CardModel card;
@@ -287,10 +376,15 @@ class _CollectionCard extends StatelessWidget {
   final bool dimmed;
   final VoidCallback onTap;
 
+  /// Arms a deck swap. Null where there is nothing to swap with, which is
+  /// also every grid that is not the deck.
+  final VoidCallback? onHold;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onHold,
       child: Opacity(
         opacity: dimmed ? 0.4 : 1,
         child: Container(
@@ -411,11 +505,18 @@ class _LockedLabel extends StatelessWidget {
   );
 }
 
-/// Upgrade one card: what it costs, and whether it can be paid for.
-class _UpgradeSheet extends ConsumerWidget {
-  const _UpgradeSheet({required this.cardId});
+/// One card's own page: what it is, what it does, and what growing it costs.
+///
+/// Replaces a modal bottom sheet whose entire stat line was
+/// `620 HP · 40 dmg · until destroyed`. Three units of measurement and a rate,
+/// which tells an eight-year-old nothing and tells most adults nothing either
+/// without a second card to hold it against. The bars below are that second
+/// card, built in — every track is the best value in the roster.
+class _CardPage extends ConsumerWidget {
+  const _CardPage({required this.cardId, required this.onBack});
 
   final String cardId;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -427,134 +528,341 @@ class _UpgradeSheet extends ConsumerWidget {
     final copies = profile.copiesOf(cardId);
     final step = data.upgrades.stepFrom(level);
     final card = data.cards.at(cardId, level);
+    final peaks = RosterPeaks.of(data.cards);
+    final unit = card.unit;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Scaffold(
+      backgroundColor: Palette.uiBackground,
+      body: MenuBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
             children: [
-              CardTile(card: card, width: 70),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                child: Row(
                   children: [
-                    Text(
-                      card.name,
-                      style: const TextStyle(
-                        color: Palette.uiText,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Level $level',
-                      style: const TextStyle(
-                        color: Palette.info,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    if (card.isUnit)
-                      Text(
-                        '${card.unit!.hp.round()} HP  ·  '
-                        '${card.unit!.damage.round()} dmg'
-                        // A building on a clock says how long it has; one
-                        // without says so, because "stands until destroyed"
-                        // is the stat that decides how you use it. Reading
-                        // the lifetime blindly printed "0s" on a building
-                        // that in fact never expires.
-                        '${card.isBuilding ? '  ·  ${card.unit!.isTemporary ? '${card.unit!.lifetime.round()}s' : 'until destroyed'}' : ''}',
-                        style: const TextStyle(
-                          color: Palette.uiTextDim,
-                          fontSize: 12,
-                        ),
-                      ),
-                    if (card.note.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          card.note,
-                          style: const TextStyle(
-                            color: Palette.uiTextDim,
-                            fontSize: 11,
-                            height: 1.3,
+                    PressScale(
+                      onTap: onBack,
+                      child: Semantics(
+                        button: true,
+                        label: 'Back to cards',
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Palette.uiSurfaceHigh,
+                            borderRadius: BorderRadius.circular(13),
+                            boxShadow: Panel.softShadow,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_rounded,
+                            size: 21,
+                            color: Palette.uiText,
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        card.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: Fonts.display,
+                          color: Palette.uiText,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    CurrencyChip(
+                      icon: Icons.monetization_on,
+                      value: profile.coins,
+                      colour: Palette.accent,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                  children: [
+                    Panel(
+                      outlined: false,
+                      radius: 18,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                      child: Column(
+                        children: [
+                          CardTile(card: card, width: 86),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Level $level',
+                            style: const TextStyle(
+                              fontFamily: Fonts.display,
+                              color: Palette.uiText,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (card.blurb.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              card.blurb,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Palette.uiTextDim,
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Spells have no body, so there is nothing here to
+                    // measure — no hp, no damage per second, no walking
+                    // speed. Four empty tracks would be a worse answer than
+                    // no tracks.
+                    if (unit != null) ...[
+                      const SizedBox(height: 12),
+                      Panel(
+                        outlined: false,
+                        radius: 18,
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        child: Column(
+                          children: [
+                            StatBar(
+                              label: 'Tough',
+                              value: RosterPeaks.toughOf(unit) / peaks.tough,
+                              colour: Palette.accent,
+                              // The two that levelling actually moves.
+                              // Section 6: +8% HP and damage per level, and
+                              // nothing else. Paint and speed never change,
+                              // so they carry no growth mark rather than a
+                              // misleading "+0%".
+                              growth: step == null ? null : '+8%',
+                            ),
+                            StatBar(
+                              label: 'Hits',
+                              value: RosterPeaks.hitsOf(unit) / peaks.hits,
+                              colour: Palette.elixir,
+                              growth: step == null ? null : '+8%',
+                            ),
+                            StatBar(
+                              label: 'Paint',
+                              value: unit.paint / peaks.paint,
+                              colour: Palette.lime,
+                            ),
+                            StatBar(
+                              label: 'Speed',
+                              value: unit.speed / peaks.speed,
+                              colour: Palette.info,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+                    if (step == null)
+                      Panel(
+                        outlined: false,
+                        radius: 18,
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Palette.gold,
+                              size: 22,
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'As big as it gets!',
+                                style: TextStyle(
+                                  color: Palette.uiText,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      Panel(
+                        outlined: false,
+                        radius: 18,
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Cards you need',
+                                    style: TextStyle(
+                                      color: Palette.uiText,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 7),
+                                  // Countable while the target is small,
+                                  // which it is for every early level. A big
+                                  // target falls back to the fraction the
+                                  // rest of the app uses.
+                                  if (Pips.suits(step.copies))
+                                    Pips(
+                                      done: copies.clamp(0, step.copies),
+                                      target: step.copies,
+                                    )
+                                  else
+                                    Text(
+                                      '$copies / ${step.copies}',
+                                      style: const TextStyle(
+                                        color: Palette.uiTextDim,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'Coins',
+                                  style: TextStyle(
+                                    color: Palette.uiTextDim,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  '${step.coins}',
+                                  style: TextStyle(
+                                    fontFamily: Fonts.display,
+                                    color: profile.coins >= step.coins
+                                        ? Palette.uiText
+                                        : Palette.danger,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _GrowButton(
+                        label: 'GROW TO ${step.level}',
+                        enabled: controller.canUpgrade(cardId),
+                        onPressed: () => controller.upgradeCard(cardId),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _shortfall(
+                          copies: copies,
+                          needCopies: step.copies,
+                          coins: profile.coins,
+                          needCoins: step.coins,
+                        ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Palette.uiTextDim,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-
-          if (step == null)
-            const Text(
-              'Maximum level.',
-              style: TextStyle(color: Palette.uiTextDim, fontSize: 13),
-            )
-          else ...[
-            _CostRow(label: 'Cards', have: copies, need: step.copies),
-            const SizedBox(height: 6),
-            _CostRow(label: 'Coins', have: profile.coins, need: step.coins),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: controller.canUpgrade(cardId)
-                    ? () {
-                        controller.upgradeCard(cardId);
-                        Navigator.of(context).pop();
-                      }
-                    : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Palette.accent,
-                  disabledBackgroundColor: Palette.uiBackground,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: Text('UPGRADE TO ${step.level}'),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
+
+  /// The one line under the button: what is still missing, or that nothing is.
+  ///
+  /// Says the gap rather than the totals. "3 more cards to go" is what decides
+  /// whether you go and play or go and open a chest; "7 / 10" makes the reader
+  /// do that subtraction for themselves, and this reader cannot yet.
+  static String _shortfall({
+    required int copies,
+    required int needCopies,
+    required int coins,
+    required int needCoins,
+  }) {
+    final cards = needCopies - copies;
+    final gold = needCoins - coins;
+    if (cards <= 0 && gold <= 0) return 'Ready to grow!';
+    final parts = <String>[
+      if (cards > 0) '$cards more ${cards == 1 ? 'card' : 'cards'}',
+      if (gold > 0) '$gold more coins',
+    ];
+    return '${parts.join(' and ')} to go';
+  }
 }
 
-class _CostRow extends StatelessWidget {
-  const _CostRow({required this.label, required this.have, required this.need});
+/// The big lime button.
+///
+/// Grey and inert when you cannot afford it rather than hidden — the price is
+/// the point of the page, and a button you have not earned yet is still
+/// information about what earning it looks like.
+class _GrowButton extends StatelessWidget {
+  const _GrowButton({
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
 
   final String label;
-  final int have;
-  final int need;
+  final bool enabled;
+  final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    final enough = have >= need;
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Palette.uiTextDim, fontSize: 12),
+  Widget build(BuildContext context) => PressScale(
+    onTap: enabled ? onPressed : null,
+    scale: 0.96,
+    child: Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: enabled ? Palette.lime : Palette.uiBackground,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: enabled ? Panel.softShadow : null,
         ),
-        const Spacer(),
-        Text(
-          '$have / $need',
+        child: Text(
+          label,
           style: TextStyle(
-            color: enough ? Palette.success : Palette.danger,
-            fontSize: 13,
+            fontFamily: Fonts.display,
+            color: enabled ? Colors.white : Palette.uiTextDim,
+            fontSize: 19,
             fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ),
+  );
 }
 
 /// How close a card is to its next level.
@@ -602,12 +910,18 @@ class _Progress extends StatelessWidget {
               ),
             ),
             if (ready)
+              // Lime, and the only lime on the page — it is the colour of
+              // "getting there", and this is the one tile you can act on.
+              // "Grow!" rather than "Level up": levelling is a game-systems
+              // word, growing is something a seven-year-old has watched
+              // happen.
               const Text(
-                'Level up',
+                'Grow!',
                 style: TextStyle(
-                  color: Palette.accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+                  fontFamily: Fonts.display,
+                  color: Palette.lime,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               )
             else

@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio.dart';
 import '../../core/game_data.dart';
-import '../../core/games/game_services.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../game/arena/arena_layout.dart';
@@ -17,11 +15,13 @@ import '../../meta/profile_controller.dart';
 import '../../meta/quests.dart';
 import '../widgets/card_tile.dart';
 import '../widgets/meta_widgets.dart';
+import '../widgets/dab.dart';
 import '../widgets/motion.dart';
 import '../widgets/responsive.dart';
 import 'battle_screen.dart';
 import 'campaign_screen.dart';
 import 'chest_screen.dart';
+import '../type.dart';
 
 /// Home: chests, player card, daily quests and the button that starts a
 /// match.
@@ -132,8 +132,17 @@ class _PlayerPane extends ConsumerWidget {
               nextAt: data.nextArenaThreshold(profile.trophies),
             ),
           ),
-          const _PlayGamesPrompt(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          // Dab, saying the one thing worth doing next.
+          //
+          // This is the slot the Play Games sign-in used to hold. That row
+          // was the best real estate on the first screen of the app, spent on
+          // the one thing a child cannot action by themselves — it is an
+          // account decision, so it now lives in Settings behind the
+          // grown-ups gate, where a parent can find it and a seven-year-old
+          // is not asked to.
+          Entrance(child: DabSays(_dabLine(ref))),
+          const SizedBox(height: 12),
           // The hero, and the only loud thing on the page.
           //
           // Battle plays the level you are up to. There is no difficulty
@@ -176,119 +185,42 @@ class _PlayerPane extends ConsumerWidget {
   }
 }
 
-/// The Play Games / Game Center sign-in, on Home.
+/// What Dab should say, in priority order.
 ///
-/// **It disappears once you use it.** A permanent account row on the home
-/// screen of a single-player game is a line of chrome that does nothing for
-/// anybody who has already connected — and, worse, it competes with the one
-/// thing this page exists to get you to press. Signed in, this builds
-/// nothing at all and Settings carries the connected state instead.
+/// **Always a thing to go and do, never a status.** The rule that keeps this
+/// honest: every branch is phrased as an instruction with a verb, because a
+/// guide that says "you have 0 trophies" has told a child nothing they can
+/// act on.
 ///
-/// Slim and quiet by design: it is the only element on Home that is not part
-/// of playing, so it takes one line, uses the secondary accent rather than
-/// the action colour, and sits above the board card rather than beside it.
-/// Nothing here gates a level, a chest or a card — section 14's rule that v1
-/// never pretends to be more than single player cuts the same way.
-class _PlayGamesPrompt extends StatefulWidget {
-  const _PlayGamesPrompt();
+/// Ordered by what is *finished and waiting* first, then what is in progress,
+/// then the default. A reward sitting unclaimed is the most annoying thing to
+/// walk past, so it goes to the top.
+String _dabLine(WidgetRef ref) {
+  final data = ref.watch(gameDataProvider);
+  final profile = ref.watch(profileProvider);
+  final controller = ref.read(profileProvider.notifier);
 
-  @override
-  State<_PlayGamesPrompt> createState() => _PlayGamesPromptState();
+  final claimable = controller.todaysQuests.any((q) {
+    final p = controller.progressFor(q.id);
+    return !p.claimed && p.progress >= q.target;
+  });
+  if (claimable) return 'A job is done! Tap the coins to collect.';
+
+  if (profile.chests.any(controller.isReady)) {
+    return 'Your chest is ready. Go and open it!';
+  }
+  if (profile.chests.any((c) => !c.isUnlocking)) {
+    return 'Tap a chest to start its timer.';
+  }
+  if (profile.campaignNextLevel > data.campaign.levelCount) {
+    return 'You finished every level. Go back for more stars!';
+  }
+  if (profile.campaignStars.isEmpty) {
+    return 'Tap Battle to paint your first level!';
+  }
+  return 'Tap Battle to paint level ${profile.campaignNextLevel}!';
 }
 
-class _PlayGamesPromptState extends State<_PlayGamesPrompt> {
-  bool _pressed = false;
-
-  String get _serviceName => defaultTargetPlatform == TargetPlatform.iOS
-      ? 'Game Center'
-      : 'Play Games';
-
-  Future<void> _signIn() async {
-    setState(() => _pressed = true);
-    final ok = await GameServices.signIn();
-    if (!mounted) return;
-    setState(() => _pressed = false);
-    if (!ok) {
-      // Said out loud rather than left as a button that did nothing. The
-      // usual cause in a debug build is a signing certificate not registered
-      // against the Play Games project, which the player can do nothing
-      // about — so the wording blames the connection and does not pretend to
-      // diagnose it.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not connect to $_serviceName.'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Rebuilds off the notifier rather than polling, because the silent
-    // sign-in at launch resolves in the background — this row has to be able
-    // to vanish on its own when it does.
-    return ValueListenableBuilder<int>(
-      valueListenable: GameServices.revision,
-      builder: (context, revision, _) {
-        if (GameServices.isSignedIn) return const SizedBox.shrink();
-        final busy = _pressed || GameServices.isBusy;
-
-        return Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: PressScale(
-            onTap: busy ? null : _signIn,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(
-                color: Palette.uiSurfaceHigh,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Palette.info.withValues(alpha: 0.35),
-                  width: 1,
-                ),
-                boxShadow: Panel.softShadow,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.sports_esports_outlined,
-                    size: 18,
-                    color: Palette.info,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      busy ? 'Connecting…' : 'Sign in to $_serviceName',
-                      style: const TextStyle(
-                        color: Palette.uiText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Optional',
-                    style: TextStyle(
-                      color: Palette.uiTextDim.withValues(alpha: 0.9),
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: Palette.uiTextDim.withValues(alpha: 0.7),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 /// The chest slots on Home.
 ///
@@ -515,8 +447,12 @@ class _QuestPane extends ConsumerWidget {
           // Sentence case with the count, like every other heading in the
           // app. Three tracked-out capitalised eyebrows were the loudest
           // thing on a page whose loudest thing should be BATTLE.
+          // "Today", not "Daily quests". Two words to one, and the one that
+          // survives is the one a six-year-old already owns — "daily" and
+          // "quest" are both above the reading age this UI is written for,
+          // and the tile underneath says what they are without either.
           SectionHeading(
-            'Daily quests',
+            'Today',
             trailing: quests.isEmpty
                 ? null
                 : done == quests.length
@@ -536,6 +472,7 @@ class _QuestPane extends ConsumerWidget {
               Entrance(
                 index: 3,
                 child: Panel(
+                  outlined: false,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 3,
@@ -635,6 +572,7 @@ class _NextCard extends ConsumerWidget {
     final away = at - profile.campaignCleared;
 
     return Panel(
+      outlined: false,
       child: Row(
         children: [
           // The same light mount the Collection gives every card. A CardTile
@@ -709,6 +647,7 @@ class _AllCardsCollected extends ConsumerWidget {
     final total = data.campaign.levelCount * 3;
 
     return Panel(
+      outlined: false,
       child: Row(
         children: [
           const Icon(Icons.star_rounded, color: Palette.gold, size: 26),
@@ -746,27 +685,20 @@ class _QuestRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = progress.progress >= quest.target;
     final fraction = (progress.progress / quest.target).clamp(0.0, 1.0);
+    final countable = Pips.suits(quest.target);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         children: [
-          // The state, as a stripe rather than as a wash over the whole tile.
+          // What the job is, as a picture.
           //
-          // These were three lavender blocks — `info` at 18% on white — and
-          // between them they were the loudest thing on the page, on a screen
-          // whose loudest thing should be the Battle card. Lavender is also
-          // nowhere else in the app, so the bottom half of Home read as a
-          // different product from the top half. A 4dp stripe says the same
-          // thing in the space it deserves.
-          Container(
-            width: 4,
-            height: 34,
-            decoration: BoxDecoration(
-              color: done ? Palette.success : Palette.info,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          // It was a 4dp stripe, which carried done/not-done and nothing
+          // else. A pre-reader cannot tell "play 15 spell cards" from "win 2
+          // matches" without reading them, and the icon is what lets them.
+          // Colour still carries the state on top of that: the tile goes
+          // green the moment it is finished.
+          _QuestBadge(type: quest.type, done: done),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -795,35 +727,48 @@ class _QuestRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // The count sits on the same line as the objective now.
-                    // Under the bar it was a third line of type per quest,
-                    // and three quests were paying nine lines for six facts.
-                    Text(
-                      '${progress.progress} / ${quest.target}',
-                      style: const TextStyle(
-                        color: Palette.uiTextDim,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                    // The count is dropped entirely where the pips replace
+                    // it. Fifteen squares with four filled *is* "4 of 15",
+                    // and printing both says the same thing twice — once in
+                    // a form this reader can use and once in a form they
+                    // cannot.
+                    if (!countable) ...[
+                      const SizedBox(width: 8),
+                      // Still on the same line as the objective. Under the
+                      // bar it was a third line of type per quest, and three
+                      // quests were paying nine lines for six facts.
+                      Text(
+                        '${progress.progress} / ${quest.target}',
+                        style: const TextStyle(
+                          color: Palette.uiTextDim,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  // Tweened, so finishing an objective fills the bar rather
-                  // than teleporting it. Finite: it settles at the value and
-                  // stops, so it cannot hang a pumpAndSettle.
-                  child: _AnimatedBar(
-                    value: fraction,
-                    minHeight: 5,
-                    backgroundColor: Palette.uiBackground,
-                    valueColor: AlwaysStoppedAnimation(
-                      done ? Palette.success : Palette.accent,
+                // Countable targets get squares to count; a percentage gets
+                // a bar, because sixty dots is not something anyone counts.
+                // `Pips.suits` owns that cutover so it happens in one place.
+                if (countable)
+                  Pips(done: progress.progress, target: quest.target)
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    // Tweened, so finishing an objective fills the bar rather
+                    // than teleporting it. Finite: it settles at the value and
+                    // stops, so it cannot hang a pumpAndSettle.
+                    child: _AnimatedBar(
+                      value: fraction,
+                      minHeight: 8,
+                      backgroundColor: Palette.uiBackground,
+                      valueColor: AlwaysStoppedAnimation(
+                        done ? Palette.success : Palette.lime,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -996,20 +941,32 @@ class _NextLevelCard extends StatelessWidget {
   static const double _textBand = 64;
 
   @override
-  Widget build(BuildContext context) => PressScale(
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [_board(), const SizedBox(height: 12), _button()],
+  );
+
+  /// The board you are about to fight over, and which level it is.
+  ///
+  /// Still pressable. It shows the level you would play, so tapping it is the
+  /// obvious thing to try — and taking the target away to make the button
+  /// "the only way in" would punish exactly that instinct. It presses more
+  /// shallowly than the button below, which is what says the button is the
+  /// one being offered.
+  Widget _board() => PressScale(
     onTap: onPressed,
-    // Deeper than a tile: this is the one control the whole screen is built
-    // around, and it should feel like it takes a real push.
-    scale: 0.97,
+    scale: 0.985,
     child: Semantics(
       button: true,
-      label: 'BATTLE',
+      label: complete ? 'Campaign cleared' : 'Level $level, $name',
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          // Soft, on the owner's call. The heavy dark line is the house style
-          // everywhere else; here the board's own colour is doing the work of
-          // an edge, so the card holds its shape without one.
+          // No line. The board's own colour is what gives this card its
+          // edge — it is the only object on Home with red and blue in it —
+          // and a near-black ring around a card that is already high-contrast
+          // reads as a frame rather than as shape.
           boxShadow: Panel.softShadow,
         ),
         child: ClipRRect(
@@ -1068,9 +1025,10 @@ class _NextLevelCard extends StatelessWidget {
                             Text(
                               complete ? 'CAMPAIGN CLEARED' : 'LEVEL $level',
                               style: const TextStyle(
+                                fontFamily: Fonts.display,
                                 color: Colors.white,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w800,
                                 letterSpacing: 1,
                                 height: 1.05,
                                 // Belt and braces over a two-colour board. The
@@ -1112,26 +1070,49 @@ class _NextLevelCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // The footer is the button. It used to be cut off from the board
-              // by the same heavy dark line as every other edge; with the
-              // outline gone that rule would have been the only black left on
-              // the card, so the colour change carries the join on its own.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(color: Palette.accent),
-                child: const Text(
-                  'BATTLE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
             ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  /// The button, as its own object.
+  ///
+  /// It used to be a footer strip inside the card, sharing its corners and
+  /// its shadow — one tall block that happened to be teal along the bottom.
+  /// A button that is part of a picture does not look like a button, and the
+  /// one question this screen has to answer without words is *where do I
+  /// press*. Standing on its own, with its own shadow and its own squash, it
+  /// answers that from across the room.
+  Widget _button() => PressScale(
+    onTap: onPressed,
+    // Deeper than the board above it. This is the one control the whole
+    // screen is built around, and it should feel like it takes a real push.
+    scale: 0.96,
+    child: Semantics(
+      button: true,
+      label: 'BATTLE',
+      child: Container(
+        width: double.infinity,
+        // The one thing on the page a child is meant to press, so it is the
+        // one thing sized for a thumb rather than for a pointer: 18 of
+        // padding puts the tap target over 56dp.
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Palette.accent,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: Panel.softShadow,
+        ),
+        child: const Text(
+          'BATTLE',
+          style: TextStyle(
+            fontFamily: Fonts.display,
+            color: Colors.white,
+            fontSize: 25,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
           ),
         ),
       ),
@@ -1307,10 +1288,11 @@ class _TopBar extends StatelessWidget {
                   'SPLATFRONT',
                   maxLines: 1,
                   style: TextStyle(
+                    fontFamily: Fonts.display,
                     color: Palette.uiText,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
                   ),
                 ),
               ),
@@ -1466,4 +1448,47 @@ class _QuestList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,
         );
+}
+
+/// What kind of job a quest is, as a picture on a coloured square.
+///
+/// The icon is the point: a child who cannot yet read "play 15 spell cards"
+/// can still tell it apart from "win 2 matches", and can learn which is which
+/// once and recognise it every day after. The colour carries the state on top
+/// of that — every square goes green the moment its job is done, so a
+/// finished list reads as finished from across the room.
+///
+/// Hues come from the chrome set and dodge both sides, as section 14 requires.
+class _QuestBadge extends StatelessWidget {
+  const _QuestBadge({required this.type, required this.done});
+
+  final QuestType type;
+  final bool done;
+
+  static const Map<QuestType, (IconData, Color)> _marks = {
+    QuestType.winMatches: (Icons.emoji_events_rounded, Palette.gold),
+    QuestType.playMatches: (Icons.sports_esports_rounded, Palette.accent),
+    QuestType.playCards: (Icons.style_rounded, Palette.info),
+    QuestType.playSpells: (Icons.auto_awesome_rounded, Palette.elixir),
+    QuestType.paintShare: (Icons.format_paint_rounded, Palette.lime),
+    QuestType.unknown: (Icons.flag_rounded, Palette.accent),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, colour) = _marks[type] ?? _marks[QuestType.unknown]!;
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: done ? Palette.success : colour,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(
+        done ? Icons.check_rounded : icon,
+        size: 19,
+        color: Colors.white,
+      ),
+    );
+  }
 }

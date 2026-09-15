@@ -172,7 +172,7 @@ class Panel extends StatelessWidget {
     this.accent,
     this.radius = 16,
     this.raised = true,
-    this.outlined = false,
+    this.outlined = true,
   });
 
   final Widget child;
@@ -186,22 +186,23 @@ class Panel extends StatelessWidget {
 
   /// The heavy dark line, and the hard shadow that goes with it.
   ///
-  /// **Off by default, on the owner's call.** Every menu tile in the app used
-  /// to be ringed in a near-black 2.5dp line with a hard offset shadow under
-  /// it, and that was the house style — the thing that made a tile read as a
-  /// chunky physical object rather than as a pale rectangle on a pale page.
-  /// It went from Home first and then from everywhere.
+  /// **Back on by default, on the owner's call**, as the ground of the
+  /// children's direction. Every menu tile is ringed in a near-black 2.5dp
+  /// line with a hard offset shadow under it, which is what makes a tile read
+  /// as a chunky physical object rather than as a pale rectangle on a pale
+  /// page. It had been turned off — Home first, then everywhere — and this
+  /// flag was kept as the seam to walk that back through. This is that walk.
+  ///
+  /// The reason it matters more for a child than for an adult: a hard offset
+  /// shadow is the clearest possible signal that a thing will squash when
+  /// pressed, and "which parts of this screen can I press" is the question a
+  /// six-year-old is actually asking.
   ///
   /// The two halves have to move together. Dropping the line while keeping the
   /// hard offset leaves a black bar under a borderless tile, which reads as a
   /// rendering fault rather than as a style; so soft means both a light
-  /// hairline for the edge *and* a blurred shadow for the lift. Without some
-  /// edge the tile dissolves into the page, which is the failure the outline
-  /// existed to prevent and is still worth avoiding.
-  ///
-  /// True restores the old look for one tile, and nothing in the app passes it
-  /// now. It is kept because the argument for the outline was a real one and
-  /// this is the seam to walk it back through.
+  /// hairline for the edge *and* a blurred shadow for the lift. Passing false
+  /// gets that pair, for a tile that genuinely should recede.
   final bool outlined;
 
   @override

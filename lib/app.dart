@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'core/palette.dart';
 import 'ui/screens/main_shell.dart';
+import 'ui/type.dart';
 
 class SplatfrontApp extends StatelessWidget {
   const SplatfrontApp({super.key});
@@ -21,6 +22,10 @@ class SplatfrontApp extends StatelessWidget {
         // scheme in an otherwise consistent app, which is exactly what
         // happened both times the ground changed.
         brightness: Brightness.light,
+        // Set once, here, so every widget that does not name a family gets
+        // it. See lib/ui/type.dart: Lexend is the body face and the default;
+        // Baloo 2 is the display face and is always asked for by name.
+        fontFamily: Fonts.body,
         scaffoldBackgroundColor: Palette.uiBackground,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Palette.accent,

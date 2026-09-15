@@ -9,6 +9,7 @@ import '../../game/cards/card_registry.dart';
 import '../../meta/campaign.dart';
 import '../../meta/profile_controller.dart';
 import '../widgets/meta_widgets.dart';
+import '../type.dart';
 import '../widgets/motion.dart';
 import 'battle_screen.dart';
 
@@ -95,13 +96,29 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
               MetaHeader(
                 title: 'Levels',
                 profile: profile,
-                subtitle:
-                    'Single player. Win to earn a star, paint '
-                    '${(campaign.twoStarCoverage * 100).round()}% for two and '
-                    '${(campaign.threeStarCoverage * 100).round()}% for three.',
+                // Shorter, and in words a seven-year-old has. The old line
+                // spent three clauses and two percentages explaining the star
+                // thresholds — true, and unreadable at this age. Paint more,
+                // get more is the whole rule; the exact numbers are something
+                // you learn by playing, and the result screen says them at
+                // the moment they matter.
+                //
+                // "Play on your own" also keeps section 14's promise that v1
+                // never pretends to be multiplayer — it just keeps it in
+                // language the reader actually parses.
+                subtitle: 'Play on your own. Win to get a star, '
+                    'paint more to get three.',
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
+                // Not the arena name. The mockup showed a "Primer Yard" band
+                // over the trail, which works for one screenful and not for a
+                // thousand levels across four arenas — a header that is right
+                // at the top of the list is wrong by level 30 and cannot
+                // follow the scroll without becoming a sticky section, which
+                // a fixed-extent list does not give for free. The arena is
+                // already named on the row where it actually changes, which
+                // is the only place it is news.
                 child: SectionHeading(
                   'Level ${profile.campaignNextLevel}',
                   trailing:
@@ -135,7 +152,8 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
                     level: campaign.levelAt(1),
                     stars: 3,
                     unlocked: true,
-                    current: false,
+                    current: true,
+                    firstLocked: false,
                     name: campaign.nameFor(1),
                     arenaName: data.arenas.first.name,
                     reward: _rewardLabel(data, campaign, 1) ?? 'unlocks a card',
@@ -149,6 +167,7 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
                       stars: profile.starsOnLevel(number),
                       unlocked: profile.isLevelUnlocked(number),
                       current: number == profile.campaignNextLevel,
+                      firstLocked: number == profile.campaignNextLevel + 1,
                       name: campaign.nameFor(number),
                       // The board is named on the level it changes on and
                       // nowhere else. It is the same arena for twenty-five
@@ -293,6 +312,7 @@ class _LevelTile extends StatelessWidget {
     required this.stars,
     required this.unlocked,
     required this.current,
+    required this.firstLocked,
     required this.name,
     required this.arenaName,
     required this.reward,
@@ -303,9 +323,17 @@ class _LevelTile extends StatelessWidget {
   final int stars;
   final bool unlocked;
 
-  /// The next level to beat. It gets the accent fill, so the eye lands on
-  /// the one thing the page is asking the player to do.
+  /// The next level to beat. It gets the accent fill and the bigger marker,
+  /// so the eye lands on the one thing the page is asking the player to do.
   final bool current;
+
+  /// The first level you cannot play yet — and only that one.
+  ///
+  /// It carries "Win level N first". The rows below it are locked for the
+  /// same reason and say nothing, because repeating the explanation down a
+  /// screen of grey circles teaches nobody anything and makes the wall of
+  /// locked levels look longer than it is.
+  final bool firstLocked;
 
   /// This level's own name, so that no two rows in the list read alike.
   final String name;
@@ -321,49 +349,29 @@ class _LevelTile extends StatelessWidget {
 
   final VoidCallback onPlay;
 
+  /// How far each row is pushed in from the left.
+  ///
+  /// This is the whole trail. A thousand left-aligned rows is a spreadsheet;
+  /// the same rows stepping in and back out read as a route going somewhere,
+  /// which is the one thing a child wants to know about a list of levels —
+  /// where am I on it, and what is next.
+  ///
+  /// It is a padding value per row rather than a drawn curve on purpose. A
+  /// painted path would need to know about the rows above and below it, and
+  /// the list is virtualised — at level 400 there is nothing above to ask.
+  static const List<double> _indents = [0, 18, 34, 18];
+
   @override
   Widget build(BuildContext context) {
     final ink = unlocked ? Palette.uiText : Palette.uiTextDim;
+    final cleared = stars > 0;
 
-    // Three states, drawn rather than faded.
-    //
-    // A locked row used to be this same near-white tile wrapped in
-    // `Opacity(0.55)`, and on a pale page that is very close to not being
-    // there at all: seven of the eight rows on screen read as empty outlines,
-    // and the level names — the only thing that makes scrolling a thousand
-    // rows worth anything — went translucent with them. Opacity fades a whole
-    // subtree indiscriminately, which is exactly the wrong tool for "this is
-    // not available yet". A locked row now has its own solid fill and its own
-    // ink, so it sits back without vanishing.
-    final tile = Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: current
-            ? Palette.accent
-            : unlocked
-            ? Palette.uiSurface
-            // A shade off the page rather than the same white as a playable
-            // row. It reads as a row that is there but shut.
-            : Color.alphaBlend(
-                Palette.uiTextDim.withValues(alpha: 0.07),
-                Palette.uiBackground,
-              ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: current
-              ? Palette.accentShade
-              : unlocked
-              ? Panel.softEdge
-              : Palette.uiTextDim.withValues(alpha: 0.14),
-          width: 1,
-        ),
-        // Only rows you can actually press stand off the page. The shadow is
-        // the affordance, so a locked row not having one is information — and
-        // with the outline gone it is now the *only* thing separating the two
-        // states apart from the fill, which is why the locked fill had to be a
-        // real shade off the page rather than a faded white.
-        boxShadow: unlocked ? Panel.softShadow : null,
+    final row = Padding(
+      padding: EdgeInsets.fromLTRB(
+        12 + _indents[(level.number - 1) % _indents.length],
+        4,
+        12,
+        4,
       ),
       child: Row(
         children: [
@@ -371,6 +379,7 @@ class _LevelTile extends StatelessWidget {
             number: level.number,
             current: current,
             locked: !unlocked,
+            cleared: cleared,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -383,52 +392,44 @@ class _LevelTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: current ? Colors.white : ink,
+                    color: ink,
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: current
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : Palette.uiTextDim,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
+                if (_subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    _subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: current ? Palette.accent : Palette.uiTextDim,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                ],
+                // Stars sit under the name rather than out at the right
+                // edge. Three small marks floating in the far corner of a
+                // row are the last thing the eye finds; under the level's
+                // own name they belong to it.
+                if (unlocked) ...[
+                  const SizedBox(height: 3),
+                  _Stars(stars: stars, onAccent: false),
+                ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          // Kept for locked rows even though the grey bubble already says
+          // it. The bubble's colour is the only other signal, and colour
+          // alone is nothing to a colourblind player.
           if (!unlocked)
             Icon(
               Icons.lock_rounded,
-              size: 19,
-              color: Palette.uiTextDim.withValues(alpha: 0.55),
-            )
-          else ...[
-            _Stars(stars: stars, onAccent: current),
-            // The one row on the whole ladder you can press right now says so.
-            //
-            // Every unlocked row is tappable, but only this one is the level
-            // the campaign is actually offering, and colour alone was carrying
-            // that — which is nothing to a colourblind player and not much to
-            // anyone scrolling fast. A glyph is the cheapest way to say
-            // "here", and it costs the row no height.
-            if (current) ...[
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.play_arrow_rounded,
-                size: 24,
-                color: Colors.white,
-              ),
-            ],
-          ],
+              size: 18,
+              color: Palette.uiTextDim.withValues(alpha: 0.45),
+            ),
         ],
       ),
     );
@@ -436,7 +437,7 @@ class _LevelTile extends StatelessWidget {
     // A locked row is not pressable, so it gets no press animation either —
     // a tile that squashes under a finger and then does nothing is a worse
     // answer than one that does not move.
-    return unlocked ? PressScale(onTap: onPlay, child: tile) : tile;
+    return unlocked ? PressScale(onTap: onPlay, child: row) : row;
   }
 
   /// What makes this level different from the last one. The bot's card level
@@ -453,6 +454,12 @@ class _LevelTile extends StatelessWidget {
   /// here is what actually varies — the board, the opponent's card level once
   /// it starts climbing, and what the level still owes you.
   String get _subtitle {
+    // The two that speak to the player directly outrank the facts about the
+    // level, because they are the only lines on this screen that say what to
+    // do rather than what is true.
+    if (current) return 'Tap to play';
+    if (firstLocked) return 'Win level ${level.number - 1} first';
+
     final parts = <String>[?arenaName];
     if (level.botCardLevel > 1) parts.add('cards level ${level.botCardLevel}');
     if (reward case final extra?) parts.add(extra);
@@ -460,41 +467,89 @@ class _LevelTile extends StatelessWidget {
   }
 }
 
+/// One stop on the trail.
+///
+/// Round rather than a rounded rectangle, because the row is no longer a tile
+/// — with the card gone this is the only object on the line, and a circle
+/// reads as a marker on a route where a box reads as a button that lost its
+/// label.
+///
+/// Four states, each drawn rather than faded: the next level is filled and
+/// **bigger**, a cleared one is lime, an unlocked-but-unbeaten one is plain
+/// white, and a locked one is a shade off the page. Size is doing real work
+/// here — it is the one difference that survives being glanced at, and there
+/// is exactly one bigger circle in the whole thousand-level list.
 class _NumberChip extends StatelessWidget {
   const _NumberChip({
     required this.number,
     required this.current,
     required this.locked,
+    required this.cleared,
   });
 
   final int number;
   final bool current;
   final bool locked;
 
+  /// Beaten at least once, whatever the star count.
+  final bool cleared;
+
+  /// The next level's marker. Every other one is [_size].
+  static const double _currentSize = 54;
+  static const double _size = 46;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: 46,
-    height: 40,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: current ? Colors.white : Palette.uiSurfaceHigh,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: locked
-            ? Palette.uiTextDim.withValues(alpha: 0.2)
-            : Panel.softEdge,
-        width: 1,
+  Widget build(BuildContext context) {
+    final diameter = current ? _currentSize : _size;
+    final fill = current
+        ? Palette.accent
+        : cleared
+        ? Palette.lime
+        : locked
+        ? Color.alphaBlend(
+            Palette.uiTextDim.withValues(alpha: 0.08),
+            Palette.uiBackground,
+          )
+        : Palette.uiSurfaceHigh;
+
+    // Every marker occupies the width of the biggest one, so the names beside
+    // them line up down the column. Without this the current level's text
+    // would be pushed 8dp right of every other row and the trail would look
+    // like a mistake rather than a step.
+    return SizedBox(
+      width: _currentSize,
+      height: _currentSize,
+      child: Center(
+        child: Container(
+          width: diameter,
+          height: diameter,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: fill,
+            shape: BoxShape.circle,
+            boxShadow: locked ? null : Panel.softShadow,
+          ),
+          child: Text(
+            '$number',
+            style: TextStyle(
+              fontFamily: Fonts.display,
+              color: current
+                  ? Colors.white
+                  : locked
+                  ? Palette.uiTextDim.withValues(alpha: 0.75)
+                  : Palette.uiText,
+              fontSize: number > 999
+                  ? 15
+                  : current
+                  ? 22
+                  : 19,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ),
-    ),
-    child: Text(
-      '$number',
-      style: TextStyle(
-        color: locked ? Palette.uiTextDim : Palette.uiText,
-        fontSize: number > 999 ? 13 : 15,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _Stars extends StatelessWidget {

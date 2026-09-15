@@ -426,7 +426,7 @@ void main() {
       final result = game.match!.result.value!;
       expect(result.outcome, MatchOutcome.draw);
       expect(result.trophyChange, 0);
-      expect(result.headline, 'DRAW');
+      expect(result.headline, 'A TIE!');
       expect(result.subtitle, 'Sudden death');
     });
 

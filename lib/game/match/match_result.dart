@@ -223,10 +223,16 @@ class MatchResult {
   /// A win earns a chest. Chests themselves land in Phase 7.
   bool get chestEarned => won;
 
+  /// Said to the player, about the player.
+  ///
+  /// "VICTORY" and "DEFEAT" are the words a scoreboard uses. "You win" is
+  /// what someone says to a child at the end of a game, and the difference
+  /// matters most on the losing side: "DEFEAT" is a verdict, "you lost this
+  /// one" is a thing that happened and can happen differently next time.
   String get headline => switch (outcome) {
-    MatchOutcome.win => 'VICTORY',
-    MatchOutcome.loss => 'DEFEAT',
-    MatchOutcome.draw => 'DRAW',
+    MatchOutcome.win => 'YOU WIN!',
+    MatchOutcome.loss => 'YOU LOST',
+    MatchOutcome.draw => 'A TIE!',
   };
 
   String get subtitle => switch (reason) {

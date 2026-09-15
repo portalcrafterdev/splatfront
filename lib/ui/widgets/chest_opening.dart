@@ -8,6 +8,7 @@ import '../../game/cards/card_registry.dart';
 import '../../game/units/unit_art.dart';
 import '../../meta/chests.dart';
 import 'unit_art_view.dart';
+import '../type.dart';
 
 /// The chest opening, as a moment rather than a list.
 ///
@@ -252,9 +253,10 @@ class _ChestOpeningState extends State<_ChestOpening>
           Text(
             '$shown',
             style: const TextStyle(
+              fontFamily: Fonts.display,
               color: Palette.uiText,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),

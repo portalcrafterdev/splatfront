@@ -11,6 +11,7 @@ import '../../meta/chests.dart';
 import '../../meta/profile_controller.dart';
 import '../widgets/chest_opening.dart';
 import '../widgets/meta_widgets.dart';
+import '../type.dart';
 import '../widgets/motion.dart';
 
 /// Chest slots: start one unlocking, wait it out, open it.
@@ -49,6 +50,19 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
     final profile = ref.watch(profileProvider);
     final controller = ref.read(profileProvider.notifier);
     final slots = controller.chestSlots;
+    final maxSlots = data.chests.unlockedSlots;
+
+    // The first chest that can be opened right now, for the button at the
+    // bottom. There is rarely more than one, because only one unlocks at a
+    // time — but "rarely" is not "never", and a button has to mean something
+    // exact.
+    final readyIndex = profile.chests.indexWhere(controller.isReady);
+
+    // A chest counting down, for the ad offer. Sealed chests have no time to
+    // take off and finished ones are already open.
+    final runningIndex = profile.chests.indexWhere(
+      (c) => c.isUnlocking && !controller.isReady(c),
+    );
 
     return Scaffold(
       backgroundColor: Palette.uiBackground,
@@ -57,31 +71,58 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
           bottom: false,
           child: Column(
             children: [
-              // Said as a sentence rather than as fragments joined with a
-              // middle dot, which is filing-system voice, not a person's.
               MetaHeader(
                 title: 'Chests',
                 profile: profile,
-                subtitle: slots > data.chests.initialSlots
-                    ? 'You have $slots slots. One unlocks at a time.'
-                    : 'You have $slots slots, and '
-                          '${data.chests.unlockedSlots} once you reach '
-                          '${data.chests.unlockAtTrophies} trophies.',
+                // Plain, and about what the player does rather than about how
+                // many slots the save has. "You have 2 slots, and 4 once you
+                // reach 400 trophies" is a database row read aloud.
+                subtitle: slots >= maxSlots
+                    ? 'Win a match to earn one. One opens at a time.'
+                    : 'Win a match to earn one. '
+                          '$slots boxes now, $maxSlots later.',
               ),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
-                    for (var i = 0; i < slots; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _slotAt(i, profile, data, controller),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.92,
+                      children: [
+                        // Every slot the save will ever have, not just the
+                        // ones it has now. The locked pair is the only thing
+                        // on this screen that says more chests are coming,
+                        // and a grid that grows from two tiles to four with
+                        // no warning reads as a bug rather than a reward.
+                        for (var i = 0; i < maxSlots; i++)
+                          _slotAt(i, slots, profile, data, controller),
+                      ],
+                    ),
+                    if (runningIndex >= 0 && Ads.rewardedAvailable) ...[
+                      const SizedBox(height: 14),
+                      _WatchToSkip(
+                        remaining:
+                            controller.remainingOn(
+                              profile.chests[runningIndex],
+                            ) ??
+                            Duration.zero,
+                        watching: _watching,
+                        onPressed: () => _watchToSkip(runningIndex),
                       ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Win a match to earn a chest. With every slot full, a win '
-                      'earns nothing — so keep one free.',
-                      style: TextStyle(
+                    ],
+                    const SizedBox(height: 14),
+                    Text(
+                      readyIndex >= 0
+                          ? 'Tap the box to see what is inside.'
+                          : 'With every box full, winning earns nothing — so '
+                                'keep one free.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
                         color: Palette.uiTextDim,
                         fontSize: 12,
                         height: 1.4,
@@ -90,6 +131,17 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
                   ],
                 ),
               ),
+              // The one loud object on the page, and only when there is
+              // something for it to do. A permanently visible OPEN button
+              // that is grey nine times out of ten teaches a child that the
+              // biggest thing on the screen is usually a lie.
+              if (readyIndex >= 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: _OpenButton(
+                    onPressed: () => _open(readyIndex, data, controller),
+                  ),
+                ),
             ],
           ),
         ),
@@ -97,17 +149,34 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
     );
   }
 
-  /// One slot, filled or empty.
+  void _open(int index, GameData data, ProfileController controller) {
+    // The type is read *before* opening. Opening removes the chest from the
+    // profile, so looking it up afterwards by the same index reads a list
+    // that has already shifted under it.
+    final type = data.chests.byId(
+      ref.read(profileProvider).chests[index].typeId,
+    );
+    final reward = controller.openChest(index);
+    // The sound belongs to the animation, which fires it on the burst rather
+    // than on the press.
+    if (reward != null) _showReward(reward, type.name);
+  }
+
+  /// One slot: filled, empty, or not yet unlocked.
   ///
   /// The chest's type is read once, here, and captured. Opening removes the
   /// chest from the profile, so a callback that looked the type up again by
   /// index would be reading a list that had already changed under it.
   Widget _slotAt(
     int index,
+    int slots,
     PlayerProfile profile,
     GameData data,
     ProfileController controller,
   ) {
+    if (index >= slots) {
+      return _LockedSlot(atTrophies: data.chests.unlockAtTrophies);
+    }
     if (index >= profile.chests.length) return const _EmptySlot();
 
     final slot = profile.chests[index];
@@ -118,9 +187,7 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
       type: type,
       controller: controller,
       index: index,
-      onOpened: (reward) => _showReward(reward, type.name),
-      watching: _watching,
-      onWatchAd: () => _watchToSkip(index),
+      onOpen: () => _open(index, data, controller),
     );
   }
 
@@ -171,184 +238,285 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
   }
 }
 
+/// The shared shape of a slot: a square tile with something in the middle,
+/// a word, and a line under it.
+///
+/// Four states share it — filled, empty, locked, ready — and they differ only
+/// in fill, edge and contents. Drawn rather than faded: an `Opacity` over a
+/// whole tile takes the label down with the art, and a label a child cannot
+/// read is a slot that says nothing at all.
+class _SlotShell extends StatelessWidget {
+  const _SlotShell({
+    required this.body,
+    required this.title,
+    required this.line,
+    this.titleColour = Palette.uiText,
+    this.edge,
+    this.dashed = false,
+    this.onTap,
+  });
+
+  final Widget body;
+  final String title;
+  final String line;
+  final Color titleColour;
+  final Color? edge;
+  final bool dashed;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = Container(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+      decoration: BoxDecoration(
+        color: dashed
+            ? Palette.uiBackground
+            : Palette.uiSurfaceHigh,
+        borderRadius: BorderRadius.circular(18),
+        border: edge == null
+            ? null
+            : Border.all(color: edge!, width: 2.5),
+        boxShadow: dashed ? null : Panel.softShadow,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(child: Center(child: body)),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: Fonts.display,
+              color: titleColour,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            line,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Palette.uiTextDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return onTap == null ? tile : PressScale(onTap: onTap, child: tile);
+  }
+}
+
+/// A slot with no chest in it yet.
 class _EmptySlot extends StatelessWidget {
   const _EmptySlot();
 
   @override
-  Widget build(BuildContext context) => Container(
-    height: 88,
-    decoration: BoxDecoration(
-      color: Palette.uiSurface.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Palette.uiTextDim.withValues(alpha: 0.2)),
-    ),
-    alignment: Alignment.center,
-    child: const Text(
-      'EMPTY',
-      style: TextStyle(
-        color: Palette.uiTextDim,
-        fontSize: 11,
-        letterSpacing: 2,
+  Widget build(BuildContext context) => _SlotShell(
+    dashed: true,
+    titleColour: Palette.uiTextDim,
+    body: Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Palette.uiTextDim.withValues(alpha: 0.35),
+          width: 2.5,
+        ),
       ),
     ),
+    title: 'Empty',
+    line: 'Win a match',
   );
 }
 
+/// A slot the save has not earned yet.
+///
+/// Shown alongside the ones that exist rather than left off the grid. It is
+/// the only thing on this screen that says more boxes are coming, and a grid
+/// that silently grows from two tiles to four reads as a glitch rather than
+/// as a reward.
+class _LockedSlot extends StatelessWidget {
+  const _LockedSlot({required this.atTrophies});
+
+  final int atTrophies;
+
+  @override
+  Widget build(BuildContext context) => _SlotShell(
+    dashed: true,
+    titleColour: Palette.uiTextDim,
+    body: Icon(
+      Icons.lock_rounded,
+      size: 34,
+      color: Palette.uiTextDim.withValues(alpha: 0.5),
+    ),
+    title: 'Locked',
+    line: '$atTrophies trophies',
+  );
+}
+
+/// A slot with a chest in it: sealed, filling, or ready.
 class _FilledSlot extends StatelessWidget {
   const _FilledSlot({
     required this.slot,
     required this.type,
     required this.controller,
     required this.index,
-    required this.onOpened,
-    required this.watching,
-    required this.onWatchAd,
+    required this.onOpen,
   });
 
   final ChestSlot slot;
   final ChestType type;
   final ProfileController controller;
   final int index;
-  final void Function(ChestReward reward) onOpened;
-
-  /// A rewarded ad is already running, from this row or another one.
-  final bool watching;
-  final VoidCallback onWatchAd;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final remaining = controller.remainingOn(slot);
     final ready = controller.isReady(slot);
-    final somethingElseUnlocking =
-        controller.isAnyChestUnlocking && !slot.isUnlocking;
+    final remaining = controller.remainingOn(slot);
+    final blocked = controller.isAnyChestUnlocking && !slot.isUnlocking;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Palette.uiSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: ready
-              ? Palette.accent
-              : Palette.uiTextDim.withValues(alpha: 0.25),
-          width: ready ? 2 : 1,
+    // How full the ring is. A sealed chest reads empty, a finished one full,
+    // and one in flight is measured against its own type's duration rather
+    // than against a fixed scale — a three-minute Wood and an eight-hour
+    // Magic both fill their whole ring.
+    final total = type.duration.inSeconds;
+    final progress = ready
+        ? 1.0
+        : remaining == null || total <= 0
+        ? 0.0
+        : 1 - (remaining.inSeconds / total).clamp(0.0, 1.0);
+
+    return _SlotShell(
+      edge: ready ? Palette.gold : null,
+      titleColour: ready ? Palette.gold : Palette.uiText,
+      body: ProgressRing(
+        value: progress,
+        colour: ready ? Palette.gold : Palette.lime,
+        child: Icon(
+          Icons.inventory_2_rounded,
+          size: 28,
+          color: ready ? Palette.gold : Palette.uiTextDim,
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.inventory_2,
-                size: 34,
-                color: ready ? Palette.accent : Palette.uiTextDim,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${type.name} chest',
-                      style: const TextStyle(
-                        color: Palette.uiText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      ready
-                          ? 'Ready'
-                          : remaining == null
-                          ? 'Takes ${formatDuration(type.duration)}'
-                          : formatDuration(remaining),
-                      style: TextStyle(
-                        color: ready ? Palette.accent : Palette.uiTextDim,
-                        fontSize: 12,
-                        fontWeight: ready ? FontWeight.w800 : FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _action(context, ready, somethingElseUnlocking),
-            ],
-          ),
-          // Only while it is actually counting down. A sealed chest has not
-          // started, so there is nothing to take off; a finished one is
-          // already there to press.
-          if (!ready && remaining != null && Ads.rewardedAvailable)
-            _watchToSkip(remaining),
-        ],
-      ),
+      // The chest's own name, in every state. The mockup put "Ready!" here,
+      // which loses the one fact that decides whether this is worth walking
+      // over for — a Wood and a Magic are the same picture and very
+      // different rewards. Ready is carried by the gold ring, the gold edge
+      // and the line underneath, none of which had to borrow the name's
+      // space to say it.
+      title: '${type.name} chest',
+      // No digits anywhere. "2h 41m" is two units, base sixty, and a sense of
+      // how long an hour is — the ring already answers the only question
+      // being asked, which is how much is left.
+      line: ready
+          ? 'Tap to open!'
+          : !slot.isUnlocking
+          ? (blocked ? 'Wait your turn' : 'Tap to start')
+          : progress > 0.75
+          ? 'Almost there!'
+          : progress > 0.4
+          ? 'Halfway'
+          : 'Just started',
+      onTap: ready
+          ? onOpen
+          : slot.isUnlocking || blocked
+          ? null
+          : () => controller.startUnlocking(index),
     );
   }
+}
 
-  /// The rewarded offer, on a chest that is counting down.
-  ///
-  /// Only on a *running* chest: a sealed one has not started yet, so there is
-  /// nothing to take time off, and a finished one is already open to press.
-  /// The chest timer is the only real time gate in this game, which is why it
-  /// is the placement worth having.
-  Widget _watchToSkip(Duration remaining) {
+/// The rewarded offer, for whichever chest is counting down.
+///
+/// One row under the grid rather than a button on each tile: only one chest
+/// unlocks at a time, so there is only ever one chest this could apply to,
+/// and four tiles each carrying their own video button would make the page
+/// an advert with some chests on it.
+class _WatchToSkip extends StatelessWidget {
+  const _WatchToSkip({
+    required this.remaining,
+    required this.watching,
+    required this.onPressed,
+  });
+
+  final Duration remaining;
+  final bool watching;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
     final skip = Ads.chestSkip;
     // Says what the press will actually do. "Take 4 hours off" on a chest
     // with two minutes left would be nonsense, and "open now" on one with
     // eight hours left would be a lie — this is the only honest way to label
-    // a flat reduction against timers that run from three minutes to eight
+    // a flat reduction against timers running from three minutes to eight
     // hours.
     final finishes = remaining <= skip;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: watching ? null : onWatchAd,
-          icon: const Icon(Icons.play_circle_outline, size: 18),
-          label: Text(
-            finishes
-                ? 'Watch an ad to open now'
-                : 'Watch an ad  ·  −${formatDuration(skip)}',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-          style: FilledButton.styleFrom(
-            backgroundColor: Palette.info,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: watching ? null : onPressed,
+        icon: const Icon(Icons.play_circle_outline, size: 18),
+        label: Text(
+          finishes ? 'Watch an ad to open now' : 'Watch an ad to hurry it up',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: Palette.info,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _action(BuildContext context, bool ready, bool blocked) {
-    if (ready) {
-      return FilledButton(
-        onPressed: () {
-          final reward = controller.openChest(index);
-          // The sound belongs to the animation, which fires it on the burst
-          // rather than on the press.
-          if (reward != null) onOpened(reward);
-        },
-        style: FilledButton.styleFrom(backgroundColor: Palette.accent),
-        child: const Text('OPEN'),
-      );
-    }
-    if (slot.isUnlocking) {
-      return const SizedBox.shrink();
-    }
-    return FilledButton(
-      // Only one chest unlocks at a time.
-      onPressed: blocked ? null : () => controller.startUnlocking(index),
-      style: FilledButton.styleFrom(
-        backgroundColor: Palette.uiBackground,
-        disabledBackgroundColor: Palette.uiBackground,
-        foregroundColor: Palette.uiText,
+/// The gold button, on screen only while a chest is actually ready.
+class _OpenButton extends StatelessWidget {
+  const _OpenButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => PressScale(
+    onTap: onPressed,
+    scale: 0.96,
+    child: Semantics(
+      button: true,
+      label: 'Open the chest',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 17),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Palette.gold,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: Panel.softShadow,
+        ),
+        child: const Text(
+          'OPEN IT!',
+          style: TextStyle(
+            fontFamily: Fonts.display,
+            color: Colors.white,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
       ),
-      child: const Text('START'),
-    );
-  }
+    ),
+  );
 }

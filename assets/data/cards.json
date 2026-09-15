@@ -24,6 +24,7 @@
   "cards": [
     {
       "id": "dab",
+"blurb": "Three little blobs that swarm the big stuff.",
       "name": "Dab",
       "kind": "troop",
       "cost": 2,
@@ -41,6 +42,7 @@
     },
     {
       "id": "roller",
+"blurb": "Walks straight ahead and leaves a big fat trail.",
       "name": "Roller",
       "kind": "troop",
       "cost": 3,
@@ -59,6 +61,7 @@
     },
     {
       "id": "brusher",
+"blurb": "A steady fighter for the front of a push.",
       "name": "Brusher",
       "kind": "troop",
       "cost": 3,
@@ -76,6 +79,7 @@
     },
     {
       "id": "kite",
+"blurb": "It flies! Nothing on the ground can reach it.",
       "name": "Kite",
       "kind": "troop",
       "cost": 3,
@@ -93,6 +97,7 @@
     },
     {
       "id": "pin",
+"blurb": "Shoots things out of the sky.",
       "name": "Pin",
       "kind": "troop",
       "cost": 3,
@@ -110,6 +115,7 @@
     },
     {
       "id": "sprayer",
+"blurb": "Paints the floor while it shoots.",
       "name": "Sprayer",
       "kind": "troop",
       "cost": 4,
@@ -127,6 +133,7 @@
     },
     {
       "id": "nozzle",
+"blurb": "One big splash. Brilliant against crowds.",
       "name": "Nozzle",
       "kind": "troop",
       "cost": 4,
@@ -145,6 +152,7 @@
     },
     {
       "id": "sniper_nib",
+"blurb": "Hits very hard from far away, and falls over up close.",
       "name": "Sniper Nib",
       "kind": "troop",
       "cost": 4,
@@ -162,6 +170,7 @@
     },
     {
       "id": "swarmlets",
+"blurb": "Six tiny helpers that chew through big units.",
       "name": "Swarmlets",
       "kind": "troop",
       "cost": 4,
@@ -179,6 +188,7 @@
     },
     {
       "id": "bucket_bot",
+"blurb": "A big tough tank. Soaks up hits for everyone else.",
       "name": "Bucket Bot",
       "kind": "troop",
       "cost": 5,
@@ -196,6 +206,7 @@
     },
     {
       "id": "warden",
+"blurb": "Friends standing near it take less damage.",
       "name": "Warden",
       "kind": "troop",
       "cost": 5,
@@ -215,6 +226,7 @@
     },
     {
       "id": "turret",
+"blurb": "Stands still and lobs paint at the far side.",
       "name": "Turret",
       "kind": "building",
       "cost": 4,
@@ -235,6 +247,7 @@
     },
     {
       "id": "sprinkler",
+"blurb": "Sits still and paints a huge circle.",
       "name": "Sprinkler",
       "kind": "building",
       "cost": 3,
@@ -253,6 +266,7 @@
     },
     {
       "id": "barricade",
+"blurb": "A wall. It never fights, it just gets in the way.",
       "name": "Barricade",
       "kind": "building",
       "cost": 2,
@@ -271,6 +285,7 @@
     },
     {
       "id": "whirl",
+"blurb": "Spins a blade all the way round itself.",
       "name": "Whirl",
       "kind": "troop",
       "cost": 4,
@@ -289,6 +304,7 @@
     },
     {
       "id": "beamer",
+"blurb": "A laser that paints the whole line it burns.",
       "name": "Beamer",
       "kind": "building",
       "cost": 5,
@@ -308,6 +324,7 @@
     },
     {
       "id": "scatter",
+"blurb": "Throws paint shells in every direction at once.",
       "name": "Scatter",
       "kind": "building",
       "cost": 5,
@@ -328,6 +345,7 @@
     },
     {
       "id": "paint_bomb",
+"blurb": "A big splat. Paints the ground and hurts what is on it.",
       "name": "Paint Bomb",
       "kind": "spell",
       "cost": 3,
@@ -338,6 +356,7 @@
     },
     {
       "id": "freeze",
+"blurb": "Freezes everything for a moment.",
       "name": "Freeze",
       "kind": "spell",
       "cost": 3,
@@ -348,6 +367,7 @@
     },
     {
       "id": "solvent",
+"blurb": "Wipes paint away so nobody can drop there.",
       "name": "Solvent",
       "kind": "spell",
       "cost": 2,
@@ -357,6 +377,7 @@
     },
     {
       "id": "surge",
+"blurb": "Your team runs and paints faster for a while.",
       "name": "Surge",
       "kind": "spell",
       "cost": 4,

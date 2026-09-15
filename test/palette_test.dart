@@ -67,6 +67,7 @@ void main() {
       Palette.accent,
       Palette.info,
       Palette.success,
+      Palette.lime,
       Palette.danger,
       Palette.elixir,
       Palette.deployValid,
@@ -103,6 +104,7 @@ void main() {
       'accent': Palette.accent,
       'info': Palette.info,
       'success': Palette.success,
+      'lime': Palette.lime,
       'elixir': Palette.elixir,
     };
 
@@ -120,6 +122,22 @@ void main() {
 
     // And the two chrome colours have to be told apart from each other.
     expect(hueGap(Palette.accent, Palette.info), greaterThan(40));
+
+    // Lime is the tightest fit in the band, so its neighbours are checked by
+    // name rather than left to the blanket rule above. It means "getting
+    // there" where success means "done" and gold means "money" — three
+    // meanings that turn up side by side on a quest row, so three hues that
+    // have to stay apart.
+    expect(
+      hueGap(Palette.lime, Palette.success),
+      greaterThan(40),
+      reason: 'a part-done quest would look finished',
+    );
+    expect(
+      hueGap(Palette.lime, Palette.gold),
+      greaterThan(40),
+      reason: 'progress would look like a reward',
+    );
   });
 
   test('the accent carries the white labels printed on it', () {

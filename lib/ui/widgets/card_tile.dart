@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/palette.dart';
 import '../../game/cards/card_model.dart';
 import 'unit_art_view.dart';
+import '../type.dart';
 
 /// One card in the hand.
 ///
@@ -90,11 +91,16 @@ class CardTile extends StatelessWidget {
             // hard to pick out mid-match. What holds a card together now is
             // the shadow below and the fact that it is the lightest thing on
             // the screen, both of which survive a sky behind them.
+            // Back to a heavy line, with the rest of the app. The note that
+            // replaced it with a hairline named the real risk and it still
+            // stands: on a busy sky a card with a faint edge stops being an
+            // object and starts being a smudge. That argument was always for
+            // the heavy line, not against it.
             border: Border.all(
               color: affordable
-                  ? Palette.hudOutline.withValues(alpha: 0.22)
-                  : Palette.hudOutline.withValues(alpha: 0.12),
-              width: 1,
+                  ? Palette.hudOutline
+                  : Palette.hudOutline.withValues(alpha: 0.45),
+              width: 2 * scale,
             ),
             // Lighter at the top, so the light source overhead is the same
             // one the arena bezel and every menu surface assume. The tint is
@@ -118,17 +124,15 @@ class CardTile extends StatelessWidget {
             // tight contact shadow plus a wider ambient one, which is what
             // gives a borderless card its shape against both a pale page and
             // a sky.
+            // Hard and offset, not blurred — a soft shadow under a hard line
+            // reads as a rendering mistake. A card you can pay for is lifted
+            // off the tray; one you cannot is flat on it, which is a second,
+            // wordless reading of the same fact the dimming already gives.
             boxShadow: affordable && !dragging
                 ? [
                     BoxShadow(
-                      color: Palette.hudOutline.withValues(alpha: 0.18),
-                      blurRadius: 2 * scale,
-                      offset: Offset(0, 1 * scale),
-                    ),
-                    BoxShadow(
-                      color: Palette.hudOutline.withValues(alpha: 0.28),
-                      blurRadius: 8 * scale,
-                      offset: Offset(0, 4 * scale),
+                      color: Palette.hudOutline,
+                      offset: Offset(0, 3 * scale),
                     ),
                   ]
                 : null,
@@ -148,7 +152,10 @@ class CardTile extends StatelessWidget {
                   left: 3 * scale,
                   child: _costBadge(),
                 ),
-                if (card.bodyCount > 1)
+                // Yields the corner to the countdown. The body count is a
+                // permanent fact about the card and will still be there in
+                // five seconds; the number of seconds left will not.
+                if (card.bodyCount > 1 && !onCooldown)
                   Positioned(top: 3 * scale, right: 5 * scale, child: _count()),
                 Positioned(left: 0, right: 0, bottom: 0, child: _footer()),
                 if (onCooldown) Positioned.fill(child: _shutter()),
@@ -161,7 +168,17 @@ class CardTile extends StatelessWidget {
   }
 
   /// A dark shutter covering the fraction of the cooldown still to run, with
-  /// the seconds left over it. It falls as the card comes back.
+  /// the seconds left in a corner badge. It falls as the card comes back.
+  ///
+  /// The number used to sit dead centre at 22pt, over the character.
+  /// **Playing any card locks the whole hand**, so all four cards wore the
+  /// same digit at the same moment — in the largest, most central mark each
+  /// one had. Four cards whose whole job is to be told apart at a glance,
+  /// every one of them shouting the single thing they had in common, right
+  /// across the art that distinguishes them.
+  ///
+  /// The blind is what says "not yet", and it does that without a number at
+  /// all. The digit only says how long, which is a corner's job.
   Widget _shutter() => Stack(
     fit: StackFit.expand,
     children: [
@@ -174,18 +191,37 @@ class CardTile extends StatelessWidget {
           ),
         ),
       ),
-      Center(
+      Positioned(top: 3 * scale, right: 3 * scale, child: _lockBadge()),
+    ],
+  );
+
+  /// The seconds left, built like [_costBadge] so the two corners match.
+  Widget _lockBadge() => Container(
+    width: 18 * scale,
+    height: 18 * scale,
+    decoration: BoxDecoration(
+      color: Palette.hudBackground.withValues(alpha: 0.88),
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.9),
+        width: 1.5 * scale,
+      ),
+    ),
+    alignment: Alignment.center,
+    child: FittedBox(
+      child: Padding(
+        padding: EdgeInsets.all(2 * scale),
         child: Text(
           cooldownSeconds.ceil().toString(),
-          style: TextStyle(
+          style: const TextStyle(
+            fontFamily: Fonts.display,
             color: Colors.white,
-            fontSize: 22 * scale,
-            fontWeight: FontWeight.w900,
-            shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
-    ],
+    ),
   );
 
   Widget _art() {
@@ -264,9 +300,10 @@ class CardTile extends StatelessWidget {
         child: Text(
           '${card.cost}',
           style: const TextStyle(
+            fontFamily: Fonts.display,
             color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

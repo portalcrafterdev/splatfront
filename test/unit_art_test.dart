@@ -96,6 +96,43 @@ void main() {
     expect(pose.light, isNot(pose.body));
   });
 
+  test('no two bipeds share a silhouette', () async {
+    final shapes = <String, ({double aspect, double fill})>{};
+    for (final id in _bipeds) {
+      shapes[id] = await _silhouette(id);
+    }
+
+    // The measured spread, for anyone moving these numbers:
+    //
+    //   pin        0.411   the tall lean one
+    //   brusher    0.602   short and solid
+    //   sprayer    0.744   squat and round
+    //   warden     0.824   broad, with the shield
+    //   sniper_nib 1.062   crouched behind the longest gun
+    //
+    // The tightest pair is sprayer/warden at 0.080, which is the two broad
+    // bodies. 0.07 is therefore the floor, and it is a floor rather than a
+    // target: the three that actually collided sit 0.14 and 0.19 apart.
+    const floor = 0.07;
+
+    for (final a in _bipeds) {
+      for (final b in _bipeds) {
+        if (a.compareTo(b) >= 0) continue;
+        final gap = (shapes[a]!.aspect - shapes[b]!.aspect).abs();
+        expect(
+          gap,
+          greaterThanOrEqualTo(floor),
+          reason:
+              '$a and $b are the same shape (aspect ${shapes[a]!.aspect
+                  .toStringAsFixed(3)} against ${shapes[b]!.aspect
+                  .toStringAsFixed(3)}). At hand-card size that makes them '
+              'the same card. Change one body, not one tool — the tool is '
+              'the smallest mark on the drawing.',
+        );
+      }
+    }
+  });
+
   testWidgets('a troop card draws the character it deploys', (tester) async {
     final roller = cards['roller'];
     expect(roller.kind, CardKind.troop);
@@ -123,4 +160,53 @@ void main() {
     expect(find.byType(UnitArtView), findsNothing);
     expect(find.byIcon(Icons.ac_unit), findsOneWidget);
   });
+}
+
+/// The bipeds, and how far apart their bodies are.
+///
+/// Five cards share [_biped]'s body, and the tool each one carries is the
+/// smallest mark on the drawing. At the 60dp a hand card gets, a shared
+/// silhouette means a shared card: Brusher, Pin and Sprayer once sat inside
+/// 20% of each other on every proportion, and read as one blue figure three
+/// times.
+///
+/// This measures what the eye actually gets — the drawn silhouette — rather
+/// than the numbers passed to [_biped], which are private and which a tool
+/// can widen without widening the shape.
+const _bipeds = ['brusher', 'pin', 'sprayer', 'sniper_nib', 'warden'];
+
+/// Width over height of [id]'s drawn silhouette, and how much of its
+/// bounding box it fills.
+Future<({double aspect, double fill})> _silhouette(String id) async {
+  const size = 160;
+  const scale = 34.0;
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.translate(size / 2, size / 2 + scale * 0.5);
+  canvas.scale(scale);
+  artFor(id).draw(canvas, UnitPose()..team = Team.blue);
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(size, size);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  picture.dispose();
+  image.dispose();
+
+  var minX = size, minY = size, maxX = -1, maxY = -1, lit = 0;
+  for (var y = 0; y < size; y++) {
+    for (var x = 0; x < size; x++) {
+      // Alpha only. The shadow under the feet is part of the drawing but not
+      // part of the body, and it is the one mark every character shares.
+      if (bytes!.getUint8((y * size + x) * 4 + 3) < 128) continue;
+      lit++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  final w = (maxX - minX + 1).toDouble();
+  final h = (maxY - minY + 1).toDouble();
+  return (aspect: w / h, fill: lit / (w * h));
 }
