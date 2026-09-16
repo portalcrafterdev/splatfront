@@ -49,7 +49,10 @@ class MetaHeader extends StatelessWidget {
         // would make the header the one flat object on a page of chunky ones.
         border: Border.all(color: Palette.outline, width: Panel.stroke),
         boxShadow: const [
-          BoxShadow(color: Palette.outlineShadow, offset: Offset(0, Panel.lift)),
+          BoxShadow(
+            color: Palette.outlineShadow,
+            offset: Offset(0, Panel.lift),
+          ),
         ],
       ),
       child: Column(

@@ -51,16 +51,17 @@ void main() {
         AdUnits.interstitial(live),
         startsWith('ca-app-pub-3940256099942544/'),
       );
-      expect(AdUnits.rewarded(live), startsWith('ca-app-pub-3940256099942544/'));
+      expect(
+        AdUnits.rewarded(live),
+        startsWith('ca-app-pub-3940256099942544/'),
+      );
     });
   });
 
   group('ads.json', () {
     test('parses, and carries the ids the owner supplied', () async {
       final raw = await rootBundle.loadString('assets/data/ads.json');
-      final config = AdConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
+      final config = AdConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 
       expect(config.enabled, isTrue);
       // The unit ids all belong to one publisher account. A digit wrong here
@@ -74,14 +75,11 @@ void main() {
       }
       // All three must be different units. Reusing one across formats is a
       // policy violation and reports as a single blended number.
-      expect(
-        {
-          config.banner.unitId,
-          config.interstitial.unitId,
-          config.rewarded.unitId,
-        },
-        hasLength(3),
-      );
+      expect({
+        config.banner.unitId,
+        config.interstitial.unitId,
+        config.rewarded.unitId,
+      }, hasLength(3));
     });
 
     test('the shipped config really does mean every level start', () async {
@@ -89,8 +87,9 @@ void main() {
       // getting one. Two settings in here were suppressing some of them, and
       // both are easy to reinstate by accident, so the intent is pinned.
       final raw = await rootBundle.loadString('assets/data/ads.json');
-      final cfg = AdConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>)
-          .interstitial;
+      final cfg = AdConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).interstitial;
 
       expect(cfg.enabled, isTrue);
       expect(cfg.everyNthStart, 1, reason: 'every start, not every Nth');
@@ -115,7 +114,10 @@ void main() {
       // Section 16: fully playable with no network. Malformed JSON, a missing
       // file, a half-written key — every one of them has to land on "off".
       expect(AdConfig.fromJson(const {}).enabled, isFalse);
-      expect(AdConfig.fromJson(const {'enabled': true}).banner.enabled, isFalse);
+      expect(
+        AdConfig.fromJson(const {'enabled': true}).banner.enabled,
+        isFalse,
+      );
       expect(
         AdConfig.fromJson(const {'enabled': true}).interstitial.enabled,
         isFalse,
@@ -127,9 +129,7 @@ void main() {
       // level start of the session rather than showing an ad.
       final zero = InterstitialConfig.fromJson(const {'everyNthStart': 0});
       expect(zero.everyNthStart, greaterThanOrEqualTo(1));
-      final negative = InterstitialConfig.fromJson(const {
-        'everyNthStart': -4,
-      });
+      final negative = InterstitialConfig.fromJson(const {'everyNthStart': -4});
       expect(negative.everyNthStart, greaterThanOrEqualTo(1));
     });
   });

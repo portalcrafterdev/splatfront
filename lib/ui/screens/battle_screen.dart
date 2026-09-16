@@ -418,33 +418,35 @@ class _BattleScreenState extends State<BattleScreen>
             ),
 
             SafeArea(
-              child: Stack(
-                children: [
-                  ResponsiveBuilder(
-                    builder: (context, layout) => layout.handIsSideRail
-                        ? _wideLayout(layout)
-                        : _stackedLayout(layout),
-                  ),
-                  // Both of these sit over the whole thing, arena included.
-                  // Pause goes under the result: if the whistle somehow lands
-                  // in the same frame, the match is over and that is the
-                  // screen that matters.
-                  Positioned.fill(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _paused,
-                      builder: (context, paused, _) => paused
-                          ? PauseOverlay(
-                              playerTeam: widget.playerTeam,
-                              onResume: _resume,
-                              onQuit: () => Navigator.of(context).pop(),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                  Positioned.fill(child: _resultOverlay()),
-                ],
+              child: ResponsiveBuilder(
+                builder: (context, layout) => layout.handIsSideRail
+                    ? _wideLayout(layout)
+                    : _stackedLayout(layout),
               ),
             ),
+
+            // Both of these sit over the whole thing, arena included — and
+            // **outside the SafeArea**, for the same reason the background is.
+            // The pause hold dims the board rather than covering it now, and
+            // a scrim that stopped at the status bar would leave a bright
+            // band across the top that reads as the dim having failed.
+            //
+            // Pause goes under the result: if the whistle somehow lands in
+            // the same frame, the match is over and that is the screen that
+            // matters. Each overlay insets its own card.
+            Positioned.fill(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _paused,
+                builder: (context, paused, _) => paused
+                    ? PauseOverlay(
+                        playerTeam: widget.playerTeam,
+                        onResume: _resume,
+                        onQuit: () => Navigator.of(context).pop(),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            Positioned.fill(child: _resultOverlay()),
           ],
         ),
       ),

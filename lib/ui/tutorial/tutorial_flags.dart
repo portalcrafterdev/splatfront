@@ -59,6 +59,5 @@ abstract final class TutorialFlags {
   /// Forgets a sequence, so it runs again. This is what "Replay tutorial"
   /// does — it clears the flag rather than starting the overlay directly, so
   /// a player who backs out of the replay still gets offered it next launch.
-  static Future<void> reset(String tutorial) =>
-      setDone(tutorial, value: false);
+  static Future<void> reset(String tutorial) => setDone(tutorial, value: false);
 }

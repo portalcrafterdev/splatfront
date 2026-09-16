@@ -204,9 +204,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a chest whose timer has run out can be opened', (
-    tester,
-  ) async {
+  testWidgets('a chest whose timer has run out can be opened', (tester) async {
     // Started five minutes ago; Wood takes three.
     final controller = await pump(
       tester,

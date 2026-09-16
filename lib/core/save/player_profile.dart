@@ -185,9 +185,8 @@ class PlayerProfile {
   ///
   /// Only ever upward: these back achievements, and an achievement that can
   /// be taken away by a worse match afterwards is not one.
-  PlayerProfile withStatAtLeast(String key, int value) => value <= stat(key)
-      ? this
-      : copyWith(stats: {...stats, key: value});
+  PlayerProfile withStatAtLeast(String key, int value) =>
+      value <= stat(key) ? this : copyWith(stats: {...stats, key: value});
 
   /// [this] with [key] increased by [by].
   PlayerProfile withStatAdded(String key, int by) =>

@@ -14,6 +14,9 @@ import 'package:splatfront/game/match/match_controller.dart';
 import 'package:splatfront/game/splatfront_game.dart';
 import 'package:splatfront/meta/profile_controller.dart';
 import 'package:splatfront/ui/screens/battle_screen.dart';
+import 'package:splatfront/ui/widgets/card_tile.dart';
+import 'package:splatfront/ui/widgets/match_background.dart';
+import 'package:splatfront/ui/widgets/match_overlays.dart';
 import 'package:splatfront/ui/widgets/responsive.dart';
 
 void main() {
@@ -274,7 +277,8 @@ void main() {
     expect(
       tester.takeException(),
       isNull,
-      reason: 'banking the result threw — most likely a provider write '
+      reason:
+          'banking the result threw — most likely a provider write '
           'during build',
     );
 
@@ -495,9 +499,7 @@ void main() {
 
     final ink = tester.widget<Text>(clock).style?.color;
     final pill = tester.widget<AnimatedContainer>(
-      find
-          .ancestor(of: clock, matching: find.byType(AnimatedContainer))
-          .first,
+      find.ancestor(of: clock, matching: find.byType(AnimatedContainer)).first,
     );
     final ground = (pill.decoration as BoxDecoration?)?.color;
 
@@ -552,6 +554,123 @@ void main() {
     }
     // Either way there is always a way out.
     expect(find.text('HOME'), findsOneWidget);
+
+    await unmount(tester);
+  });
+
+  testWidgets('pausing dims the arena rather than covering it', (tester) async {
+    // Owner's call, reversing the original: the board stays visible under a
+    // scrim while the match is held. A player pausing is usually deciding
+    // whether their position is worth playing on from, and hiding the board
+    // is exactly the wrong thing to do to them.
+    //
+    // Level 2, because level 1's coach marks swallow the tap on Pause.
+    await pumpApp(tester, profile: const PlayerProfile(campaignStars: {1: 3}));
+    await openRoute(tester, find.text('BATTLE'));
+    await tester.pump(const Duration(seconds: 4));
+
+    await tester.tap(find.bySemanticsLabel('Pause'));
+    await tester.pump();
+    expect(find.text('PAUSED'), findsOneWidget);
+
+    // The whole of the old behaviour was one opaque MatchBackground inside
+    // the overlay. If it comes back, the board is hidden again and nothing
+    // else in the suite would notice.
+    expect(
+      find.descendant(
+        of: find.byType(PauseOverlay),
+        matching: find.byType(MatchBackground),
+      ),
+      findsNothing,
+      reason: 'the pause card is covering the arena instead of dimming it',
+    );
+
+    // And there is a scrim, rather than the card floating on a live board.
+    final scrims = tester
+        .widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byType(PauseOverlay),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .where((box) => box.color == arenaScrim);
+    expect(scrims, isNotEmpty, reason: 'nothing is dimming the board');
+
+    // The arena is still mounted and still being drawn underneath it.
+    expect(find.byType(BattleScreen), findsOneWidget);
+
+    await unmount(tester);
+  });
+
+  testWidgets('the pause hold swallows a drag meant for the board', (
+    tester,
+  ) async {
+    // A hold that let a drag through would not be a hold. The phase is still
+    // "playing" while paused — only the loop is stopped — so beginDeploy
+    // accepts the drag and playFromHand places the card, because placing is a
+    // direct call rather than something the stopped loop does.
+    //
+    // A tap cannot test this: the hand listens for pans, not taps, so a tap
+    // would leak through unnoticed and the test would pass on a bug.
+    //
+    // A real phone size, because the drop has to land inside the arena and on
+    // the player's own half. At the 800x600 default the tray sits somewhere
+    // else entirely and the drag misses the board — which is its own way of
+    // passing without proving anything.
+    tester.view
+      ..physicalSize = const Size(393, 873) * 3.0
+      ..devicePixelRatio = 3.0
+      ..padding = const FakeViewPadding(top: 90, bottom: 72);
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester, profile: const PlayerProfile(campaignStars: {1: 3}));
+    await openRoute(tester, find.text('BATTLE'));
+    await tester.pump(const Duration(seconds: 4));
+
+    // Prime the deploy map, or every drop is refused for an unrelated reason
+    // and this passes whether the hold works or not. The coverage sampler
+    // reads the paint layer back off a ui.Image, which only completes under
+    // runAsync — deploy_test.dart does the same.
+    final game = _liveGame(tester);
+    await tester.runAsync(() => game.arena.resampleNow());
+    await tester.pump();
+
+    // Straight up from the first playable slot onto the player's own half.
+    // Index 1, because the Next preview is the first CardTile in the row.
+    Future<void> dragACard() async {
+      await tester.timedDrag(
+        find.byType(CardTile).at(1),
+        const Offset(0, -170),
+        const Duration(milliseconds: 300),
+      );
+      await tester.pump();
+    }
+
+    await tester.tap(find.bySemanticsLabel('Pause'));
+    await tester.pump();
+    expect(game.cardsPlayed, 0, reason: 'nothing should be played yet');
+
+    await dragACard();
+    expect(
+      game.cardsPlayed,
+      0,
+      reason: 'a card was deployed through the pause hold',
+    );
+    expect(find.text('PAUSED'), findsOneWidget);
+
+    // **The control.** Without this the test above passes for any reason at
+    // all — a drag that misses the arena, an unaffordable card, a deploy map
+    // that never got primed. Resuming and repeating the identical drag proves
+    // the gesture really was capable of placing a card, so the zero above is
+    // the hold doing its job rather than the drag failing on its own.
+    await tester.tap(find.text('RESUME'));
+    await tester.pump();
+    await dragACard();
+    expect(
+      game.cardsPlayed,
+      1,
+      reason: 'the drag never could have deployed, so the check above is void',
+    );
 
     await unmount(tester);
   });
@@ -753,4 +872,18 @@ class _InMemoryProfile extends ProfileController {
 
   @override
   void saveToDisk(PlayerProfile profile) {}
+}
+
+/// The live game behind the arena.
+///
+/// `GameWidget` is generic, so `find.byType` does not match
+/// `GameWidget<SplatfrontGame>` and the predicate is needed.
+SplatfrontGame _liveGame(WidgetTester tester) {
+  final widget = tester.widget(
+    find.byWidgetPredicate(
+      (w) => w.runtimeType.toString().startsWith('GameWidget'),
+    ),
+  );
+  // ignore: avoid_dynamic_calls
+  return (widget as dynamic).game as SplatfrontGame;
 }

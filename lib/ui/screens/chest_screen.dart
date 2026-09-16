@@ -269,13 +269,9 @@ class _SlotShell extends StatelessWidget {
     final tile = Container(
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
       decoration: BoxDecoration(
-        color: dashed
-            ? Palette.uiBackground
-            : Palette.uiSurfaceHigh,
+        color: dashed ? Palette.uiBackground : Palette.uiSurfaceHigh,
         borderRadius: BorderRadius.circular(18),
-        border: edge == null
-            ? null
-            : Border.all(color: edge!, width: 2.5),
+        border: edge == null ? null : Border.all(color: edge!, width: 2.5),
         boxShadow: dashed ? null : Panel.softShadow,
       ),
       child: Column(

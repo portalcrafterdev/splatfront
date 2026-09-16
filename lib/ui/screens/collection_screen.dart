@@ -337,8 +337,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   ///
   /// Rendered inside the tab rather than pushed as a route, so the bottom bar
   /// stays put and the page has one obvious way back: the arrow, top left.
-  void _showUpgradeSheet(CardModel card) =>
-      setState(() => _detail = card.id);
+  void _showUpgradeSheet(CardModel card) => setState(() => _detail = card.id);
 }
 
 class _CollectionCard extends StatelessWidget {

@@ -221,7 +221,6 @@ String _dabLine(WidgetRef ref) {
   return 'Tap Battle to paint level ${profile.campaignNextLevel}!';
 }
 
-
 /// Play Games on Home: sign in, or the two doors it opens.
 ///
 /// **Back on Home on the owner's call**, having been moved to Settings during

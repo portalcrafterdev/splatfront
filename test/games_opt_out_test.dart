@@ -62,41 +62,44 @@ void main() {
     expect(GameServices.isOptedOut, isTrue);
   });
 
-  test('a disconnected app reports nothing, and forgets what it sent', () async {
-    GameServices.debugSignedIn(signedIn: true, name: 'Tester');
-    GameServices.debugSeedCaches();
-    expect(GameServices.debugCachedValues, greaterThan(0));
+  test(
+    'a disconnected app reports nothing, and forgets what it sent',
+    () async {
+      GameServices.debugSignedIn(signedIn: true, name: 'Tester');
+      GameServices.debugSeedCaches();
+      expect(GameServices.debugCachedValues, greaterThan(0));
 
-    await GameServices.disconnect();
+      await GameServices.disconnect();
 
-    // Reporting is gated on being signed in, and disconnect is what takes
-    // that away. Without it every match would keep posting to an account the
-    // player asked to be let go of.
-    expect(GameServices.isSignedIn, isFalse);
+      // Reporting is gated on being signed in, and disconnect is what takes
+      // that away. Without it every match would keep posting to an account the
+      // player asked to be let go of.
+      expect(GameServices.isSignedIn, isFalse);
 
-    // And the caches go with it. This is the half that is invisible from
-    // outside: they hold the last values sent this launch, so leaving them
-    // behind would make the *next* account's first submissions skip — the
-    // cache would claim the platform already had them.
-    expect(
-      GameServices.debugCachedValues,
-      0,
-      reason: 'account-derived caches outlived the account',
-    );
+      // And the caches go with it. This is the half that is invisible from
+      // outside: they hold the last values sent this launch, so leaving them
+      // behind would make the *next* account's first submissions skip — the
+      // cache would claim the platform already had them.
+      expect(
+        GameServices.debugCachedValues,
+        0,
+        reason: 'account-derived caches outlived the account',
+      );
 
-    // Still safe to call afterwards, and still silent.
-    await expectLater(
-      GameServices.report(AchievementSet.empty, const AchievementProgress()),
-      completes,
-    );
-    await expectLater(
-      GameServices.submitScores(
-        LeaderboardSet.empty,
-        const AchievementProgress(levelsCleared: 9, totalStars: 21),
-      ),
-      completes,
-    );
-  });
+      // Still safe to call afterwards, and still silent.
+      await expectLater(
+        GameServices.report(AchievementSet.empty, const AchievementProgress()),
+        completes,
+      );
+      await expectLater(
+        GameServices.submitScores(
+          LeaderboardSet.empty,
+          const AchievementProgress(levelsCleared: 9, totalStars: 21),
+        ),
+        completes,
+      );
+    },
+  );
 
   test('signing in again clears the opt-out', () async {
     GameServices.debugSignedIn(signedIn: true, name: 'Tester');

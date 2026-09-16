@@ -246,8 +246,10 @@ void main() {
         controller.speedUpChest(0, const Duration(hours: 4), now: started),
         isTrue,
       );
-      expect(controller.isReady(controller.state.chests.first, now: started),
-          isTrue);
+      expect(
+        controller.isReady(controller.state.chests.first, now: started),
+        isTrue,
+      );
     });
 
     test('there is nothing to speed up on a sealed or finished chest', () {
@@ -764,8 +766,13 @@ void main() {
       final progress = controller.achievementProgress;
 
       expect(progress.levelsCleared, 3);
-      expect(progress.totalStars, 8, reason: 'the levels_cleared board ranks '
-          'depth and total_stars ranks quality — they must be two numbers');
+      expect(
+        progress.totalStars,
+        8,
+        reason:
+            'the levels_cleared board ranks '
+            'depth and total_stars ranks quality — they must be two numbers',
+      );
       expect(progress.threeStarLevels, 2);
       expect(progress.highestCardLevel, 7);
       expect(progress.cardsOwned, controller.unlockedCards.length);
@@ -790,13 +797,21 @@ void main() {
 
     test('best coverage only ever rises, and only on a win', () {
       final controller = fresh();
-      controller.applyCampaignLevel(level: 1, stars: 3, tally: tally(share: 96));
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 3,
+        tally: tally(share: 96),
+      );
       expect(controller.achievementProgress.bestCoveragePercent, 96);
 
       // A later, worse match must not take the achievement away — which is
       // the whole reason this is a high-water mark rather than "the last
       // match".
-      controller.applyCampaignLevel(level: 2, stars: 1, tally: tally(share: 51));
+      controller.applyCampaignLevel(
+        level: 2,
+        stars: 1,
+        tally: tally(share: 51),
+      );
       expect(controller.achievementProgress.bestCoveragePercent, 96);
 
       // And a blowout you lost is not a whitewash.
@@ -818,7 +833,11 @@ void main() {
         stars: 1,
         tally: tally(won: false, pastMidline: 2),
       );
-      controller.applyCampaignLevel(level: 1, stars: 3, tally: tally(pastMidline: 3));
+      controller.applyCampaignLevel(
+        level: 1,
+        stars: 3,
+        tally: tally(pastMidline: 3),
+      );
       expect(controller.achievementProgress.deployedPastMidline, 5);
     });
 

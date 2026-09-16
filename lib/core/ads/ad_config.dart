@@ -177,8 +177,7 @@ class RewardedConfig {
   factory RewardedConfig.fromJson(Map<String, dynamic> json) => RewardedConfig(
     enabled: json['enabled'] as bool? ?? false,
     unitId: json['unitId'] as String? ?? '',
-    chestSkipMinutes:
-        (json['chestSkipMinutes'] as num?)?.toInt() ?? 240,
+    chestSkipMinutes: (json['chestSkipMinutes'] as num?)?.toInt() ?? 240,
   );
 }
 

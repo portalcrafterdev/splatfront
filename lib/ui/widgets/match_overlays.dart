@@ -112,6 +112,15 @@ class _TimerText extends StatelessWidget {
   );
 }
 
+/// The dim laid over a live arena.
+///
+/// Section 14: a scrim dims a lit board rather than sitting beside it, and it
+/// stays dark whatever the page underneath is doing. Shared by the countdown
+/// and the pause hold so the two cannot drift apart, and derived from
+/// [Palette] rather than written as a literal — a hardcoded colour is exactly
+/// what defeats a palette change.
+final Color arenaScrim = Palette.hudBackground.withValues(alpha: 0.45);
+
 /// 3, 2, 1, Splat, over the arena.
 class CountdownOverlay extends StatelessWidget {
   const CountdownOverlay({super.key, required this.match});
@@ -136,7 +145,7 @@ class CountdownOverlay extends StatelessWidget {
 
             return IgnorePointer(
               child: ColoredBox(
-                color: Palette.hudBackground.withValues(alpha: 0.45),
+                color: arenaScrim,
                 child: Center(
                   child: Transform.scale(
                     scale: 0.8 + 0.4 * (1 - within).clamp(0.0, 1.0),
@@ -245,129 +254,134 @@ class ResultOverlay extends StatelessWidget {
         // hidden while the result is read. A dark scrim over a light theme
         // was the one screen still lit from the old palette.
         MatchBackground(playerTeam: result.playerTeam),
-        Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              // A card, not text on sky.
-              //
-              // The headline is drawn in the winning side's colour, and a
-              // team colour printed straight onto a blue sky is exactly the
-              // case section 14 keeps the arena's bezel dark for: 34pt of
-              // #2D69D7 on #6FC4F0 has almost no contrast. On white it has
-              // all of it, and the panel gives the result somewhere to sit.
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-                decoration: BoxDecoration(
-                  color: Palette.hudSurface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Palette.hudOutline.withValues(alpha: 0.14),
-                    width: 1,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x59000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 6),
+        // Its own inset: this overlay is full-bleed so the sky runs under the
+        // status bar and the gesture strip, exactly as it does during the
+        // match, and only the card is held clear of them.
+        SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                // A card, not text on sky.
+                //
+                // The headline is drawn in the winning side's colour, and a
+                // team colour printed straight onto a blue sky is exactly the
+                // case section 14 keeps the arena's bezel dark for: 34pt of
+                // #2D69D7 on #6FC4F0 has almost no contrast. On white it has
+                // all of it, and the panel gives the result somewhere to sit.
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                  decoration: BoxDecoration(
+                    color: Palette.hudSurface,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: Palette.hudOutline.withValues(alpha: 0.14),
+                      width: 1,
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Stars first, and biggest. They are the thing a child is
-                    // collecting, and they were arriving *below* the headline
-                    // and the coverage bar — third in line behind a verdict
-                    // and a chart. On a campaign level they are the result.
-                    if (campaign case final level?) ...[
-                      _StarsEarned(
-                        level: level,
-                        stars: level.starsFor(
-                          won: result.won,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x59000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Stars first, and biggest. They are the thing a child is
+                      // collecting, and they were arriving *below* the headline
+                      // and the coverage bar — third in line behind a verdict
+                      // and a chart. On a campaign level they are the result.
+                      if (campaign case final level?) ...[
+                        _StarsEarned(
+                          level: level,
+                          stars: level.starsFor(
+                            won: result.won,
+                            playerShare: result.playerShare,
+                          ),
                           playerShare: result.playerShare,
                         ),
-                        playerShare: result.playerShare,
+                        const SizedBox(height: 14),
+                      ],
+
+                      Text(
+                        result.headline,
+                        style: TextStyle(
+                          fontFamily: Fonts.display,
+                          color: accent,
+                          fontSize: 38,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
                       ),
                       const SizedBox(height: 14),
-                    ],
 
-                    Text(
-                      result.headline,
-                      style: TextStyle(
-                        fontFamily: Fonts.display,
-                        color: accent,
-                        fontSize: 38,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
+                      // Section 9 asks for this by name: the bar animates to
+                      // the final split rather than snapping to it.
+                      _FinalCoverage(
+                        coverage: result.coverage,
+                        playerTeam: result.playerTeam,
                       ),
-                    ),
-                    const SizedBox(height: 14),
 
-                    // Section 9 asks for this by name: the bar animates to
-                    // the final split rather than snapping to it.
-                    _FinalCoverage(
-                      coverage: result.coverage,
-                      playerTeam: result.playerTeam,
-                    ),
+                      // Off the campaign path there are no stars, so the
+                      // trophy change is what the match was worth.
+                      if (campaign == null) ...[
+                        const SizedBox(height: 18),
+                        _TrophyChange(change: result.trophyChange),
+                      ],
 
-                    // Off the campaign path there are no stars, so the
-                    // trophy change is what the match was worth.
-                    if (campaign == null) ...[
-                      const SizedBox(height: 18),
-                      _TrophyChange(change: result.trophyChange),
-                    ],
+                      if (result.chestEarned) ...[
+                        const SizedBox(height: 14),
+                        _ChestEarned(kept: chestKept),
+                      ],
 
-                    if (result.chestEarned) ...[
-                      const SizedBox(height: 14),
-                      _ChestEarned(kept: chestKept),
-                    ],
-
-                    const SizedBox(height: 22),
-                    // Two buttons on one row, deliberately unequal. A child
-                    // should never have to choose between two things that
-                    // look the same: NEXT is wider and wears the colour,
-                    // AGAIN is plain and half the width. On a loss there is
-                    // no next level, so trying again takes the whole row and
-                    // the colour with it.
-                    if (onNextLevel case final next? when result.won)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ResultButton(
-                              label: 'AGAIN',
-                              onPressed: onRematch,
-                              secondary: true,
+                      const SizedBox(height: 22),
+                      // Two buttons on one row, deliberately unequal. A child
+                      // should never have to choose between two things that
+                      // look the same: NEXT is wider and wears the colour,
+                      // AGAIN is plain and half the width. On a loss there is
+                      // no next level, so trying again takes the whole row and
+                      // the colour with it.
+                      if (onNextLevel case final next? when result.won)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ResultButton(
+                                label: 'AGAIN',
+                                onPressed: onRematch,
+                                secondary: true,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 3,
-                            child: _ResultButton(
-                              label: 'NEXT  ▶',
-                              onPressed: next,
-                              accent: accent,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 3,
+                              child: _ResultButton(
+                                label: 'NEXT  ▶',
+                                onPressed: next,
+                                accent: accent,
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    else
+                          ],
+                        )
+                      else
+                        _ResultButton(
+                          // "Rematch" is what you press after a draw with a
+                          // person. Against a level you either go again or you
+                          // do not, and the word for that is plainer.
+                          label: result.won ? 'PLAY AGAIN' : 'TRY AGAIN',
+                          onPressed: onRematch,
+                          accent: accent,
+                        ),
+                      const SizedBox(height: 10),
                       _ResultButton(
-                        // "Rematch" is what you press after a draw with a
-                        // person. Against a level you either go again or you
-                        // do not, and the word for that is plainer.
-                        label: result.won ? 'PLAY AGAIN' : 'TRY AGAIN',
-                        onPressed: onRematch,
-                        accent: accent,
+                        label: 'HOME',
+                        onPressed: onHome,
+                        secondary: true,
                       ),
-                    const SizedBox(height: 10),
-                    _ResultButton(
-                      label: 'HOME',
-                      onPressed: onHome,
-                      secondary: true,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -499,9 +513,7 @@ class _Star extends StatelessWidget {
     final icon = Icon(
       earned ? Icons.star_rounded : Icons.star_outline_rounded,
       size: earned ? 52 : 44,
-      color: earned
-          ? Palette.gold
-          : Palette.hudTextDim.withValues(alpha: 0.45),
+      color: earned ? Palette.gold : Palette.hudTextDim.withValues(alpha: 0.45),
     );
 
     // An unearned star is not an event. It is simply the shape of what is
@@ -652,9 +664,21 @@ class _ResultButton extends StatelessWidget {
 /// different room, and a player who has just learned where RESUME sits should
 /// find HOME in the place the end screen put it.
 ///
-/// It covers the arena rather than dimming it. A frozen board under a
-/// half-transparent sheet looks like the game has hung; a board that is
-/// simply not there reads as deliberate.
+/// **It dims the arena rather than covering it**, on the owner's call.
+///
+/// This reverses the original, and the original argument is worth keeping
+/// because it names the real risk: a frozen board under a half-transparent
+/// sheet can look like the game has hung, where a board that is simply not
+/// there reads as deliberate. What that missed is what a pause is *for*. The
+/// player is not leaving; they are holding the match to look at something, or
+/// to decide whether to quit — and hiding the board is precisely the wrong
+/// thing to do to somebody deciding whether their position is worth playing
+/// on from. The card carries the "deliberate" half by itself: a lit panel
+/// saying PAUSED over a dark board is not a hang.
+///
+/// The result screen still covers the board, and that difference is the
+/// point. A pause is a hold over a live match; a result is a destination, and
+/// there is nothing behind it left to read.
 class PauseOverlay extends StatelessWidget {
   const PauseOverlay({
     super.key,
@@ -671,76 +695,90 @@ class PauseOverlay extends StatelessWidget {
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: [
-      MatchBackground(playerTeam: playerTeam),
-      Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-              decoration: BoxDecoration(
-                color: Palette.hudSurface,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: Palette.hudOutline.withValues(alpha: 0.14),
-                  width: 1,
+      // Absorbing, not just painted. A hold that let taps through to the tray
+      // underneath would not be a hold: the phase is still `playing` while
+      // paused, so `beginDeploy` would accept a drag and `playFromHand` would
+      // place the card, since placing is a direct call rather than something
+      // the stopped loop does.
+      GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: ColoredBox(color: arenaScrim),
+      ),
+      // The overlay is full-bleed so the dim reaches the status bar and the
+      // gesture strip — an undimmed band at either end reads as the scrim
+      // having failed rather than as a frame. The card keeps its own inset.
+      SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                decoration: BoxDecoration(
+                  color: Palette.hudSurface,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Palette.hudOutline.withValues(alpha: 0.14),
+                    width: 1,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x59000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
                 ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x59000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.pause_circle_filled_rounded,
-                    size: 46,
-                    color: Palette.accent,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'PAUSED',
-                    style: TextStyle(
-                      fontFamily: Fonts.display,
-                      color: Palette.hudText,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.pause_circle_filled_rounded,
+                      size: 46,
+                      color: Palette.accent,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Says the thing a player actually wants confirmed before
-                  // they dare leave the screen.
-                  const Text(
-                    'The clock is stopped',
-                    style: TextStyle(
-                      color: Palette.hudTextDim,
-                      fontSize: 12,
-                      letterSpacing: 1.5,
+                    const SizedBox(height: 10),
+                    const Text(
+                      'PAUSED',
+                      style: TextStyle(
+                        fontFamily: Fonts.display,
+                        color: Palette.hudText,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 26),
-                  _ResultButton(label: 'RESUME', onPressed: onResume),
-                  const SizedBox(height: 10),
-                  // No trophies, no stars, no chest: quitting a match part
-                  // way through is a forfeit, and saying so here is cheaper
-                  // than a player finding out afterwards.
-                  const Text(
-                    'Leaving forfeits the match.',
-                    style: TextStyle(color: Palette.hudTextDim, fontSize: 11),
-                  ),
-                  const SizedBox(height: 8),
-                  _ResultButton(
-                    label: 'HOME',
-                    onPressed: onQuit,
-                    secondary: true,
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    // Says the thing a player actually wants confirmed before
+                    // they dare leave the screen.
+                    const Text(
+                      'The clock is stopped',
+                      style: TextStyle(
+                        color: Palette.hudTextDim,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    _ResultButton(label: 'RESUME', onPressed: onResume),
+                    const SizedBox(height: 10),
+                    // No trophies, no stars, no chest: quitting a match part
+                    // way through is a forfeit, and saying so here is cheaper
+                    // than a player finding out afterwards.
+                    const Text(
+                      'Leaving forfeits the match.',
+                      style: TextStyle(color: Palette.hudTextDim, fontSize: 11),
+                    ),
+                    const SizedBox(height: 8),
+                    _ResultButton(
+                      label: 'HOME',
+                      onPressed: onQuit,
+                      secondary: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

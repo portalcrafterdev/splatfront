@@ -50,7 +50,9 @@ void main() {
     // case a whistle-only release would miss, and the one the audio mute got
     // wrong first time round. Leaving by the back button has to be enough.
     await tester.pumpWidget(
-      MaterialApp(home: BattleScreen(layout: layout, cards: cards, deck: deck)),
+      MaterialApp(
+        home: BattleScreen(layout: layout, cards: cards, deck: deck),
+      ),
     );
     await tester.pump();
     expect(

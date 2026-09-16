@@ -341,8 +341,10 @@ void main() {
     tester,
   ) async {
     game.elixir.value.value = 10;
-    expect(game.playFromHand(game.player, _slotOf(game, 'brusher'), ownGround),
-        isTrue);
+    expect(
+      game.playFromHand(game.player, _slotOf(game, 'brusher'), ownGround),
+      isTrue,
+    );
     expect(game.deploysPastMidline, 0);
   });
 

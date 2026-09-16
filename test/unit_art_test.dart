@@ -123,9 +123,7 @@ void main() {
           gap,
           greaterThanOrEqualTo(floor),
           reason:
-              '$a and $b are the same shape (aspect ${shapes[a]!.aspect
-                  .toStringAsFixed(3)} against ${shapes[b]!.aspect
-                  .toStringAsFixed(3)}). At hand-card size that makes them '
+              '$a and $b are the same shape (aspect ${shapes[a]!.aspect.toStringAsFixed(3)} against ${shapes[b]!.aspect.toStringAsFixed(3)}). At hand-card size that makes them '
               'the same card. Change one body, not one tool — the tool is '
               'the smallest mark on the drawing.',
         );

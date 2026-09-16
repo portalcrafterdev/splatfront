@@ -34,7 +34,8 @@ void main() {
       expect(
         progress.valueFor(board.source),
         isNotNull,
-        reason: '${board.key} submits "${board.source}", which is not a '
+        reason:
+            '${board.key} submits "${board.source}", which is not a '
             'number AchievementProgress knows',
       );
     }

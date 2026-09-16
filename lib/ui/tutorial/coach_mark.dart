@@ -225,7 +225,6 @@ class TutorialController extends ChangeNotifier {
   }
 }
 
-
 class _CoachMarkOverlay extends StatefulWidget {
   const _CoachMarkOverlay({required this.controller});
 

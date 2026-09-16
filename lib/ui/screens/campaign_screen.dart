@@ -106,7 +106,8 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
                 // "Play on your own" also keeps section 14's promise that v1
                 // never pretends to be multiplayer — it just keeps it in
                 // language the reader actually parses.
-                subtitle: 'Play on your own. Win to get a star, '
+                subtitle:
+                    'Play on your own. Win to get a star, '
                     'paint more to get three.',
               ),
               Padding(

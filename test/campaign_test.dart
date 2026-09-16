@@ -33,7 +33,6 @@ void main() {
     campaign = data.campaign;
   });
 
-
   group('level names', () {
     // The tile used to be titled with its arena, which is the same for
     // twenty-five levels at a stretch: the largest text on the row was the

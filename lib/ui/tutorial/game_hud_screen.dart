@@ -153,7 +153,10 @@ class _GameHudScreenState extends State<GameHudScreen> {
     _movement.report('move');
   }
 
-  Future<void> _replay(TutorialController controller, List<CoachMarkStep> steps) async {
+  Future<void> _replay(
+    TutorialController controller,
+    List<CoachMarkStep> steps,
+  ) async {
     // Clear the flag as well as starting it. A player who backs out of a
     // replay should still be offered it on the next launch.
     await TutorialFlags.reset(controller.id);
@@ -219,7 +222,10 @@ class _GameHudScreenState extends State<GameHudScreen> {
             },
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'combat', child: Text('Replay tutorial')),
-              PopupMenuItem(value: 'movement', child: Text('Replay movement tip')),
+              PopupMenuItem(
+                value: 'movement',
+                child: Text('Replay movement tip'),
+              ),
             ],
           ),
         ),
@@ -294,9 +300,8 @@ class _GameHudScreenState extends State<GameHudScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final size = constraints.biggest;
-            void handle(Offset local) => _moveTo(
-              Offset(local.dx / size.width, local.dy / size.height),
-            );
+            void handle(Offset local) =>
+                _moveTo(Offset(local.dx / size.width, local.dy / size.height));
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
               onPanStart: (d) => handle(d.localPosition),
@@ -341,8 +346,11 @@ class _GameHudScreenState extends State<GameHudScreen> {
       radius: 12,
       child: Row(
         children: [
-          const Icon(Icons.chat_bubble_outline_rounded,
-              size: 16, color: Palette.uiTextDim),
+          const Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 16,
+            color: Palette.uiTextDim,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -412,10 +420,7 @@ class _ActionButton extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: Fonts.shout(size: 17, colour: Colors.white),
-            ),
+            Text(label, style: Fonts.shout(size: 17, colour: Colors.white)),
             if (badge != null) ...[
               const SizedBox(width: 8),
               Container(
@@ -463,10 +468,7 @@ class _PadPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = Palette.uiBackground,
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..color = Palette.uiBackground);
     final line = Paint()
       ..color = Palette.uiTextDim.withValues(alpha: 0.14)
       ..strokeWidth = 1;

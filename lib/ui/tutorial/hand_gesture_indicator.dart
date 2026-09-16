@@ -15,28 +15,86 @@ enum HandGesture {
   swipe,
 }
 
-/// The two Lottie files this widget draws.
+/// The Lottie file this widget draws, and the two corrections it needs.
 ///
-/// Authored for this app rather than downloaded, for two reasons that both
-/// matter: a file off a marketplace carries a licence nobody in this repo can
-/// point at, and its colours would be whatever the author picked. These are
-/// built from [Palette] — `hudOnScrim` for the hand, `outlineShadow` for the
-/// hard offset shadow under it, `accent` for the ripple — so the indicator
-/// belongs to the same app as everything it is drawn over.
-///
-/// The hand is a silhouette assembled from two rounded rectangles and an
-/// ellipse rather than a traced bezier outline, and the dark copy behind it is
-/// offset rather than merged. Merge paths are the one part of the Lottie spec
-/// the Flutter renderer supports unevenly, and a shape that renders in After
-/// Effects and not on a phone is worse than a simpler shape that renders
-/// everywhere.
+/// One file for both gestures. It is a tap animation, chosen by the owner
+/// from LottieFiles — see `assets/lottie/SOURCE.md` for the link, the author
+/// and the licence. It is committed **unmodified**, so swapping it for
+/// another is a straight file replacement; everything below adjusts it from
+/// Dart instead of editing the JSON.
 abstract final class HandAnimations {
-  static const String tap = 'assets/lottie/hand_tap.json';
-  static const String drag = 'assets/lottie/hand_drag.json';
+  static const String asset = 'assets/lottie/hand_tap.json';
 
-  static String forGesture(HandGesture gesture) => switch (gesture) {
-    HandGesture.tap => tap,
-    HandGesture.swipe => drag,
+  /// Where the fingertip sits inside the composition, as a fraction of its
+  /// own canvas.
+  ///
+  /// **Measured, not guessed.** The file is 600 x 600 and the fingertip is at
+  /// (241.5, 177) — up and to the left of centre, because the hand comes in
+  /// from the lower right. Found by rendering the composition to an image and
+  /// taking the topmost ink at rest. Centring the canvas on the target, which
+  /// is what every coach mark does, would leave the hand pointing about 23dp
+  /// low and 11dp right of the thing it is supposed to be indicating.
+  static const Offset fingertip = Offset(241.5 / 600, 177 / 600);
+
+  /// How long one pass takes: 41 frames at 25fps.
+  ///
+  /// Pinned to the file rather than picked. `tutorial_test.dart` asserts the
+  /// composition still declares both numbers, so a replacement file that runs
+  /// at another speed fails there instead of quietly playing fast or slow.
+  static const Duration cycle = Duration(milliseconds: 1640);
+
+  /// Recolours the composition on the way in.
+  ///
+  /// **Every shape in the file is `#000000`**, which is the right choice for
+  /// a hand meant to sit on a white page and the wrong one here: these marks
+  /// are drawn over a near-black scrim, so as shipped the hand is invisible.
+  ///
+  /// Done with delegates rather than by rewriting the JSON so the asset stays
+  /// byte-identical to what was downloaded — the licence is easier to honour
+  /// when the file is untouched, and the app's colours stay in [Palette]
+  /// where the rest of the app can see them.
+  ///
+  /// The key paths name layers inside somebody else's file, so they are the
+  /// one part of this that a swapped animation would break. It fails softly:
+  /// an unmatched path recolours nothing rather than throwing, which is why
+  /// `tutorial_test.dart` checks the layers are still there by name.
+  static LottieDelegates get delegates => LottieDelegates(
+    values: [
+      // Fills first, and with a wildcard, so no part of the hand is left
+      // black whatever the file calls its layers.
+      ValueDelegate.color(const ['**'], value: Palette.hudOnScrim),
+      // The hand's own outline stays dark, which is this app's shape
+      // language: a light fill inside a heavy near-black line.
+      ValueDelegate.strokeColor(const [
+        'hand_tap_01 Outlines',
+        '**',
+      ], value: Palette.outlineShadow),
+      for (final ring in _ringLayers)
+        ValueDelegate.strokeColor([ring, '**'], value: Palette.accent),
+    ],
+  );
+
+  /// The two expanding rings the tap animation throws off.
+  static const List<String> _ringLayers = ['Shape Layer 3', 'Shape Layer 4'];
+
+  /// The same file with the ripples switched off, for the drag step.
+  ///
+  /// A hand gliding along a path while throwing off tap ripples reads as
+  /// somebody jabbing the screen repeatedly, which is the opposite of the
+  /// instruction. Hiding two layers is cheaper than a second animation, and
+  /// it keeps both steps showing the *same* hand — two different hands in one
+  /// three-step sequence looks like a bug.
+  static LottieDelegates get delegatesWithoutRipple => LottieDelegates(
+    values: [
+      ...delegates.values!,
+      for (final ring in _ringLayers)
+        ValueDelegate.opacity([ring, '**'], value: 0),
+    ],
+  );
+
+  static LottieDelegates forGesture(HandGesture gesture) => switch (gesture) {
+    HandGesture.tap => delegates,
+    HandGesture.swipe => delegatesWithoutRipple,
   };
 }
 
@@ -72,7 +130,7 @@ class HandGestureIndicator extends StatefulWidget {
     this.gesture = HandGesture.tap,
     this.travel = const Offset(120, 0),
     this.cycles = 4,
-    this.cycle = const Duration(milliseconds: 1200),
+    this.cycle = HandAnimations.cycle,
     this.handSize = 110,
     this.colour = Palette.accent,
   }) : assert(cycles == null || cycles > 0, 'cycles must be positive or null');
@@ -88,9 +146,9 @@ class HandGestureIndicator extends StatefulWidget {
   /// doc for why nothing in this app passes that.
   final int? cycles;
 
-  /// How long one pulse or one glide takes. The compositions are authored at
-  /// 60fps over 72 frames, so 1200ms plays them at their intended speed;
-  /// changing this stretches or compresses them.
+  /// How long one pulse or one glide takes. Defaults to the length the
+  /// composition was authored at — see [HandAnimations.cycle] — so it plays
+  /// at its intended speed rather than stretched or compressed.
   final Duration cycle;
 
   /// The rendered size of the composition, which is square.
@@ -199,9 +257,23 @@ class _HandGestureIndicatorState extends State<HandGestureIndicator>
   /// the composition on this widget's clock rather than on Lottie's own
   /// looping one. `animate: false` is not enough on its own — that only stops
   /// it self-driving; without a controller it would sit on frame 0.
-  Widget _composition() => Lottie.asset(
-    HandAnimations.forGesture(widget.gesture),
+  Widget _composition() {
+    // Shift the composition so its fingertip, rather than the middle of its
+    // canvas, lands on whatever this widget is centred over.
+    final hotspot = HandAnimations.fingertip;
+    return Transform.translate(
+      offset: Offset(
+        (0.5 - hotspot.dx) * widget.handSize,
+        (0.5 - hotspot.dy) * widget.handSize,
+      ),
+      child: _raw(),
+    );
+  }
+
+  Widget _raw() => Lottie.asset(
+    HandAnimations.asset,
     controller: _frame,
+    delegates: HandAnimations.forGesture(widget.gesture),
     width: widget.handSize,
     height: widget.handSize,
     fit: BoxFit.contain,

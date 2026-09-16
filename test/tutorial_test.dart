@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,8 +188,8 @@ void main() {
       find.byType(HandGestureIndicator),
     );
     expect(hand.gesture, HandGesture.swipe);
-    // And the *drag* file loaded, which is a different asset from the tap
-    // one and would otherwise only be covered by the indicator existing.
+    // The same composition still renders on the drag step, where it is drawn
+    // with the ripple layers hidden rather than from a second file.
     final drawn = find.descendant(
       of: find.byType(HandGestureIndicator),
       matching: find.byType(RawLottie),
@@ -328,10 +330,26 @@ void main() {
 
     final composition = tester.widget<RawLottie>(drawn).composition;
     expect(composition, isNotNull, reason: 'the file did not parse');
-    // Authored at 60fps over 72 frames. If these drift, the 1200ms cycle is
-    // no longer playing the file at the speed it was drawn for.
-    expect(composition!.frameRate, 60);
-    expect(composition.durationFrames, closeTo(72, 0.5));
+    // 41 frames at 25fps — 1.64s, which is what HandAnimations.cycle is set
+    // to. A replacement animation at another speed fails here rather than
+    // quietly playing fast or slow.
+    expect(composition!.frameRate, 25);
+    expect(composition.durationFrames, closeTo(41, 1));
+    expect(
+      HandAnimations.cycle.inMilliseconds,
+      closeTo(composition.durationFrames / composition.frameRate * 1000, 30),
+      reason: 'the cycle no longer matches the file it plays',
+    );
+
+    // The recolouring keys on layer names inside somebody else's file, and an
+    // unmatched key path silently recolours nothing — so a swapped animation
+    // would leave a black hand on a near-black scrim with no error anywhere.
+    final names = composition.layers.map((l) => l.name).toSet();
+    expect(
+      names,
+      containsAll(<String>['hand_tap_01 Outlines', 'Shape Layer 3']),
+      reason: 'the delegates in HandAnimations no longer match any layer',
+    );
 
     await unmount(tester);
   });
@@ -384,11 +402,64 @@ void main() {
     expect(caption('Swing at it'), findsNothing);
   });
 
-  test('a failed preference read reports "not seen", so the tutorial runs', () async {
-    // debugStore null and no platform channel bound: SharedPreferences throws
-    // and isDone has to swallow it. Failing the other way would leave a
-    // first-time player staring at a HUD nobody explained.
-    TutorialFlags.debugStore = null;
-    expect(await TutorialFlags.isDone('never_written'), isFalse);
+  test('the fingertip really is where HandAnimations says it is', () async {
+    // The one number in here that cannot be read off the file and cannot be
+    // eyeballed. The coach mark centres this composition on whatever it is
+    // pointing at, so if the offset is wrong the hand points confidently at
+    // empty space — and it still looks like a working animation, which is why
+    // nothing else in the suite would notice.
+    //
+    // So it is measured rather than asserted: render the composition at rest,
+    // find the topmost ink, and check it against the constant. A replacement
+    // animation whose hand sits somewhere else fails here.
+    final bytes = await rootBundle.load(HandAnimations.asset);
+    final composition = await LottieComposition.fromByteData(bytes);
+    final drawable = LottieDrawable(composition)..setProgress(0);
+
+    const side = 600;
+    final recorder = ui.PictureRecorder();
+    drawable.draw(
+      ui.Canvas(recorder),
+      const ui.Rect.fromLTWH(0, 0, side * 1.0, side * 1.0),
+      fit: BoxFit.fill,
+    );
+    final image = await recorder.endRecording().toImage(side, side);
+    final pixels = (await image.toByteData())!.buffer.asUint8List();
+
+    var tipY = -1, tipMinX = side, tipMaxX = -1;
+    for (var y = 0; y < side && tipY < 0; y++) {
+      for (var x = 0; x < side; x++) {
+        if (pixels[(y * side + x) * 4 + 3] < 40) continue;
+        tipY = y;
+        if (x < tipMinX) tipMinX = x;
+        if (x > tipMaxX) tipMaxX = x;
+      }
+    }
+    expect(tipY, greaterThan(-1), reason: 'the composition drew nothing');
+
+    final measured = Offset((tipMinX + tipMaxX) / 2 / side, tipY / side);
+    // Eight pixels of a 600px canvas, which is under 1.5dp once the hand is
+    // drawn at its real size.
+    expect(
+      measured.dx,
+      closeTo(HandAnimations.fingertip.dx, 8 / side),
+      reason: 'the hand points left or right of where the offset assumes',
+    );
+    expect(
+      measured.dy,
+      closeTo(HandAnimations.fingertip.dy, 8 / side),
+      reason: 'the hand points above or below where the offset assumes',
+    );
   });
+
+  test(
+    'a failed preference read reports "not seen", so the tutorial runs',
+    () async {
+      // debugStore null and no platform channel bound: SharedPreferences throws
+      // and isDone has to swallow it. Failing the other way would leave a
+      // first-time player staring at a HUD nobody explained.
+      TutorialFlags.debugStore = null;
+      expect(await TutorialFlags.isDone('never_written'), isFalse);
+    },
+  );
 }

@@ -301,7 +301,6 @@ void main() {
         reason: 'the plate names the side, never a person',
       );
     });
-
   });
 
   group('rules 4 and 5: format and deploy', () {
