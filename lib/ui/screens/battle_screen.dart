@@ -26,6 +26,9 @@ import '../widgets/elixir_meter.dart';
 import '../widgets/frame_stats.dart';
 import '../widgets/match_overlays.dart';
 import '../widgets/responsive.dart';
+import '../tutorial/battle_tutorial.dart';
+import '../tutorial/coach_mark.dart';
+import '../tutorial/tutorial_flags.dart';
 
 /// The match screen. Only the arena and the HUD live in Flame; everything
 /// around them is plain Flutter.
@@ -116,6 +119,26 @@ class _BattleScreenState extends State<BattleScreen>
   /// Anchors the world-coordinate conversion for drag-to-deploy.
   final GlobalKey _arenaKey = GlobalKey();
 
+  // What the first-match coach marks point at. Only one layout is ever built
+  // at a time — `ResponsiveBuilder` picks stacked *or* wide — so the same
+  // three keys can be used by both without two widgets ever claiming one.
+  final GlobalKey _headerKey = GlobalKey(debugLabel: 'match header');
+  final GlobalKey _elixirKey = GlobalKey(debugLabel: 'elixir meter');
+  final GlobalKey _handKey = GlobalKey(debugLabel: 'hand');
+
+  final TutorialController _tutorial = TutorialController(
+    id: BattleTutorial.id,
+  );
+
+  /// Whether the engine is being held for the coach marks, as opposed to for
+  /// a pause the player asked for. The two must not release each other.
+  bool _heldForTutorial = false;
+
+  /// The coach marks are offered once per screen, at the end of the
+  /// countdown. Without this the phase notifier would re-offer them every
+  /// time it fired — sudden death, for one.
+  bool _tutorialOffered = false;
+
   late final SplatfrontGame _game = SplatfrontGame(
     layout: widget.layout,
     cards: widget.cards,
@@ -202,6 +225,10 @@ class _BattleScreenState extends State<BattleScreen>
     // in hand when the player presses BATTLE and there is nothing to wait for.
     Ads.matchRunning = false;
     Ads.prefetch();
+    // Before the notifier, and unconditionally: an overlay entry that
+    // outlived this screen would be a dimmed, undismissable layer over
+    // whatever the player navigated to next.
+    _tutorial.dispose();
     _paused.dispose();
     super.dispose();
   }
@@ -214,7 +241,20 @@ class _BattleScreenState extends State<BattleScreen>
   /// than a screen one.
   void _watchPhase() {
     final match = _game.match;
-    if (match == null || !match.phase.value.isOver) return;
+    if (match == null) return;
+    // The end of the countdown is the moment to teach: the board is up, the
+    // hand is dealt, and nothing has happened yet. During the countdown the
+    // hand cannot be played at all, so a "drag a card" step there would ask
+    // for something the game refuses.
+    if (!_tutorialOffered && match.phase.value == MatchPhase.playing) {
+      _tutorialOffered = true;
+      _offerTutorial();
+    }
+    if (!match.phase.value.isOver) return;
+    // A player who quits or finishes mid-sequence must not be left with a
+    // dimmed screen over the result.
+    _tutorial.cancel();
+    _heldForTutorial = false;
     // The calm loop, not silence: the result screen has no clock on it and
     // can sit there as long as the player likes.
     Audio.playMusic(Track.menu);
@@ -224,6 +264,79 @@ class _BattleScreenState extends State<BattleScreen>
     // until the battery went, which is the one way a comfort like this turns
     // into a complaint.
     ScreenWake.request(false);
+  }
+
+  /// Runs the first-match coach marks, once ever, on the first real match.
+  ///
+  /// **A debug sandbox never reaches this**, and there is deliberately no
+  /// explicit check for one here. A sandbox has no [MatchController] at all,
+  /// so [_watchPhase] — the only caller — returns on its first line and the
+  /// phase listener is never even registered. A second `if (sandbox)` would
+  /// be a line no test could ever make fail, which is a comment pretending
+  /// to be a guard. `battle_tutorial_test.dart` asserts the outcome instead,
+  /// so giving the sandboxes a clock later fails that test rather than
+  /// quietly spending a player's one-shot tutorial on a debug screen.
+  Future<void> _offerTutorial() async {
+    if (!mounted) return;
+
+    // **The flag is read first, and the match is held only once the marks are
+    // certain to go up.** Holding first and releasing on the "already seen"
+    // path looks safer — not a frame of the clock lost — and it is the wrong
+    // way round, because it makes the read a single point of failure for the
+    // whole match: `SharedPreferences.getInstance()` is a platform-channel
+    // round trip, and anything that leaves it pending leaves the arena frozen
+    // with no coach marks on it and no way back. That is not hypothetical;
+    // it is exactly what `screens_test.dart` caught, because a channel with
+    // no implementation behind it never answers at all.
+    //
+    // The cost of this order is the handful of milliseconds that read takes,
+    // once, on the first match a player ever opens, out of ninety seconds.
+    if (await TutorialFlags.isDone(BattleTutorial.id)) return;
+    if (!mounted) return;
+
+    // Nothing awaits between here and the marks being on screen, so the clock
+    // cannot start again underneath them.
+    _holdForTutorial();
+    _tutorial.start(
+      context,
+      steps: BattleTutorial.steps(
+        header: _headerKey,
+        elixir: _elixirKey,
+        hand: _handKey,
+      ),
+      onFinished: _releaseFromTutorial,
+    );
+  }
+
+  /// A card actually landed. Nothing happens unless the coach marks are on
+  /// the step that asked for it, which is why the hand can report every
+  /// deploy without knowing whether a tutorial is running.
+  void _reportDeploy() => _tutorial.report(BattleTutorial.deployStep);
+
+  /// Stops the clock without putting the pause card up.
+  ///
+  /// Same mechanism as [_pause] — Flame's own [pauseEngine], so the clock,
+  /// the elixir, the cooldowns and the bot all stop together — but none of
+  /// the pause *screen*, because the coach marks are already covering the
+  /// board and a PAUSED plate under them would be two overlays saying
+  /// different things.
+  void _holdForTutorial() {
+    if (_heldForTutorial || _paused.value) return;
+    _heldForTutorial = true;
+    _game.pauseEngine();
+    Audio.gameplayMuted = true;
+  }
+
+  void _releaseFromTutorial() {
+    if (!_heldForTutorial) return;
+    _heldForTutorial = false;
+    // Not if the player has since paused for real, or the match has ended
+    // under the marks. Releasing then would restart a clock that something
+    // else deliberately stopped.
+    if (_paused.value) return;
+    if (_game.match?.phase.value.isOver ?? false) return;
+    Audio.gameplayMuted = false;
+    _game.resumeEngine();
   }
 
   /// Swaps to the percussion layer for the closing stretch, per section 12.
@@ -420,6 +533,7 @@ class _BattleScreenState extends State<BattleScreen>
 
   /// Name plates, score, clock. The sandboxes have no opponent to name.
   Widget _header() => MatchHeader(
+    key: _headerKey,
     coverage: _game.arena.coverage,
     match: _game.match,
     playerTeam: widget.playerTeam,
@@ -438,6 +552,12 @@ class _BattleScreenState extends State<BattleScreen>
   /// be honoured in five places and would be wrong in the sixth.
   void _pause() {
     if (_paused.value) return;
+    // An interruption during the coach marks drops them rather than stacking
+    // a PAUSED plate under a dimmed screen. They are not marked as seen, so
+    // the next match offers them again — which is the right way round for
+    // somebody whose phone rang thirty seconds into their first game.
+    _tutorial.cancel();
+    _heldForTutorial = false;
     _game.cancelDeploy();
     _game.pauseEngine();
     // Whatever was mid-swing down there goes quiet, the same as it does at
@@ -553,8 +673,18 @@ class _BattleScreenState extends State<BattleScreen>
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ElixirMeter(elixir: _game.elixir, height: layout.elixirBarHeight),
-        _Hand(game: _game, layout: layout, toWorld: _toWorld),
+        ElixirMeter(
+          key: _elixirKey,
+          elixir: _game.elixir,
+          height: layout.elixirBarHeight,
+        ),
+        _Hand(
+          key: _handKey,
+          game: _game,
+          layout: layout,
+          toWorld: _toWorld,
+          onDeployed: _reportDeploy,
+        ),
       ],
     ),
   );
@@ -583,6 +713,7 @@ class _BattleScreenState extends State<BattleScreen>
                   child: SizedBox(
                     width: 260,
                     child: ElixirMeter(
+                      key: _elixirKey,
                       elixir: _game.elixir,
                       height: layout.elixirBarHeight,
                     ),
@@ -590,9 +721,11 @@ class _BattleScreenState extends State<BattleScreen>
                 ),
                 Expanded(
                   child: _Hand(
+                    key: _handKey,
                     game: _game,
                     layout: layout,
                     toWorld: _toWorld,
+                    onDeployed: _reportDeploy,
                     vertical: true,
                   ),
                 ),
@@ -693,15 +826,22 @@ class _BattleScreenState extends State<BattleScreen>
 /// Flame; this widget only feeds it world coordinates.
 class _Hand extends StatelessWidget {
   const _Hand({
+    super.key,
     required this.game,
     required this.layout,
     required this.toWorld,
+    this.onDeployed,
     this.vertical = false,
   });
 
   final SplatfrontGame game;
   final LayoutClass layout;
   final Vector2? Function(Offset globalPosition) toWorld;
+
+  /// Fired when a drag actually placed a card, as opposed to being refused
+  /// or cancelled. The coach marks listen for it.
+  final VoidCallback? onDeployed;
+
   final bool vertical;
 
   @override
@@ -817,7 +957,11 @@ class _Hand extends StatelessWidget {
           final world = toWorld(details.globalPosition);
           if (world != null) game.updateDeploy(world);
         },
-        onPanEnd: (details) => game.endDeploy(toWorld(details.globalPosition)),
+        onPanEnd: (details) {
+          if (game.endDeploy(toWorld(details.globalPosition))) {
+            onDeployed?.call();
+          }
+        },
         onPanCancel: game.cancelDeploy,
         child: CardTile(
           card: card,

@@ -8,6 +8,8 @@ import '../../core/games/game_services.dart';
 import '../../core/palette.dart';
 import '../../core/save/player_profile.dart';
 import '../../meta/profile_controller.dart';
+import '../tutorial/battle_tutorial.dart';
+import '../tutorial/tutorial_flags.dart';
 import '../widgets/meta_widgets.dart';
 import '../widgets/motion.dart';
 
@@ -108,6 +110,9 @@ class SettingsScreen extends ConsumerWidget {
                     ),
 
                     const SizedBox(height: 12),
+                    const _TutorialTile(),
+
+                    const SizedBox(height: 12),
                     const _PlayGamesTile(),
 
                     const SizedBox(height: 12),
@@ -200,6 +205,84 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('RESET'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Puts the first-match coach marks back.
+///
+/// It forgets the flag rather than starting the sequence here, because the
+/// marks point at the score bar, the elixir meter and the hand — none of
+/// which exist on this screen. Clearing it means the next match runs them,
+/// which is also the only place they make sense.
+class _TutorialTile extends StatefulWidget {
+  const _TutorialTile();
+
+  @override
+  State<_TutorialTile> createState() => _TutorialTileState();
+}
+
+class _TutorialTileState extends State<_TutorialTile> {
+  /// Null until asked. Read once so the tile can say which state it is in
+  /// rather than offering a replay of something never seen.
+  bool? _seen;
+  bool _armed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TutorialFlags.isDone(BattleTutorial.id).then((done) {
+      if (mounted) setState(() => _seen = done);
+    });
+  }
+
+  Future<void> _replay() async {
+    await TutorialFlags.reset(BattleTutorial.id);
+    if (!mounted) return;
+    setState(() {
+      _seen = false;
+      _armed = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Says the useful thing, not the available one: a player who has not seen
+    // the marks yet needs to know they are coming, not to be offered a replay
+    // of something that has not happened.
+    final (subtitle, action) = switch ((_seen, _armed)) {
+      (_, true) => ('Ready. It runs at the start of your next match.', null),
+      (false, _) => ('It runs at the start of your next match.', null),
+      (null, _) => ('Checking…', null),
+      _ => ('Show the basics again in your next match.', _replay),
+    };
+
+    return Panel(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text(
+          'Battle tutorial',
+          style: TextStyle(color: Palette.uiText, fontSize: 14),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: Palette.uiTextDim, fontSize: 11),
+        ),
+        trailing: action == null
+            ? const Icon(Icons.check_rounded, color: Palette.success)
+            : TextButton(
+                onPressed: action,
+                child: const Text(
+                  'REPLAY',
+                  style: TextStyle(
+                    color: Palette.accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
       ),
     );
   }
