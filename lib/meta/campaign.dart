@@ -55,6 +55,7 @@ class CampaignConfig {
     required this.botCardLevelTo,
     required this.botMaxCardLevel,
     required this.arenaEveryLevels,
+    required this.tutorialLevel,
     required this.nameFirst,
     required this.nameSecond,
     required this.cardUnlocks,
@@ -111,6 +112,24 @@ class CampaignConfig {
 
   /// The arena changes every this many levels, cycling through all of them.
   final int arenaEveryLevels;
+
+  /// Which level shows the coach marks, or 0 for none.
+  ///
+  /// **Every time it is played, not once per device.** That is the owner's
+  /// call and it reverses a stored flag: what the flag bought was never
+  /// seeing the lesson twice, and what it cost was a first-time player who
+  /// backed out, reinstalled, or was handed the phone by somebody else
+  /// arriving at the deploy rule with nothing to explain it. Level 1 is three
+  /// taps long and exists to be replayed — the flag was protecting the wrong
+  /// person.
+  ///
+  /// It lives in JSON rather than as a constant in Dart because it is
+  /// configuration, not a rule: setting it to 0 makes level 1 an ordinary
+  /// level, with no code change and nothing to delete.
+  final int tutorialLevel;
+
+  /// Whether [level] shows the coach marks.
+  bool isTutorial(int level) => tutorialLevel > 0 && level == tutorialLevel;
 
   /// The two word lists a level name is built from.
   ///
@@ -267,6 +286,7 @@ class CampaignConfig {
       botCardLevelTo: (botCards['to'] as num).toInt(),
       botMaxCardLevel: (botCards['maxLevel'] as num).toInt(),
       arenaEveryLevels: (json['arenaEveryLevels'] as num).toInt(),
+      tutorialLevel: (json['tutorialLevel'] as num?)?.toInt() ?? 0,
       nameFirst: List<String>.from(names['first'] as List<dynamic>),
       nameSecond: List<String>.from(names['second'] as List<dynamic>),
       cardUnlocks: {

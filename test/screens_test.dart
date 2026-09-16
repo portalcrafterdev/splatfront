@@ -559,7 +559,11 @@ void main() {
   testWidgets('pause stops the clock, and resuming starts it again', (
     tester,
   ) async {
-    await pumpApp(tester);
+    // Level 1 cleared, so BATTLE opens level 2. Level 1 is the walkthrough:
+    // its coach marks cover the screen and deliberately swallow every tap
+    // that is not the one they are asking for, the pause button included.
+    // This test is about pausing, so it starts somewhere ordinary.
+    await pumpApp(tester, profile: const PlayerProfile(campaignStars: {1: 3}));
     await openRoute(tester, find.text('BATTLE'));
 
     // Past the countdown, or there is no clock yet to hold — the header

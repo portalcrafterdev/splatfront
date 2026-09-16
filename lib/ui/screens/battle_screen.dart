@@ -28,7 +28,6 @@ import '../widgets/match_overlays.dart';
 import '../widgets/responsive.dart';
 import '../tutorial/battle_tutorial.dart';
 import '../tutorial/coach_mark.dart';
-import '../tutorial/tutorial_flags.dart';
 
 /// The match screen. Only the arena and the HUD live in Flame; everything
 /// around them is plain Flutter.
@@ -109,6 +108,14 @@ class BattleScreen extends StatefulWidget {
 
   /// Which debug sandbox to layer over the arena, if any.
   final SandboxMode sandbox;
+
+  /// Whether this level shows the coach marks.
+  ///
+  /// Read off the campaign config rather than compared against a literal 1,
+  /// so moving the walkthrough is a JSON edit — and a match that is not a
+  /// campaign level (a sandbox, a ladder game) is never one.
+  bool get isWalkthrough =>
+      campaign != null && campaign!.config.isTutorial(campaign!.level);
 
   @override
   State<BattleScreen> createState() => _BattleScreenState();
@@ -266,7 +273,7 @@ class _BattleScreenState extends State<BattleScreen>
     ScreenWake.request(false);
   }
 
-  /// Runs the first-match coach marks, once ever, on the first real match.
+  /// Runs the coach marks, every time the walkthrough level is played.
   ///
   /// **A debug sandbox never reaches this**, and there is deliberately no
   /// explicit check for one here. A sandbox has no [MatchController] at all,
@@ -276,26 +283,23 @@ class _BattleScreenState extends State<BattleScreen>
   /// to be a guard. `battle_tutorial_test.dart` asserts the outcome instead,
   /// so giving the sandboxes a clock later fails that test rather than
   /// quietly spending a player's one-shot tutorial on a debug screen.
-  Future<void> _offerTutorial() async {
-    if (!mounted) return;
-
-    // **The flag is read first, and the match is held only once the marks are
-    // certain to go up.** Holding first and releasing on the "already seen"
-    // path looks safer — not a frame of the clock lost — and it is the wrong
-    // way round, because it makes the read a single point of failure for the
-    // whole match: `SharedPreferences.getInstance()` is a platform-channel
-    // round trip, and anything that leaves it pending leaves the arena frozen
-    // with no coach marks on it and no way back. That is not hypothetical;
-    // it is exactly what `screens_test.dart` caught, because a channel with
-    // no implementation behind it never answers at all.
+  void _offerTutorial() {
+    // **Every time the walkthrough level is played, not once per device.**
     //
-    // The cost of this order is the handful of milliseconds that read takes,
-    // once, on the first match a player ever opens, out of ninety seconds.
-    if (await TutorialFlags.isDone(BattleTutorial.id)) return;
+    // Owner's call, and a deliberate reversal of a stored flag. What the flag
+    // bought was never seeing the lesson twice; what it cost was a first-time
+    // player who backed out, reinstalled, or was handed the phone by somebody
+    // else arriving at the deploy rule with nothing to explain it. Level 1 is
+    // three taps long and exists to be replayed — the flag was protecting the
+    // wrong person.
+    //
+    // It also removes the only asynchronous step between the whistle and the
+    // marks going up. There is no stored state to read, so nothing can leave
+    // the match held while a platform channel fails to answer — a freeze
+    // `screens_test.dart` caught when the read sat in front of the hold.
+    if (!widget.isWalkthrough) return;
     if (!mounted) return;
 
-    // Nothing awaits between here and the marks being on screen, so the clock
-    // cannot start again underneath them.
     _holdForTutorial();
     _tutorial.start(
       context,

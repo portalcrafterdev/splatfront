@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:splatfront/tutorial_demo_main.dart';
 import 'package:splatfront/ui/tutorial/coach_mark.dart';
 import 'package:splatfront/ui/tutorial/game_hud_screen.dart';
@@ -185,6 +186,14 @@ void main() {
       find.byType(HandGestureIndicator),
     );
     expect(hand.gesture, HandGesture.swipe);
+    // And the *drag* file loaded, which is a different asset from the tap
+    // one and would otherwise only be covered by the indicator existing.
+    final drawn = find.descendant(
+      of: find.byType(HandGestureIndicator),
+      matching: find.byType(RawLottie),
+    );
+    expect(drawn, findsOneWidget);
+    expect(tester.widget<RawLottie>(drawn).composition, isNotNull);
     // A one-step sequence has no "1 of 1" counter to read.
     expect(find.text('1 of 1'), findsNothing);
 
@@ -297,6 +306,32 @@ void main() {
     await tester.tap(find.text('Potion'));
     await tester.pumpAndSettle();
     expect(find.byType(HandGestureIndicator), findsNothing);
+
+    await unmount(tester);
+  });
+
+  testWidgets('the hand is a Lottie composition that actually loaded', (
+    tester,
+  ) async {
+    // Without this the suite cannot tell a working hand from a missing one.
+    // Every other test finds the indicator by type, and the indicator has an
+    // errorBuilder — deliberately, so a bad asset degrades the lesson instead
+    // of taking the screen down — which means a malformed or unregistered
+    // file would leave an empty box and pass everything.
+    await pumpDemo(tester);
+
+    final drawn = find.descendant(
+      of: find.byType(HandGestureIndicator),
+      matching: find.byType(RawLottie),
+    );
+    expect(drawn, findsOneWidget, reason: 'the composition never rendered');
+
+    final composition = tester.widget<RawLottie>(drawn).composition;
+    expect(composition, isNotNull, reason: 'the file did not parse');
+    // Authored at 60fps over 72 frames. If these drift, the 1200ms cycle is
+    // no longer playing the file at the speed it was drawn for.
+    expect(composition!.frameRate, 60);
+    expect(composition.durationFrames, closeTo(72, 0.5));
 
     await unmount(tester);
   });

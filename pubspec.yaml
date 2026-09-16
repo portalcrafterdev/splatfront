@@ -44,6 +44,7 @@ dependencies:
   games_services: ^5.3.0
   wakelock_plus: ^1.8.0
   shared_preferences: ^2.3.3
+  lottie: ^3.5.1
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +67,7 @@ flutter:
     - assets/data/
     - assets/images/
     - assets/rive/
+    - assets/lottie/
     - assets/audio/
 
   # Both are variable fonts — the only form Google ships them in — so one

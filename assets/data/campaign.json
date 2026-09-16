@@ -34,6 +34,8 @@
     "to": 1000,
     "maxLevel": 9
   },
+  "_tutorialComment": "Which level shows the coach marks, every time it is played rather than once per device. Owner call, made twice: a stored flag protects a veteran from seeing a lesson twice, and strands a first-time player who backed out, reinstalled, or was handed the phone by somebody else. Level 1 is three taps long and exists to be replayed. Set to 0 to turn the walkthrough off and make level 1 an ordinary level.",
+  "tutorialLevel": 1,
   "arenaEveryLevels": 25,
   "_unlockComment": "Which campaign level hands over which card. The six in the starter deck are free from the start and are deliberately absent here. Everything else arrives on a curve that front-loads variety (a building, a swarm and a spell inside the first ten levels) and holds the expensive, swingy cards back. The last one lands at 110, just before the bot's own cards start levelling at 120 — so the full roster is in hand exactly when the opponent starts scaling. A card not named here is unlocked from the start.",
   "cardUnlocks": [

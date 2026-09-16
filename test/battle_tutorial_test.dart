@@ -5,8 +5,8 @@ import 'package:splatfront/game/arena/arena_layout.dart';
 import 'package:splatfront/game/cards/card_registry.dart';
 import 'package:splatfront/game/match/match_result.dart';
 import 'package:splatfront/game/splatfront_game.dart';
+import 'package:splatfront/meta/campaign.dart';
 import 'package:splatfront/ui/screens/battle_screen.dart';
-import 'package:splatfront/ui/tutorial/battle_tutorial.dart';
 import 'package:splatfront/ui/tutorial/hand_gesture_indicator.dart';
 import 'package:splatfront/ui/tutorial/tutorial_flags.dart';
 import 'package:splatfront/ui/widgets/card_tile.dart';
@@ -17,6 +17,7 @@ void main() {
   late CardRegistry cards;
   late Deck deck;
   late ArenaLayout layout;
+  late CampaignConfig campaign;
 
   const rules = TrophyRules(
     win: 30,
@@ -31,6 +32,7 @@ void main() {
     cards = await CardRegistry.load();
     deck = (await Deck.loadStarterDecks()).first;
     layout = (await ArenaLayout.loadAll()).first;
+    campaign = await CampaignConfig.load();
     for (final (family, path) in const [
       ('Baloo2', 'assets/fonts/Baloo2.ttf'),
       ('Lexend', 'assets/fonts/Lexend.ttf'),
@@ -46,6 +48,7 @@ void main() {
   Future<void> pumpBattle(
     WidgetTester tester, {
     SandboxMode sandbox = SandboxMode.off,
+    int level = 1,
   }) async {
     tester.view
       ..physicalSize = const Size(393, 873) * 3.0
@@ -60,6 +63,9 @@ void main() {
           cards: cards,
           deck: sandbox == SandboxMode.off ? deck : null,
           trophyRules: sandbox == SandboxMode.off ? rules : null,
+          campaign: sandbox == SandboxMode.off
+              ? CampaignBattle(level: level, config: campaign)
+              : null,
           sandbox: sandbox,
         ),
       ),
@@ -200,7 +206,6 @@ void main() {
       findsOneWidget,
       reason: 'a refused drop was treated as a deploy',
     );
-    expect(await TutorialFlags.isDone(BattleTutorial.id), isFalse);
 
     await unmount(tester);
   });
@@ -227,7 +232,6 @@ void main() {
 
     expect(find.text('Send one in'), findsNothing);
     expect(find.byType(HandGestureIndicator), findsNothing);
-    expect(await TutorialFlags.isDone(BattleTutorial.id), isTrue);
 
     final before = _clock(tester);
     await _pumpFor(tester, const Duration(seconds: 3));
@@ -240,15 +244,35 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a second match is left alone, and never held', (tester) async {
-    await TutorialFlags.setDone(BattleTutorial.id, value: true);
+  testWidgets('the marks run again every time level 1 is played', (
+    tester,
+  ) async {
+    // The reversal of the once-per-device flag. Level 1 is three taps long
+    // and exists to be replayed.
     await pumpBattle(tester);
+    expect(find.text('Blue is you'), findsOneWidget);
+    await unmount(tester);
+
+    await pumpBattle(tester);
+    expect(
+      find.text('Blue is you'),
+      findsOneWidget,
+      reason: 'the second run of level 1 was left un-taught',
+    );
+
+    await unmount(tester);
+  });
+
+  testWidgets('an ordinary level gets no marks, and is never held', (
+    tester,
+  ) async {
+    await pumpBattle(tester, level: 2);
 
     expect(find.text('Blue is you'), findsNothing);
     expect(find.byType(HandGestureIndicator), findsNothing);
 
-    // Nothing is holding the clock. The marks are the only thing that ever
-    // holds it, so a device that has seen them must find the match running.
+    // Nothing is holding the clock. This is the half that would strand every
+    // level in the game if the hold ever escaped the walkthrough.
     final before = _clock(tester);
     await _pumpFor(tester, const Duration(seconds: 3));
     expect(_clock(tester), lessThan(before));
@@ -256,15 +280,10 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('a sandbox never spends the one-shot tutorial', (tester) async {
+  testWidgets('a sandbox gets no marks', (tester) async {
     await pumpBattle(tester, sandbox: SandboxMode.paint);
 
     expect(find.text('Blue is you'), findsNothing);
-    expect(
-      await TutorialFlags.isDone(BattleTutorial.id),
-      isFalse,
-      reason: 'a debug screen burned the first-match tutorial',
-    );
 
     await unmount(tester);
   });
